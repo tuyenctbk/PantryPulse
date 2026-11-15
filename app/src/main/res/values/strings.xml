@@ -1,0 +1,147 @@
+<resources>
+    <string name="app_name">PantryPulse</string>
+    <string name="splash_tagline">Fridge Vision &amp; Zero-Waste Meal Planner</string>
+
+    <!-- Navigation -->
+    <string name="nav_pantry">Pantry</string>
+    <string name="nav_scan">Fridge Scan</string>
+    <string name="nav_recipes">Rescue Meals</string>
+    <string name="nav_chef_chat">Sous-Chef</string>
+
+    <!-- Widget -->
+    <string name="widget_description">Displays an Expiring Soon countdown badge and top items to cook before they spoil.</string>
+    <string name="widget_title">PantryPulse • Expiring Soon</string>
+    <string name="widget_empty">All fridge items are fresh!</string>
+    <string name="scan_fridge_cta">Snap Fridge Shelf</string>
+    <string name="generate_recipes_cta">Rank 3 Rescue Recipes</string>
+    <string name="add_ingredient_title">Add Ingredient Offline</string>
+    <string name="pin_widget_cta">Pin Home Widget</string>
+
+    <!-- Pantry Dashboard Screen -->
+    <string name="hero_offline_active">Offline Inventory Active</string>
+    <string name="hero_expiring_soon_badge">%1$d Expiring Soon</string>
+    <string name="hero_all_fresh_badge">All Fresh</string>
+    <string name="hero_headline">Turn Leftover Chaos Into Dinner</string>
+    <string name="hero_impact_stats">Rescued %1$d meals • $%2$.2f saved from spoilage</string>
+    <string name="hero_btn_fridge_vision">Fridge Vision</string>
+    <string name="hero_btn_rescue_meals">3 Rescue Meals</string>
+    <string name="pulse_title">Fridge Freshness Pulse</string>
+    <string name="pulse_at_risk_subtitle">$%1$.2f of groceries expiring within 72h</string>
+    <string name="pulse_cook_expiring_cta">Cook Expiring →</string>
+    <string name="pulse_legend_critical">%1$d Critical (≤1d)</string>
+    <string name="pulse_legend_soon">%1$d Soon (2–3d)</string>
+    <string name="pulse_legend_fresh">%1$d Fresh (4d+)</string>
+    <string name="widget_card_title">Home Screen Countdown Widget</string>
+    <string name="widget_card_all_fresh">Badge shows: All Fresh</string>
+    <string name="widget_card_expiring_count">Badge alerts: %1$d items expiring in ≤3 days</string>
+    <string name="widget_card_pin_sync">Pin / Sync</string>
+    <string name="restock_card_title">Smart Zero-Waste Restock List (%1$d)</string>
+    <string name="restock_card_subtitle">One-tap restock with portion &amp; storage tips</string>
+    <string name="restock_btn_hide">Hide</string>
+    <string name="restock_btn_view">View List</string>
+    <string name="restock_btn_action">Restock</string>
+    <string name="search_pantry_placeholder">Search ingredients, sauces, or condition notes…</string>
+    <string name="sort_label">Sort:</string>
+    <string name="filter_all_count">All (%1$d)</string>
+    <string name="expiry_use_today">Use Today!</string>
+    <string name="expiry_one_day">1 day left</string>
+    <string name="expiry_many_days">%1$d days left</string>
+    <string name="freshness_tip_prefix">Freshness Tip: %1$s</string>
+    <string name="btn_used_up">Used Up</string>
+    <string name="fab_manual_add">Manual Add</string>
+    <string name="empty_pantry_filtered_title">No Matching Ingredients</string>
+    <string name="empty_pantry_default_title">Your Fridge Vault Is Empty</string>
+    <string name="empty_pantry_filtered_body">Try clearing your search query or category filter.</string>
+    <string name="empty_pantry_default_body">Snap 1–2 photos of your open fridge or pantry shelf to auto-detect expiring produce, cheeses, and sauces.</string>
+    <string name="btn_reset_filters">Reset Filters</string>
+    <string name="btn_open_fridge_vision">Open Fridge Vision</string>
+    <string name="btn_add_manually">Add Manually</string>
+    <string name="dialog_add_item_title">Add Offline Fridge Item</string>
+    <string name="dialog_edit_item_title">Edit Fridge Item</string>
+    <string name="dialog_save_to_pantry">Save to Pantry</string>
+    <string name="dialog_update_item">Update Item</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_done">Done</string>
+
+    <!-- Fridge Scanner Screen -->
+    <string name="scanner_title">Fridge &amp; Receipt Vision</string>
+    <string name="scanner_manual_input_btn">Manual Input</string>
+    <string name="scanner_inspecting_shelves">Gemini Vision Inspecting Shelves (%1$s)…</string>
+    <string name="scanner_extracting_receipt">Gemini Extracting Receipt Items (%1$s)…</string>
+    <string name="scanner_hygiene_subtitle">Downscaling ≤896px • Checking 45s Dedup Cache</string>
+    <string name="scanner_error_title">Vision Scan Issue (0 Credits Charged)</string>
+    <string name="scanner_local_fallback_btn">Use 1-Tap Local Shelf Check-In (0 Cloud Credits)</string>
+    <string name="scanner_inspection_complete">Inspection Complete</string>
+    <string name="scanner_save_selected_btn">Save %1$d Items to Offline Pantry &amp; Widget</string>
+    <string name="scanner_permission_title">CameraX Fridge Viewfinder</string>
+    <string name="scanner_permission_subtitle">Grant Camera permission for live low-light EV boost &amp; tap-to-focus, or use Photo Picker / Instant Demo.</string>
+    <string name="scanner_enable_camerax_btn">Enable CameraX</string>
+    <string name="scanner_photo_picker_btn">Photo Picker</string>
+    <string name="scanner_demo_fridge_btn">Instant Demo: Capture &amp; Ingest Stocked Fridge Shelf</string>
+    <string name="scanner_demo_receipt_btn">Instant Demo: Capture &amp; Ingest Grocery Receipt</string>
+    <string name="scanner_context_hint_label">Context Hint for Gemini (e.g., Back drawer has opened marinara &amp; feta)</string>
+
+    <!-- Manual & Voice Input Screen -->
+    <string name="manual_screen_title">Manual &amp; Voice Input</string>
+    <string name="manual_screen_subtitle">No camera needed • Speak a grocery list or log items manually (%1$d in pantry)</string>
+    <string name="voice_card_title">Hands-Free Voice-to-Inventory AI</string>
+    <string name="voice_card_subtitle">Speak a multi-item grocery phrase • Auto-falls back to 0-Credit Local Parser if offline/quota full</string>
+    <string name="voice_btn_speak">Speak</string>
+    <string name="voice_sample_dictations_label">1-Tap Sample Spoken Dictations:</string>
+    <string name="voice_transcript_label">Spoken Grocery Transcript (e.g., Half bag spinach 2 days, 6 eggs, half jar pesto)</string>
+    <string name="voice_btn_ai_parse">AI Parse to Basket</string>
+    <string name="voice_btn_local_parse">Local Parse (0 Credits)</string>
+    <string name="quick_presets_title">1-Tap Quick-Add Staples</string>
+    <string name="quick_presets_subtitle">Tap any item to pre-fill form, or tap + to queue into your batch basket</string>
+    <string name="custom_builder_title">Custom Ingredient Details</string>
+    <string name="custom_name_label">Ingredient Name (e.g., Wilted Kale, Half-Jar Salsa, Brie)</string>
+    <string name="custom_category_label">Shelf / Fridge Category:</string>
+    <string name="custom_quantity_label">Quantity / Portion Remaining</string>
+    <string name="custom_spoilage_label">Estimated Spoilage Countdown:</string>
+    <string name="custom_value_label">Estimated Grocery Value:</string>
+    <string name="custom_note_label">Freshness / Shelf Note (e.g., Opened Tuesday, slightly wilting)</string>
+    <string name="btn_queue_in_batch">Queue in Batch</string>
+    <string name="staged_basket_title">Staged Grocery Basket (%1$d Items)</string>
+    <string name="staged_save_all_btn">Save All %1$d Items to Offline Pantry &amp; Widget</string>
+
+    <!-- Rescue Recipes Screen -->
+    <string name="recipes_screen_title">3 Ranked Rescue Recipes</string>
+    <string name="recipes_screen_subtitle">Ranked by Uses up expiring items first (%1$d urgent items in fridge) and customized to your exact appliances &amp; spice rack.</string>
+    <string name="recipes_search_filter_title">Search &amp; Filter Generated Recipes</string>
+    <string name="recipes_showing_count">Showing %1$d of %2$d recipes</string>
+    <string name="recipes_reset_all">Reset All</string>
+    <string name="recipes_search_placeholder">Search recipes, ingredients, spices, or appliances…</string>
+    <string name="recipes_style_category_label">Recipe Style Category:</string>
+    <string name="recipes_all_styles">All Styles</string>
+    <string name="recipes_dietary_label">Dietary Preference:</string>
+    <string name="recipes_available_ingredients_label">Filter by Available Fridge Ingredients:</string>
+    <string name="kitchen_setup_title">My Appliances &amp; Spice Rack</string>
+    <string name="kitchen_setup_subtitle">%1$d appliances • %2$d spices active</string>
+    <string name="recipes_craving_label">Craving or Custom Chef Note (e.g., 15-min pasta, extra crispy, spicy)</string>
+    <string name="recipes_empty_filtered_title">No Cached Recipes Match Active Filters</string>
+    <string name="recipes_empty_filtered_body">Generate 3 new rescue recipes tailored to your selected dietary preferences and available fridge ingredients, or reset filters to view all.</string>
+    <string name="recipes_btn_generate_matching">Generate Matching Recipes</string>
+    <string name="recipes_why_it_rescues">Why It Rescues:</string>
+    <string name="recipes_ingredients_used">Expiring &amp; Available Ingredients Used:</string>
+    <string name="recipes_btn_chef_card">Chef Card</string>
+    <string name="recipes_btn_cook_steps">Cook (%1$d Steps)</string>
+    <string name="recipes_complete_meal_btn">Mark Meal Cooked &amp; Consume Expiring Items</string>
+
+    <!-- Sous-Chef Chat Screen -->
+    <string name="chat_title">Zero-Waste Sous-Chef (%1$s)</string>
+    <string name="chat_subtitle">6-Turn Sliding Context • Substitutions &amp; Spoilage Safety Fact-Check</string>
+    <string name="chat_hands_free_on">Voice On</string>
+    <string name="chat_hands_free_off">Hands-Free</string>
+    <string name="chat_input_placeholder">Ask about substitutions, spoilage safety, or appliances…</string>
+
+    <!-- Quota & Privacy -->
+    <string name="quota_pill_standard">Standard • %1$d left</string>
+    <string name="quota_pill_eco_lite">Eco Lite ⚡ • %1$d left</string>
+    <string name="quota_pill_local">Local Tier 3 🛡️ • 0 Cloud</string>
+    <string name="quota_soft_nudge_switch">Switch to Eco Lite Mode</string>
+    <string name="quota_recovery_title">Smart Quota Recovery • Never Lose Progress</string>
+    <string name="quota_recovery_subtitle">Standard cloud allowance reached — choose how to continue:</string>
+    <string name="value_receipt_title">AI Value Receipt &amp; Quota Guardrails</string>
+    <string name="privacy_policy_btn">Privacy Policy</string>
+    <string name="privacy_policy_dialog_title">PantryPulse Privacy Policy</string>
+</resources>

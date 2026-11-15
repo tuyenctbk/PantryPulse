@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Viewfinder corner brackets inside 66dp safe zone -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,42 L33,35 C33,33.9 33.9,33 35,33 L42,33 L42,37 L37,37 L37,42 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M75,42 L75,35 C75,33.9 74.1,33 73,33 L66,33 L66,37 L71,37 L71,42 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33,66 L33,73 C33,74.1 33.9,75 35,75 L42,75 L42,71 L37,71 L37,66 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M75,66 L75,73 C75,74.1 74.1,75 73,75 L66,75 L66,71 L71,71 L71,66 Z" />
+    <!-- Bold botanical leaf silhouette -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,36 C44,42 40,51 42,60 C43.5,66.5 48.5,70.5 52,72 L52,51 L56,51 L56,72 C59.5,70.5 64.5,66.5 66,60 C68,51 64,42 54,36 Z" />
+</vector>

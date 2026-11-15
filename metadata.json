@@ -1,0 +1,6 @@
+{
+  "name": "PantryPulse",
+  "description": "Fridge vision and zero-waste meal planner with CameraX, Gemini multimodal ingredient detection, recipe ranking, offline inventory, and an Expiring Soon home screen widget.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
