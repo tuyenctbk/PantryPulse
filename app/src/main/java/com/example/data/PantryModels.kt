@@ -128,6 +128,9 @@ data class PantryItemEntity(
     val visualConditionNote: String,
     val storageTip: String,
     val estimatedValueDollars: Double = 3.50,
+    val stockPercent: Int = 100,
+    val lowStockThresholdPercent: Int = 30,
+    val autoAddToShoppingList: Boolean = true,
     val isConsumed: Boolean = false,
     val addedTimestamp: Long = System.currentTimeMillis()
 ) {
@@ -136,6 +139,9 @@ data class PantryItemEntity(
 
     val parsedCategory: PantryCategory
         get() = PantryCategory.fromString(category)
+
+    val isLowStock: Boolean
+        get() = stockPercent <= lowStockThresholdPercent
 }
 
 @Entity(tableName = "restock_items")
@@ -147,6 +153,10 @@ data class RestockItemEntity(
     val defaultExpiryDays: Int,
     val zeroWasteBuyingTip: String,
     val estimatedCostDollars: Double = 3.50,
+    val triggerReason: String = "Auto-Added: Low Stock Threshold",
+    val isAutoAdded: Boolean = true,
+    val isChecked: Boolean = false,
+    val sourcePantryItemId: Long? = null,
     val addedTimestamp: Long = System.currentTimeMillis()
 ) {
     val parsedCategory: PantryCategory
@@ -255,7 +265,6 @@ data class RecipeSuggestion(
         val allRecipeIngs = (expiringIngredientsUsed + pantryIngredientsUsed).joinToString(" ").lowercase()
         val targetLower = pantryItemName.trim().lowercase()
         if (allRecipeIngs.contains(targetLower)) return true
-        // Also match significant keywords (>= 4 chars) from the pantry ingredient name, e.g. "spinach", "tomato", "pesto", "cheddar"
         val significantWords = targetLower.split(" ", "-", "/")
             .map { it.trim() }
             .filter { it.length >= 4 && it !in setOf("half", "pack", "clamshell", "jar", "tube", "wedge", "fresh") }
@@ -306,3 +315,48 @@ data class ChatMessage(
     val isStreaming: Boolean = false,
     val timestamp: Long = System.currentTimeMillis()
 )
+
+enum class PreservationMethodType(
+    val label: String,
+    val badgeEmoji: String,
+    val defaultBonusDays: Int
+) {
+    FREEZE_LOCK("Freeze & Lock", "❄️", 45),
+    BLANCH_FREEZE("Blanch & Ice Shock", "♨️", 60),
+    HERB_OIL_CUBE("Oil / Pesto Ice Cube", "🧊", 30),
+    QUICK_PICKLE("Quick Brine / Pickle", "🫙", 21),
+    HYDRO_CRISPER_WRAP("Paper-Towel Hydro Wrap", "🥬", 6),
+    AIRTIGHT_OIL_SEAL("Wax Wrap / Oil Seal", "🔒", 14);
+
+    companion object {
+        fun fromString(raw: String): PreservationMethodType {
+            val upper = raw.uppercase()
+            return entries.firstOrNull { it.name == upper }
+                ?: when {
+                    upper.contains("BLANCH") || upper.contains("SHOCK") -> BLANCH_FREEZE
+                    upper.contains("CUBE") || upper.contains("ICE") || upper.contains("TRAY") -> HERB_OIL_CUBE
+                    upper.contains("PICKLE") || upper.contains("BRINE") || upper.contains("VINEGAR") -> QUICK_PICKLE
+                    upper.contains("TOWEL") || upper.contains("HYDRO") || upper.contains("CRISPER") -> HYDRO_CRISPER_WRAP
+                    upper.contains("SEAL") || upper.contains("WAX") || upper.contains("PARCHMENT") -> AIRTIGHT_OIL_SEAL
+                    else -> FREEZE_LOCK
+                }
+        }
+    }
+}
+
+data class PreservationGuide(
+    val id: String,
+    val itemId: Long,
+    val ingredientName: String,
+    val category: PantryCategory,
+    val currentDaysLeft: Int,
+    val extendedShelfLifeDays: Int,
+    val methodType: PreservationMethodType,
+    val urgencyHeadline: String,
+    val personalizedStorageTip: String,
+    val preservationSteps: List<String>,
+    val bestUseAfterPreserving: String,
+    val estimatedSavingsDollars: Double,
+    val isApplied: Boolean = false
+)
+

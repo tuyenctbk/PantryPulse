@@ -10,6 +10,8 @@ import com.example.data.DetectedIngredient
 import com.example.data.KitchenSetupState
 import com.example.data.PantryCategory
 import com.example.data.PantryItemEntity
+import com.example.data.PreservationGuide
+import com.example.data.PreservationMethodType
 import com.example.data.RecipeCategoryFilter
 import com.example.data.RecipeSuggestion
 import com.example.data.ScanCaptureMode
@@ -41,6 +43,7 @@ class PantryAiService {
 
     private var cachedVisionResult: CachedEntry<Pair<String, List<DetectedIngredient>>>? = null
     private var cachedRecipeResult: CachedEntry<List<RecipeSuggestion>>? = null
+    private var cachedPreservationResult: CachedEntry<Pair<String, List<PreservationGuide>>>? = null
 
     private val visionSchema = Schema.obj(
         properties = mapOf(
@@ -120,6 +123,41 @@ class PantryAiService {
         )
     )
 
+    private val preservationSchema = Schema.obj(
+        properties = mapOf(
+            "analysisSummary" to Schema.string(
+                description = "A concise 1-sentence executive summary of the fridge's shelf-life risk and total extendable days."
+            ),
+            "guides" to Schema.array(
+                description = "Personalized zero-waste storage & preservation guides for ingredients nearing expiration.",
+                items = Schema.obj(
+                    properties = mapOf(
+                        "ingredientName" to Schema.string(description = "Exact name of the ingredient from the user's inventory"),
+                        "methodType" to Schema.enumeration(
+                            values = listOf(
+                                "FREEZE_LOCK",
+                                "BLANCH_FREEZE",
+                                "HERB_OIL_CUBE",
+                                "QUICK_PICKLE",
+                                "HYDRO_CRISPER_WRAP",
+                                "AIRTIGHT_OIL_SEAL"
+                            ),
+                            description = "Best culinary preservation technique for this specific ingredient"
+                        ),
+                        "extendedShelfLifeDays" to Schema.integer(description = "Additional days of shelf life gained by applying this preservation method (e.g. 60 for blanch & freeze greens, 30 for herb/pesto oil cubes, 21 for quick pickle)"),
+                        "urgencyHeadline" to Schema.string(description = "Short actionable headline explaining why & how to preserve this item now"),
+                        "personalizedStorageTip" to Schema.string(description = "Immediate fridge zone, humidity, and wrapping tip to slow spoilage right now"),
+                        "preservationSteps" to Schema.array(
+                            items = Schema.string(),
+                            description = "3 clear, specific step-by-step instructions (e.g. how to blanch/flash-freeze specific greens, freeze sauces in ice cube trays, or wax-wrap cheese)"
+                        ),
+                        "bestUseAfterPreserving" to Schema.string(description = "How to cook with the preserved/frozen ingredient later without losing flavor or texture")
+                    )
+                )
+            )
+        )
+    )
+
     // Tier 1 Primary Models (lazy)
     private val primaryVisionModel by lazy {
         Firebase.ai.generativeModel(
@@ -137,6 +175,16 @@ class PantryAiService {
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
                 responseSchema = recipeRankingSchema
+            }
+        )
+    }
+
+    private val primaryPreservationModel by lazy {
+        Firebase.ai.generativeModel(
+            modelName = AiModelConfig.PRIMARY_REASONING_MODEL,
+            generationConfig = generationConfig {
+                responseMimeType = "application/json"
+                responseSchema = preservationSchema
             }
         )
     }
@@ -164,6 +212,16 @@ class PantryAiService {
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
                 responseSchema = recipeRankingSchema
+            }
+        )
+    }
+
+    private val economyPreservationModel by lazy {
+        Firebase.ai.generativeModel(
+            modelName = AiModelConfig.ECONOMY_LITE_MODEL,
+            generationConfig = generationConfig {
+                responseMimeType = "application/json"
+                responseSchema = preservationSchema
             }
         )
     }
@@ -492,6 +550,133 @@ class PantryAiService {
         cachedVoiceParseResult = CachedEntry(fingerprint, now, parsed)
         return AiInferenceResult(
             data = parsed,
+            tierUsed = actualTier,
+            autoCascadedToLite = cascaded
+        )
+    }
+
+    /**
+     * Analyzes the user's inventory shelf-life data using Gemini structured JSON output
+     * to generate personalized zero-waste storage tips and step-by-step preservation methods
+     * (e.g., how to blanch/freeze specific leafy greens, freeze pesto/sauces in ice cube trays,
+     * quick-pickle cut vegetables, or parchment-wrap cheeses) for ingredients nearing expiration.
+     */
+    suspend fun analyzeShelfLifeAndPreservation(
+        items: List<PantryItemEntity>,
+        preferredTier: AiCapabilityTier = AiCapabilityTier.TIER_1_PRIMARY
+    ): AiInferenceResult<Pair<String, List<PreservationGuide>>> {
+        val sortedByUrgency = items.sortedWith(
+            compareBy<PantryItemEntity> { it.daysUntilExpiry }
+                .thenByDescending { it.estimatedValueDollars }
+        )
+        val targetItems = sortedByUrgency.filter { it.daysUntilExpiry <= 4 }
+            .ifEmpty { sortedByUrgency.take(5) }
+
+        val inventoryBlock = targetItems.joinToString("\n") { item ->
+            "- ID=${item.id} | ${item.name} (${item.quantity}, Category: ${item.parsedCategory.displayName}): " +
+                "${item.daysUntilExpiry} day(s) left, Est. Value $${String.format("%.2f", item.estimatedValueDollars)} — " +
+                "Condition: ${item.visualConditionNote}"
+        }
+
+        val prompt = """
+            You are PantryPulse Zero-Waste Food Scientist & Preservation Coach.
+            Analyze the shelf-life data of these refrigerator/pantry ingredients nearing expiration:
+            $inventoryBlock
+
+            For each ingredient listed above, provide:
+            1. The optimal preservation methodType (BLANCH_FREEZE for leafy greens like spinach/kale/arugula, HERB_OIL_CUBE for tender herbs/pesto/sauces, FREEZE_LOCK for tomatoes/berries/proteins, QUICK_PICKLE for cut peppers/onions/cucumbers, AIRTIGHT_OIL_SEAL for aged cheeses/opened jars, or HYDRO_CRISPER_WRAP for crisp produce).
+            2. Realistic extendedShelfLifeDays gained (e.g. 45 to 60 days for freezing/blanching greens, 30 days for oil cubes or shredded cheese freezing, 21 days for quick pickling).
+            3. A personalizedStorageTip for immediate fridge zone, humidity, and wrapping.
+            4. 3 detailed, actionable preservationSteps tailored to that exact ingredient (e.g., exact blanching + ice-bath shock timing for baby spinach, or freezing pesto in ice cube trays with an olive oil cap).
+            5. bestUseAfterPreserving explaining how to cook with it directly from frozen/preserved state without losing texture.
+        """.trimIndent()
+
+        val fingerprint = AiModelConfig.computeRequestFingerprint("PRESERVE_$prompt")
+        val now = System.currentTimeMillis()
+        cachedPreservationResult?.let { cached ->
+            if (cached.fingerprint == fingerprint && (now - cached.timestampMs) <= AiModelConfig.DEDUP_CACHE_TTL_MS) {
+                return AiInferenceResult(
+                    data = cached.payload,
+                    tierUsed = preferredTier,
+                    fromDedupCache = true
+                )
+            }
+        }
+
+        val (responseText, actualTier, cascaded) = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
+            val res = economyPreservationModel.generateContent(prompt)
+            Triple(res.text, AiCapabilityTier.TIER_2_ECO_LITE, false)
+        } else {
+            try {
+                val res = primaryPreservationModel.generateContent(prompt)
+                Triple(res.text, AiCapabilityTier.TIER_1_PRIMARY, false)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (isQuotaOrRateLimitException(e)) {
+                    Log.w("PantryAiService", "Tier 1 preservation coach hit rate-limit, auto-cascading to Tier 2 Economy Lite", e)
+                    val fallbackRes = economyPreservationModel.generateContent(prompt)
+                    Triple(fallbackRes.text, AiCapabilityTier.TIER_2_ECO_LITE, true)
+                } else {
+                    throw e
+                }
+            }
+        }
+
+        val jsonString = responseText ?: throw IllegalStateException("Shelf-Life Preservation AI returned empty text.")
+        val root = JSONObject(jsonString)
+        val summary = root.optString(
+            "analysisSummary",
+            "Personalized zero-waste preservation & freezing plan ready for ${targetItems.size} expiring ingredients."
+        )
+        val guidesArr = root.getJSONArray("guides")
+        val parsedGuides = (0 until guidesArr.length()).map { idx ->
+            val obj = guidesArr.getJSONObject(idx)
+            val rawName = obj.optString("ingredientName", "Pantry Item")
+            val matchedEntity = targetItems.firstOrNull {
+                it.name.equals(rawName, ignoreCase = true) ||
+                    it.name.contains(rawName, ignoreCase = true) ||
+                    rawName.contains(it.name, ignoreCase = true)
+            } ?: targetItems.getOrElse(idx) { targetItems.first() }
+
+            val stepsJson = obj.optJSONArray("preservationSteps")
+            val steps = if (stepsJson != null && stepsJson.length() > 0) {
+                (0 until stepsJson.length()).map { stepsJson.getString(it) }
+            } else {
+                LocalCulinaryFallbackEngine.buildPreservationGuideForItem(matchedEntity).preservationSteps
+            }
+            val method = PreservationMethodType.fromString(obj.optString("methodType", "FREEZE_LOCK"))
+
+            PreservationGuide(
+                id = "ai-preserve-${matchedEntity.id}-$idx",
+                itemId = matchedEntity.id,
+                ingredientName = matchedEntity.name,
+                category = matchedEntity.parsedCategory,
+                currentDaysLeft = matchedEntity.daysUntilExpiry,
+                extendedShelfLifeDays = obj.optInt("extendedShelfLifeDays", method.defaultBonusDays).coerceIn(5, 90),
+                methodType = method,
+                urgencyHeadline = obj.optString(
+                    "urgencyHeadline",
+                    "Extend ${matchedEntity.name} by +${method.defaultBonusDays} days via ${method.label}"
+                ),
+                personalizedStorageTip = obj.optString(
+                    "personalizedStorageTip",
+                    matchedEntity.storageTip
+                ),
+                preservationSteps = steps,
+                bestUseAfterPreserving = obj.optString(
+                    "bestUseAfterPreserving",
+                    "Cook directly from preserved state in skillets, soups, or frittatas."
+                ),
+                estimatedSavingsDollars = matchedEntity.estimatedValueDollars,
+                isApplied = matchedEntity.visualConditionNote.contains("Preserved via", ignoreCase = true)
+            )
+        }
+
+        val payload = summary to parsedGuides
+        cachedPreservationResult = CachedEntry(fingerprint, now, payload)
+        return AiInferenceResult(
+            data = payload,
             tierUsed = actualTier,
             autoCascadedToLite = cascaded
         )

@@ -128,11 +128,11 @@
     <h1>Privacy Policy for PantryPulse</h1>
     <div class="subtitle">
       <strong>Application:</strong> PantryPulse — Fridge Vision &amp; Zero-Waste Meal Planner (<code>com.example.pantrypulse</code>)<br />
-      <strong>Effective Date:</strong> November 15, 2026 &nbsp;•&nbsp; <strong>Last Updated:</strong> November 15, 2026
+      <strong>Effective Date:</strong> November 17, 2026 &nbsp;•&nbsp; <strong>Last Updated:</strong> November 17, 2026
     </div>
 
     <div class="callout">
-      <strong>Privacy Summary:</strong> PantryPulse is built with an <strong>Offline-First, Privacy-By-Design</strong> architecture. Your fridge inventory, expiration countdowns, kitchen appliance profile, and saved rescue recipes are stored locally on your Android device in an encrypted-capable SQLite (Room) database and Jetpack DataStore. We do not sell personal data, display third-party behavioral advertising, or track your location.
+      <strong>Privacy Summary:</strong> PantryPulse is built with an <strong>Offline-First, 100% Ad-Free, Privacy-By-Design</strong> architecture. Your fridge inventory, expiration countdowns, Smart Shopping List, Shelf-Life Preservation Coach plans, kitchen appliance profile, local engagement telemetry, and saved rescue recipes are stored locally on your Android device in an encrypted-capable SQLite (Room) database and SharedPreferences. We do not sell personal data, display third-party behavioral advertising, or track your location.
     </div>
 
     <h2>1. Information We Collect &amp; How It Is Stored</h2>
@@ -147,8 +147,8 @@
       </thead>
       <tbody>
         <tr>
-          <td><strong>Pantry &amp; Fridge Inventory</strong><br />(Ingredient names, quantities, spoilage countdowns, shelf notes)</td>
-          <td>Entered manually by you, dictated via voice, or extracted from a fridge/receipt scan you initiate.</td>
+          <td><strong>Pantry Inventory &amp; Smart Shopping List</strong><br />(Ingredient names, stock %, spoilage countdowns, low-stock threshold items)</td>
+          <td>Entered manually by you, dictated via voice, auto-populated when stock drops &le;25%, or extracted from a fridge/receipt scan you initiate.</td>
           <td>Stored locally on your device using Android Room SQLite Database &amp; Glance Home Widget state.</td>
           <td>No. Never sold or shared with advertisers.</td>
         </tr>
@@ -159,16 +159,22 @@
           <td>Processed transiently by Google Cloud / Firebase AI Logic to fulfill your scan request.</td>
         </tr>
         <tr>
-          <td><strong>Voice Dictation &amp; Sous-Chef Prompts</strong></td>
-          <td>Initiated only when you tap the Speak / Microphone button via the system <code>RecognizerIntent</code> speech recognizer or type a culinary question.</td>
+          <td><strong>Voice Dictation, Shelf-Life Coach &amp; Sous-Chef Prompts</strong></td>
+          <td>Initiated only when you tap the Speak / Microphone button via the system <code>RecognizerIntent</code> speech recognizer, request Shelf-Life Preservation analysis, or type a culinary question.</td>
           <td>Processed via Android system speech recognition and/or Firebase AI Logic (or 100% on-device when Local Tier 3 Mode is enabled).</td>
           <td>No advertising or profiling use.</td>
         </tr>
         <tr>
-          <td><strong>AI Quota &amp; Preference Settings</strong></td>
-          <td>Daily AI interaction counters, Eco Lite Mode toggle, and Local Tier 3 toggle.</td>
-          <td>Stored locally in Android SharedPreferences / Jetpack DataStore.</td>
+          <td><strong>Local App Event Log, AI Quota &amp; Cooldown Preferences</strong></td>
+          <td>On-device task counters, non-intrusive popup cooldown timestamps, Eco Lite Mode toggle, and Local Tier 3 toggle.</td>
+          <td>Stored strictly on-device in Android SharedPreferences.</td>
           <td>No.</td>
+        </tr>
+        <tr>
+          <td><strong>Optional Voluntary Supporter Contributions</strong></td>
+          <td>Initiated only if you voluntarily choose to support development via Google Play In-App Billing, PayPal deep link/QR, or Ko-fi web link.</td>
+          <td>Processed directly by Google Play Billing (<code>com.android.billingclient</code>) or your chosen external payment provider. PantryPulse only stores a local boolean supporter badge flag on your device.</td>
+          <td>Handled exclusively by Google Play or the payment platform you open.</td>
         </tr>
       </tbody>
     </table>
@@ -183,13 +189,13 @@
     <h2>3. Artificial Intelligence Processing &amp; Zero-Cloud Local Mode</h2>
     <p>PantryPulse provides a transparent 3-Tier AI capability architecture:</p>
     <ul>
-      <li><strong>Tier 1 (Standard Cloud AI) &amp; Tier 2 (Eco Lite Cloud AI):</strong> When online and within your daily free-tier allowance, fridge photos (downscaled to &le;896px), pantry ingredient names, and selected kitchen appliances are sent over encrypted TLS to Google Firebase AI Logic (Gemini models) to detect ingredients, estimate expiration days, and generate ranked zero-waste rescue recipes.</li>
-      <li><strong>Tier 3 (100% On-Device Local Culinary Engine):</strong> You can enable <strong>Local Tier 3 Mode</strong> at any time from the AI Value Receipt &amp; Quota Guardrails dialog (or automatically when offline). In Local Tier 3 Mode, all recipe synthesis, spoken grocery parsing, visual chef plating cards, and Sous-Chef Q&amp;A execute deterministically on your device with <strong>zero cloud transmissions</strong>.</li>
+      <li><strong>Tier 1 (Standard Cloud AI) &amp; Tier 2 (Eco Lite Cloud AI):</strong> When online and within your daily free-tier allowance, fridge photos (downscaled to &le;896px), pantry ingredient names, shelf-life preservation queries, and selected kitchen appliances are sent over encrypted TLS to Google Firebase AI Logic (Gemini models) to detect ingredients, estimate expiration days, recommend zero-waste preservation methods, and generate ranked rescue recipes.</li>
+      <li><strong>Tier 3 (100% On-Device Local Culinary Engine):</strong> You can enable <strong>Local Tier 3 Mode</strong> at any time from the AI Value Receipt &amp; Quota Guardrails dialog (or automatically when offline). In Local Tier 3 Mode, all recipe synthesis, shelf-life preservation tips, spoken grocery parsing, visual chef plating cards, and Sous-Chef Q&amp;A execute deterministically on your device with <strong>zero cloud transmissions</strong>.</li>
     </ul>
 
     <h2>4. Data Retention, User Control &amp; Deletion</h2>
     <ul>
-      <li><strong>Full On-Device Control:</strong> You can edit, mark as consumed ("Used Up"), or permanently delete any ingredient or recipe at any time directly inside the PantryPulse app.</li>
+      <li><strong>Full On-Device Control:</strong> You can edit, mark as consumed ("Used Up"), restock via the Smart Shopping List, clear local event logs, or permanently delete any ingredient or recipe at any time directly inside the PantryPulse app.</li>
       <li><strong>Instant Complete Wipe:</strong> Clearing the application storage in Android Settings (<em>Settings &rarr; Apps &rarr; PantryPulse &rarr; Storage &amp; cache &rarr; Clear storage</em>) or uninstalling PantryPulse immediately and permanently erases all local Room database records, cached recipes, and preferences.</li>
     </ul>
 

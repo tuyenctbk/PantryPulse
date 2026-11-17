@@ -5,6 +5,8 @@ import com.example.data.DetectedIngredient
 import com.example.data.KitchenSetupState
 import com.example.data.PantryCategory
 import com.example.data.PantryItemEntity
+import com.example.data.PreservationGuide
+import com.example.data.PreservationMethodType
 import com.example.data.RecipeCategoryFilter
 import com.example.data.RecipeSuggestion
 import com.example.data.ScanCaptureMode
@@ -360,5 +362,225 @@ object LocalCulinaryFallbackEngine {
     private fun parseCustomNoteIngredients(note: String): List<DetectedIngredient> {
         if (note.isBlank()) return emptyList()
         return parseVoiceTranscriptLocally(note)
+    }
+
+    /**
+     * Tier 3 Zero-Cost Shelf-Life & Preservation Engine:
+     * Analyzes inventory shelf-life data and generates personalized zero-waste storage tips
+     * and step-by-step preservation methods (e.g., how to blanch/freeze specific leafy greens,
+     * freeze herb/pesto cubes, quick-pickle vegetables, or parchment-wrap cheeses) for expiring items.
+     */
+    fun synthesizePreservationGuidesLocally(
+        items: List<PantryItemEntity>
+    ): Pair<String, List<PreservationGuide>> {
+        if (items.isEmpty()) {
+            return "Add ingredients to your pantry to unlock personalized shelf-life & freezing guides." to emptyList()
+        }
+
+        val sortedByUrgency = items.sortedWith(
+            compareBy<PantryItemEntity> { it.daysUntilExpiry }
+                .thenByDescending { it.estimatedValueDollars }
+        )
+        val expiringCandidates = sortedByUrgency.filter { it.daysUntilExpiry <= 4 }
+            .ifEmpty { sortedByUrgency.take(4) }
+
+        val guides = expiringCandidates.map { item ->
+            buildPreservationGuideForItem(item)
+        }
+
+        val totalExtendableValue = guides.sumOf { it.estimatedSavingsDollars }
+        val criticalCount = guides.count { it.currentDaysLeft <= 1 }
+        val summary = buildString {
+            append("Analyzed ${items.size} pantry items: ")
+            append("${guides.size} ingredient(s) ")
+            if (criticalCount > 0) {
+                append("($criticalCount critical ≤24h) ")
+            }
+            append("can be preserved right now to protect ~$${String.format("%.2f", totalExtendableValue)} in groceries and extend shelf life up to +60 days.")
+        }
+
+        return summary to guides
+    }
+
+    fun buildPreservationGuideForItem(item: PantryItemEntity): PreservationGuide {
+        val lower = (item.name + " " + item.visualConditionNote).lowercase()
+        val category = item.parsedCategory
+        val alreadyPreserved = item.visualConditionNote.contains("Preserved via", ignoreCase = true)
+
+        return when {
+            // Specific Leafy Greens (Spinach, Kale, Arugula, Chard, Collards, Herbs)
+            lower.contains("spinach") || lower.contains("arugula") || lower.contains("kale") ||
+                lower.contains("greens") || lower.contains("chard") || lower.contains("lettuce") ||
+                lower.contains("cilantro") || lower.contains("parsley") || lower.contains("basil") -> {
+                val isTenderGreen = lower.contains("spinach") || lower.contains("arugula") || lower.contains("kale") || lower.contains("greens")
+                val method = if (isTenderGreen) {
+                    PreservationMethodType.BLANCH_FREEZE
+                } else {
+                    PreservationMethodType.HERB_OIL_CUBE
+                }
+                val bonusDays = if (isTenderGreen) 60 else 45
+                PreservationGuide(
+                    id = "preserve-${item.id}",
+                    itemId = item.id,
+                    ingredientName = item.name,
+                    category = category,
+                    currentDaysLeft = item.daysUntilExpiry,
+                    extendedShelfLifeDays = bonusDays,
+                    methodType = method,
+                    urgencyHeadline = if (item.daysUntilExpiry <= 1) {
+                        "Wilting Alert (${item.daysUntilExpiry}d left) — Lock in Chlorophyll & Nutrients Today"
+                    } else {
+                        "Preserve Leafy Greens Before Moisture Breakdown (${item.daysUntilExpiry}d left)"
+                    },
+                    personalizedStorageTip = "Immediate Fridge Tip: Line the clamshell or bag with 2 dry paper towels to wick condensation and store in the high-humidity crisper drawer away from ethylene-producing fruit.",
+                    preservationSteps = if (isTenderGreen) {
+                        listOf(
+                            "1. Rinse & Sort: Discard any slimy stems from ${item.name}; slightly wilted leaves are 100% safe and ideal for freezing.",
+                            "2. 60-Second Steam/Blanch (Best Texture) or Dry Flash-Freeze: Plunge greens into boiling water for 60 seconds, then immediately transfer to an ice-water bath for 1 minute to deactivate enzymes that cause bitterness and browning.",
+                            "3. Squeeze & Portion into Freeze Pucks: Squeeze out excess water, roll into tight 2-tbsp balls (or pack dry leaves flat into a freezer bag with all air pressed out), and freeze on a parchment-lined tray before sealing."
+                        )
+                    } else {
+                        listOf(
+                            "1. Finely chop ${item.name} (stems included for cilantro/parsley) before leaves darken.",
+                            "2. Pack chopped greens two-thirds full into an ice cube tray and cover with Extra Virgin Olive Oil or melted butter.",
+                            "3. Freeze solid for 3 hours, then pop herb-oil cubes into a labeled freezer bag for up to 45 days."
+                        )
+                    },
+                    bestUseAfterPreserving = "Drop frozen green pucks straight into hot skillets, frittatas, smoothies, pasta sauces, or soups without thawing first.",
+                    estimatedSavingsDollars = item.estimatedValueDollars,
+                    isApplied = alreadyPreserved
+                )
+            }
+
+            // Tomatoes (Cherry tomatoes, Roma, heirloom)
+            lower.contains("tomato") -> {
+                PreservationGuide(
+                    id = "preserve-${item.id}",
+                    itemId = item.id,
+                    ingredientName = item.name,
+                    category = category,
+                    currentDaysLeft = item.daysUntilExpiry,
+                    extendedShelfLifeDays = 45,
+                    methodType = PreservationMethodType.FREEZE_LOCK,
+                    urgencyHeadline = "Wrinkling Skins = Peak Sugar Concentration (${item.daysUntilExpiry}d left)",
+                    personalizedStorageTip = "Immediate Storage Tip: Store stem-side down in a single layer on the front middle shelf; stem-scar sealing slows moisture loss by 40%.",
+                    preservationSteps = listOf(
+                        "1. Wash & Dry Thoroughly: Wipe ${item.name} completely dry so ice crystals don't puncture skins prematurely.",
+                        "2. Whole Sheet-Pan Flash Freeze (or 12-Min Oil Confit): Spread whole cherry tomatoes (or cored wedges) in a single layer on parchment paper and freeze for 2 hours until marbles-hard.",
+                        "3. Transfer to Airtight Freezer Bag: Squeeze out excess air and freeze up to 45 days. (Bonus: Their skins slip right off under warm tap water when removed from the freezer!)"
+                    ),
+                    bestUseAfterPreserving = "Toss frozen tomatoes directly into simmering shakshuka, skillet pasta sauces, or pan roasts—they burst into instant jammy sauce.",
+                    estimatedSavingsDollars = item.estimatedValueDollars,
+                    isApplied = alreadyPreserved
+                )
+            }
+
+            // Pesto, Herb Sauces, Paste Tubes, Opened Jars
+            category == PantryCategory.SAUCES_JARS || lower.contains("pesto") || lower.contains("paste") || lower.contains("sauce") || lower.contains("hummus") -> {
+                PreservationGuide(
+                    id = "preserve-${item.id}",
+                    itemId = item.id,
+                    ingredientName = item.name,
+                    category = category,
+                    currentDaysLeft = item.daysUntilExpiry,
+                    extendedShelfLifeDays = 35,
+                    methodType = PreservationMethodType.HERB_OIL_CUBE,
+                    urgencyHeadline = "Opened Jar Oxidation Risk (${item.daysUntilExpiry}d left) — Freeze in 1-Tbsp Cubes",
+                    personalizedStorageTip = "Immediate Fridge Tip: Scrape down the inside glass walls with a clean rubber spatula and pour a 2mm layer of Extra Virgin Olive Oil over the surface to create an anaerobic oxygen barrier.",
+                    preservationSteps = listOf(
+                        "1. Portion by Tablespoon: Spoon remaining ${item.name} (${item.quantity}) into silicone ice cube compartments (1 tbsp per slot).",
+                        "2. Seal with Olive Oil Cap: Drizzle a few drops of olive oil over each cube top to prevent freezer burn and preserve bright basil/tomato aromatics.",
+                        "3. Pop & Bag: Once frozen solid (2–3 hours), transfer cubes to a sealed container for 1-cube-at-a-time skillet cooking."
+                    ),
+                    bestUseAfterPreserving = "Swirl 1 frozen cube directly into warm pasta water, scrambled eggs, grain bowls, or pan-seared proteins.",
+                    estimatedSavingsDollars = item.estimatedValueDollars,
+                    isApplied = alreadyPreserved
+                )
+            }
+
+            // Bell Peppers, Onions, Mushrooms, Avocados, Cruciferous Produce
+            lower.contains("pepper") || lower.contains("mushroom") || lower.contains("onion") || lower.contains("avocado") || category == PantryCategory.PRODUCE -> {
+                val useQuickPickle = lower.contains("pepper") || lower.contains("onion") || lower.contains("cucumber") || lower.contains("radish")
+                val method = if (useQuickPickle) PreservationMethodType.QUICK_PICKLE else PreservationMethodType.FREEZE_LOCK
+                val bonusDays = if (useQuickPickle) 21 else 40
+                PreservationGuide(
+                    id = "preserve-${item.id}",
+                    itemId = item.id,
+                    ingredientName = item.name,
+                    category = category,
+                    currentDaysLeft = item.daysUntilExpiry,
+                    extendedShelfLifeDays = bonusDays,
+                    methodType = method,
+                    urgencyHeadline = "Cut Produce Edge Softening (${item.daysUntilExpiry}d left) — Quick-Pickle or Flash-Freeze",
+                    personalizedStorageTip = "Immediate Fridge Tip: Store cut produce cut-side down in a tight glass container lined with a dry paper towel in the crisper drawer.",
+                    preservationSteps = if (useQuickPickle) {
+                        listOf(
+                            "1. Slice Thinly: Cut remaining ${item.name} into thin strips or rings and pack into a clean glass jar.",
+                            "2. 3-Minute 1-1-1 Quick Brine: Warm 1/2 cup vinegar (or lemon juice), 1/2 cup water, 1 tsp salt, and 1 tsp sugar until dissolved, then pour over the sliced produce.",
+                            "3. Cool & Refrigerate: Seal and chill—acidity halts spoilage bacteria and extends crispness for +21 days. (Or dice raw and flash-freeze flat for +45 days!)"
+                        )
+                    } else {
+                        listOf(
+                            "1. Prep & Slice: Trim any dry edges on ${item.name} and slice into cooking-ready pieces.",
+                            "2. Quick Sauté or Flash Freeze: Spread slices on a parchment tray in the freezer for 90 minutes so pieces don't clump together.",
+                            "3. Seal Airtight: Store in a freezer-safe bag for instant stir-fries, omelets, and sheet-pan meals."
+                        )
+                    },
+                    bestUseAfterPreserving = if (useQuickPickle) {
+                        "Use tangy quick-pickled strips to brighten grain bowls, melts, tacos, salads, and frittatas."
+                    } else {
+                        "Sauté straight from frozen over high heat so moisture evaporates quickly while edges caramelize."
+                    },
+                    estimatedSavingsDollars = item.estimatedValueDollars,
+                    isApplied = alreadyPreserved
+                )
+            }
+
+            // Dairy & Cheese (Cheddar, Feta, Yogurt, Milk)
+            category == PantryCategory.DAIRY_CHEESE || lower.contains("cheddar") || lower.contains("cheese") || lower.contains("feta") || lower.contains("yogurt") -> {
+                PreservationGuide(
+                    id = "preserve-${item.id}",
+                    itemId = item.id,
+                    ingredientName = item.name,
+                    category = category,
+                    currentDaysLeft = item.daysUntilExpiry,
+                    extendedShelfLifeDays = 30,
+                    methodType = PreservationMethodType.AIRTIGHT_OIL_SEAL,
+                    urgencyHeadline = "Prevent Mold & Rind Drying (${item.daysUntilExpiry}d left) — Breathable Parchment + Pre-Grate Freeze",
+                    personalizedStorageTip = "Immediate Fridge Tip: Ditch tight plastic wrap (which traps sweating moisture and accelerates mold). Wrap cheese in wax or parchment paper first, then place loosely inside an unsealed zip bag in the cheese drawer.",
+                    preservationSteps = listOf(
+                        "1. Breathable Re-Wrap for Fridge (+14d): Wrap ${item.name} in fresh parchment/wax paper so the cheese can breathe without drying out.",
+                        "2. Pre-Grate & Freeze for Melting (+30d): If you won't finish the ${item.quantity} this week, shred or crumble it now and toss with 1/2 tsp cornstarch (or keep plain).",
+                        "3. Freeze Flat: Seal shredded cheese in a freezer bag—shredded aged cheese melts identically to fresh straight from the freezer!"
+                    ),
+                    bestUseAfterPreserving = "Sprinkle frozen shredded/crumbled cheese directly onto hot skillet frittatas, pan melts, baked pasta, or shakshuka.",
+                    estimatedSavingsDollars = item.estimatedValueDollars,
+                    isApplied = alreadyPreserved
+                )
+            }
+
+            // Proteins, Eggs, Deli, or Leftovers
+            else -> {
+                PreservationGuide(
+                    id = "preserve-${item.id}",
+                    itemId = item.id,
+                    ingredientName = item.name,
+                    category = category,
+                    currentDaysLeft = item.daysUntilExpiry,
+                    extendedShelfLifeDays = 30,
+                    methodType = PreservationMethodType.FREEZE_LOCK,
+                    urgencyHeadline = "Extend Protein / Staple Shelf-Life (${item.daysUntilExpiry}d left)",
+                    personalizedStorageTip = "Immediate Fridge Tip: Keep ${item.name} on the coldest interior middle/bottom shelf (34–37°F), never in the warm refrigerator door.",
+                    preservationSteps = listOf(
+                        "1. Portion for Single Meals: If ${item.name} is eggs, whisk whole eggs with a pinch of salt (prevents yolk gelation in freezer) and pour into a muffin tin or ice tray; for proteins/leftovers, divide into flat single servings.",
+                        "2. Press Out Air: Wrap tightly or seal in freezer containers with minimal headspace to block ice crystal formation.",
+                        "3. Label & Freeze (+30d): Thaw overnight in the fridge or cook directly in a covered skillet."
+                    ),
+                    bestUseAfterPreserving = "Thaw in fridge overnight for scrambles, baking, protein bowls, or quick skillet stir-fries.",
+                    estimatedSavingsDollars = item.estimatedValueDollars,
+                    isApplied = alreadyPreserved
+                )
+            }
+        }
     }
 }

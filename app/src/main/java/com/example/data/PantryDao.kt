@@ -15,6 +15,9 @@ interface PantryDao {
     @Query("SELECT * FROM pantry_items WHERE isConsumed = 0 ORDER BY daysUntilExpiry ASC, addedTimestamp DESC")
     suspend fun getActiveItemsSnapshot(): List<PantryItemEntity>
 
+    @Query("SELECT * FROM pantry_items WHERE id = :id LIMIT 1")
+    suspend fun getItemById(id: Long): PantryItemEntity?
+
     @Query("SELECT COUNT(*) FROM pantry_items")
     suspend fun getTotalEverCount(): Int
 
@@ -42,12 +45,21 @@ interface PantryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSavedRecipes(recipes: List<SavedRecipeEntity>)
 
-    @Query("SELECT * FROM restock_items ORDER BY addedTimestamp DESC")
+    @Query("SELECT * FROM restock_items ORDER BY isChecked ASC, addedTimestamp DESC")
     fun getRestockItemsFlow(): Flow<List<RestockItemEntity>>
+
+    @Query("SELECT * FROM restock_items ORDER BY isChecked ASC, addedTimestamp DESC")
+    suspend fun getRestockItemsSnapshot(): List<RestockItemEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRestockItem(item: RestockItemEntity): Long
 
+    @Update
+    suspend fun updateRestockItem(item: RestockItemEntity)
+
     @Query("DELETE FROM restock_items WHERE id = :id")
     suspend fun deleteRestockItemById(id: Long)
+
+    @Query("DELETE FROM restock_items WHERE isChecked = 1")
+    suspend fun deleteCheckedRestockItems()
 }

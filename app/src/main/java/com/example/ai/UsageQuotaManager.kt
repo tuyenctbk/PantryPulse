@@ -138,7 +138,8 @@ class UsageQuotaManager(private val appContext: Context) {
                 AiFeatureType.VISION_SCAN -> {
                     prefs[visionUsedKey] = (prefs[visionUsedKey] ?: 0) + 1
                 }
-                AiFeatureType.RECIPE_RANKING -> {
+                AiFeatureType.RECIPE_RANKING,
+                AiFeatureType.SHELF_LIFE_PRESERVATION -> {
                     prefs[recipeUsedKey] = (prefs[recipeUsedKey] ?: 0) + 1
                 }
                 AiFeatureType.SOUS_CHEF_CHAT -> {
@@ -160,7 +161,8 @@ class UsageQuotaManager(private val appContext: Context) {
                 AiFeatureType.VISION_SCAN -> {
                     prefs[visionUsedKey] = ((prefs[visionUsedKey] ?: 1) - 1).coerceAtLeast(0)
                 }
-                AiFeatureType.RECIPE_RANKING -> {
+                AiFeatureType.RECIPE_RANKING,
+                AiFeatureType.SHELF_LIFE_PRESERVATION -> {
                     prefs[recipeUsedKey] = ((prefs[recipeUsedKey] ?: 1) - 1).coerceAtLeast(0)
                 }
                 AiFeatureType.SOUS_CHEF_CHAT -> {

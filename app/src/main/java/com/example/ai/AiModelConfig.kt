@@ -34,7 +34,8 @@ enum class AiFeatureType(val displayName: String) {
     VISION_SCAN("Fridge & Receipt Vision"),
     RECIPE_RANKING("Rescue Recipe Generator"),
     SOUS_CHEF_CHAT("Sous-Chef Chat"),
-    VOICE_MEMO_PARSE("Voice-to-Inventory AI")
+    VOICE_MEMO_PARSE("Voice-to-Inventory AI"),
+    SHELF_LIFE_PRESERVATION("Shelf-Life & Preservation Coach")
 }
 
 object AiModelConfig {
@@ -59,13 +60,15 @@ object AiModelConfig {
                 AiFeatureType.VISION_SCAN -> PRIMARY_VISION_MODEL
                 AiFeatureType.RECIPE_RANKING,
                 AiFeatureType.SOUS_CHEF_CHAT,
-                AiFeatureType.VOICE_MEMO_PARSE -> PRIMARY_REASONING_MODEL
+                AiFeatureType.VOICE_MEMO_PARSE,
+                AiFeatureType.SHELF_LIFE_PRESERVATION -> PRIMARY_REASONING_MODEL
             }
             AiCapabilityTier.TIER_2_ECO_LITE -> when (feature) {
                 AiFeatureType.VISION_SCAN -> ECONOMY_VISION_MODEL
                 AiFeatureType.RECIPE_RANKING,
                 AiFeatureType.SOUS_CHEF_CHAT,
-                AiFeatureType.VOICE_MEMO_PARSE -> ECONOMY_LITE_MODEL
+                AiFeatureType.VOICE_MEMO_PARSE,
+                AiFeatureType.SHELF_LIFE_PRESERVATION -> ECONOMY_LITE_MODEL
             }
             AiCapabilityTier.TIER_3_LOCAL_FALLBACK -> "on-device-local-v1"
         }

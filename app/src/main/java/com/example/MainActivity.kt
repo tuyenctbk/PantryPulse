@@ -23,14 +23,17 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.RestaurantMenu
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Kitchen
 import androidx.compose.material.icons.outlined.RestaurantMenu
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -71,10 +75,15 @@ import com.example.ui.PantryPulseViewModel
 import com.example.ui.PantryTab
 import com.example.ui.components.AiQuotaStatusPill
 import com.example.ui.components.AiValueReceiptDialog
+import com.example.ui.components.SmartAutoSuggestionDialog
+import com.example.ui.components.SupportAndEngagementHubDialog
+import com.example.ui.components.SupporterHeaderActionChip
+import com.example.ui.engagement.SmartAutoPromptType
 import com.example.ui.screens.FridgeScannerScreen
 import com.example.ui.screens.ManualIngredientInputScreen
 import com.example.ui.screens.PantryDashboardScreen
 import com.example.ui.screens.RescueRecipesScreen
+import com.example.ui.screens.SmartShoppingListScreen
 import com.example.ui.screens.SousChefChatScreen
 import com.example.ui.theme.PantryPulseTheme
 import kotlinx.coroutines.delay
@@ -114,8 +123,10 @@ private data class NavDestination(
 fun PantryPulseApp(
     viewModel: PantryPulseViewModel = viewModel()
 ) {
+    val uiContext = LocalContext.current
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val quotaState by viewModel.quotaState.collectAsStateWithLifecycle()
+    val engagementState by viewModel.engagementState.collectAsStateWithLifecycle()
     val pantryItems by viewModel.pantryItems.collectAsStateWithLifecycle()
     val restockItems by viewModel.restockItems.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategoryFilter.collectAsStateWithLifecycle()
@@ -135,11 +146,21 @@ fun PantryPulseApp(
     val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle()
     val chatUiState by viewModel.chatUiState.collectAsStateWithLifecycle()
     val voiceParseState by viewModel.voiceParseState.collectAsStateWithLifecycle()
+    val preservationState by viewModel.preservationState.collectAsStateWithLifecycle()
     val snackbarMessage by viewModel.snackbarMessage.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showSplashOverlay by rememberSaveable { mutableStateOf(true) }
     var showValueReceiptDialog by rememberSaveable { mutableStateOf(false) }
+    var showSupportHubDialog by rememberSaveable { mutableStateOf(false) }
+
+    BackHandler(enabled = selectedTab != PantryTab.PANTRY) {
+        viewModel.selectTab(PantryTab.PANTRY)
+    }
+
+    LaunchedEffect(uiContext) {
+        viewModel.bindBillingHostActivity(uiContext)
+    }
 
     LaunchedEffect(Unit) {
         delay(650L)
@@ -181,6 +202,13 @@ fun PantryPulseApp(
                 testTag = "nav_tab_recipes"
             ),
             NavDestination(
+                tab = PantryTab.SHOPPING_LIST,
+                labelRes = R.string.nav_shopping_list,
+                selectedIcon = Icons.Filled.ShoppingCart,
+                unselectedIcon = Icons.Outlined.ShoppingCart,
+                testTag = "nav_tab_shopping_list"
+            ),
+            NavDestination(
                 tab = PantryTab.CHEF_CHAT,
                 labelRes = R.string.nav_chef_chat,
                 selectedIcon = Icons.Filled.ChatBubbleOutline,
@@ -203,6 +231,37 @@ fun PantryPulseApp(
         )
     }
 
+    if (showSupportHubDialog) {
+        SupportAndEngagementHubDialog(
+            engagement = engagementState,
+            onGooglePlayDonate = { tier -> viewModel.completeGooglePlayDonation(uiContext, tier) },
+            onPayPalDonate = { amount -> viewModel.launchPayPalDonation(uiContext, amount) },
+            onKofiDonate = { viewModel.launchKofiDonation(uiContext) },
+            onSubmitRating = { stars, note -> viewModel.submitAppRating(uiContext, stars, note) },
+            onShareApp = { viewModel.shareAppWithFriends(uiContext) },
+            onApplyUpdate = { viewModel.applyAppUpdate(uiContext) },
+            onTriggerPreviewPrompt = { type ->
+                showSupportHubDialog = false
+                viewModel.triggerPromptPreview(type)
+            },
+            onResetCooldownsForTesting = viewModel::resetSupporterAndCooldownsForTesting,
+            onDismiss = { showSupportHubDialog = false }
+        )
+    }
+
+    if (engagementState.activeAutoPrompt != null) {
+        SmartAutoSuggestionDialog(
+            engagement = engagementState,
+            onGooglePlayDonate = { tier -> viewModel.completeGooglePlayDonation(uiContext, tier) },
+            onPayPalDonate = { amount -> viewModel.launchPayPalDonation(uiContext, amount) },
+            onKofiDonate = { viewModel.launchKofiDonation(uiContext) },
+            onSubmitRating = { stars, note -> viewModel.submitAppRating(uiContext, stars, note) },
+            onShareApp = { viewModel.shareAppWithFriends(uiContext) },
+            onApplyUpdate = { viewModel.applyAppUpdate(uiContext) },
+            onDismiss = viewModel::dismissActiveAutoPrompt
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isWideScreen = maxWidth >= 600.dp
@@ -220,6 +279,11 @@ fun PantryPulseApp(
                             }
                         },
                         actions = {
+                            SupporterHeaderActionChip(
+                                engagement = engagementState,
+                                onClick = { showSupportHubDialog = true },
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
                             AiQuotaStatusPill(
                                 quota = quotaState,
                                 onClick = { showValueReceiptDialog = true },
@@ -242,10 +306,15 @@ fun PantryPulseApp(
                                     selected = selected,
                                     onClick = { viewModel.selectTab(dest.tab) },
                                     icon = {
-                                        if (dest.tab == PantryTab.PANTRY && expiringCount > 0) {
+                                        val badgeCount = when (dest.tab) {
+                                            PantryTab.PANTRY -> expiringCount
+                                            PantryTab.SHOPPING_LIST -> restockItems.size
+                                            else -> 0
+                                        }
+                                        if (badgeCount > 0) {
                                             BadgedBox(
                                                 badge = {
-                                                    Badge { Text("$expiringCount") }
+                                                    Badge { Text("$badgeCount") }
                                                 }
                                             ) {
                                                 Icon(
@@ -302,22 +371,36 @@ fun PantryPulseApp(
                                 searchQuery = searchQuery,
                                 sortOrder = sortOrder,
                                 kitchenSetup = kitchenSetup,
+                                engagementState = engagementState,
+                                preservationState = preservationState,
                                 onSelectCategory = viewModel::setCategoryFilter,
                                 onSearchQueryChange = viewModel::setSearchQuery,
                                 onSortOrderChange = viewModel::setSortOrder,
                                 onNavigateToScan = { viewModel.selectTab(PantryTab.SCAN) },
                                 onNavigateToManualInput = { viewModel.selectTab(PantryTab.MANUAL_ADD) },
                                 onNavigateToRecipes = { viewModel.selectTab(PantryTab.RECIPES) },
+                                onNavigateToShoppingList = { viewModel.selectTab(PantryTab.SHOPPING_LIST) },
+                                onAnalyzeShelfLife = { viewModel.analyzeInventoryShelfLife() },
+                                onRunLocalPreservation = viewModel::runLocalPreservationFallback,
+                                onRetryPreservationEcoLite = viewModel::retryPreservationWithEcoLite,
+                                onClaimGraceCredits = viewModel::claimBonusGraceCredits,
+                                onApplyPreservationGuide = viewModel::applyPreservationGuideToInventory,
                                 onAddManualItem = { name, cat, qty, days, note ->
                                     viewModel.addManualIngredient(name, cat, qty, days, note)
                                 },
                                 onUpdateItem = viewModel::updateExistingIngredient,
                                 onAdjustDays = viewModel::adjustItemDays,
+                                onAdjustStockPercent = viewModel::adjustItemStock,
                                 onMarkUsedUp = viewModel::markItemUsedUp,
                                 onDeleteItem = viewModel::deleteItem,
                                 onRestockToFridge = viewModel::restockItemToFridge,
                                 onDismissRestock = viewModel::dismissRestockItem,
-                                onPinOrRefreshWidget = viewModel::requestPinOrRefreshWidget
+                                onPinOrRefreshWidget = viewModel::requestPinOrRefreshWidget,
+                                onOpenSupportHub = { showSupportHubDialog = true },
+                                onOpenRatePrompt = { viewModel.triggerPromptPreview(SmartAutoPromptType.RATE_APP) },
+                                onShareApp = { viewModel.shareAppWithFriends(uiContext) },
+                                onDismissHomeBanner = viewModel::dismissHomeCompactBanner,
+                                onDismissPostOpCard = viewModel::dismissPostOperationValueCard
                             )
                             PantryTab.SCAN -> FridgeScannerScreen(
                                 capturedBitmaps = capturedBitmaps,
@@ -411,6 +494,19 @@ fun PantryPulseApp(
                                 onCloseCookingMode = viewModel::closeCookingMode,
                                 onCompleteCookingMeal = viewModel::completeCookingRecipe,
                                 onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
+                            )
+                            PantryTab.SHOPPING_LIST -> SmartShoppingListScreen(
+                                shoppingItems = restockItems,
+                                pantryItems = pantryItems,
+                                kitchenSetup = kitchenSetup,
+                                onToggleItemChecked = viewModel::toggleShoppingItemChecked,
+                                onRestockSingleItemToPantry = viewModel::restockItemToFridge,
+                                onRestockAllCheckedToPantry = viewModel::restockAllCheckedShoppingItems,
+                                onDeleteShoppingItem = viewModel::dismissRestockItem,
+                                onAddManualShoppingItem = viewModel::addManualShoppingItem,
+                                onUpdateLowStockThreshold = viewModel::updateLowStockThreshold,
+                                onRunLowStockScanNow = viewModel::runManualLowStockScan,
+                                onNavigateToPantry = { viewModel.selectTab(PantryTab.PANTRY) }
                             )
                             PantryTab.CHEF_CHAT -> SousChefChatScreen(
                                 messages = chatMessages,

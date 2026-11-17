@@ -6,6 +6,7 @@
     <string name="nav_pantry">Pantry</string>
     <string name="nav_scan">Fridge Scan</string>
     <string name="nav_recipes">Rescue Meals</string>
+    <string name="nav_shopping_list">Shopping</string>
     <string name="nav_chef_chat">Sous-Chef</string>
 
     <!-- Widget -->
@@ -144,4 +145,73 @@
     <string name="value_receipt_title">AI Value Receipt &amp; Quota Guardrails</string>
     <string name="privacy_policy_btn">Privacy Policy</string>
     <string name="privacy_policy_dialog_title">PantryPulse Privacy Policy</string>
+
+    <!-- Smart Shopping List -->
+    <string name="shopping_title">Smart Shopping List</string>
+    <string name="shopping_subtitle">Auto-populates when Fridge Stock drops ≤ %1$d%%</string>
+    <string name="shopping_total_items">Total Items</string>
+    <string name="shopping_auto_added">⚡ Auto-Added</string>
+    <string name="shopping_in_cart">In Cart</string>
+    <string name="shopping_est_cost">Est. Cost</string>
+    <string name="shopping_restock_checked_fmt">Restock %1$d Checked ($%2$.2f)</string>
+    <string name="shopping_check_to_restock">Check Items to Restock (100%%)</string>
+    <string name="shopping_btn_add_item">Add Item</string>
+    <string name="shopping_btn_close">Close</string>
+    <string name="shopping_threshold_rule_fmt">Auto Low-Stock Threshold Rule: ≤ %1$d%%</string>
+    <string name="shopping_threshold_status_fmt">%1$d of %2$d fridge items are at or below %3$d%% stock</string>
+    <string name="shopping_sync_low_stock">Sync Low-Stock</string>
+    <string name="shopping_empty_title">Your Smart Shopping List is Clear!</string>
+    <string name="shopping_empty_body_fmt">Whenever any fridge item drops to ≤ %1$d%% stock or is used up, PantryPulse automatically adds it here.</string>
+    <string name="shopping_inspect_pantry_btn">Inspect Fridge Stock Levels</string>
+    <string name="shopping_buy_restock_100_btn">Buy &amp; Restock to 100%%</string>
+    <string name="shopping_buying_tip_fmt">🌱 Zero-Waste Buying Tip: %1$s</string>
+    <string name="open_smart_shopping_list_fmt">Open Smart Shopping List (%1$d) →</string>
+
+    <!-- Shelf-Life & Preservation Coach -->
+    <string name="preservation_coach_title">❄️ Zero-Waste Shelf-Life &amp; Preservation Coach</string>
+    <string name="preservation_coach_analyzing">Analyzing Shelf-Life &amp; Freezing Methods…</string>
+    <string name="preservation_coach_subtitle">Personalized Freezing, Blanching &amp; Storage Tips</string>
+    <string name="preservation_btn_ai_analyze">AI Analyze Shelf-Life</string>
+    <string name="preservation_btn_local_coach">Local Coach (0 Credits)</string>
+    <string name="preservation_steps_header">Step-by-Step Preservation Method:</string>
+    <string name="preservation_best_use_fmt">🍳 Best Culinary Use After Preserving: %1$s</string>
+    <string name="preservation_btn_apply_fmt">Apply (+%1$dd Shelf Life)</string>
+    <string name="preservation_btn_applied_fmt">Preserved (+%1$dd)</string>
+    <string name="preservation_btn_preserve">Preserve</string>
+
+    <!-- Support, Donation, Rate, Share & Update -->
+    <string name="support_chip_active">Supporter ★</string>
+    <string name="support_chip_default">Support</string>
+    <string name="home_banner_title">100%% Ad-Free &amp; Offline-First Kitchen Companion</string>
+    <string name="home_banner_body_fmt">You have completed %1$d zero-waste tasks across %2$d sessions. Support independent development or share with friends!</string>
+    <string name="btn_buy_coffee">Buy Dev a Coffee</string>
+    <string name="btn_rate_star">Rate ★</string>
+    <string name="btn_share">Share</string>
+    <string name="post_op_completed_fmt">Task Completed: %1$s</string>
+    <string name="post_op_subtitle">Buy the dev a coffee if this saved your day, or share PantryPulse with a friend!</string>
+    <string name="hub_title_active">Active Supporter Hub</string>
+    <string name="hub_title_default">Support &amp; Engagement Hub</string>
+    <string name="hub_tab_donate">☕ Donate &amp; Support</string>
+    <string name="hub_tab_rate_share">★ Rate, Share &amp; Update</string>
+    <string name="hub_tab_event_log">📊 Event Log (%1$d)</string>
+    <string name="static_support_card_title">About &amp; Support Development (100%% Offline &amp; Ad-Free)</string>
+    <string name="static_support_card_body">PantryPulse is independently built with zero ads and local-first privacy. Support via Google Play 1-Tap Billing, PayPal QR, or Ko-fi, or rate &amp; share the app.</string>
+    <string name="gplay_channel_title">1. Google Play In-App Purchase (1-Tap)</string>
+    <string name="paypal_channel_title">2. PayPal &amp; Live QR Code</string>
+    <string name="kofi_channel_title">3. Ko-fi Tip Jar (Web Platform)</string>
+    <string name="btn_update_app_fmt">Apply Update v%1$s</string>
+    <string name="btn_up_to_date_fmt">Up to Date (v%1$s ✓)</string>
+
+    <!-- High-Value Suggestions: Freezer Rotation, Smart Review Routing & Household Share Card -->
+    <string name="freezer_vault_title_fmt">🧊 30-Day Freezer Vault &amp; Rotation Check-In (%1$d)</string>
+    <string name="freezer_vault_subtitle">Rotate blanched &amp; frozen items within 30 days to prevent freezer burn</string>
+    <string name="freezer_btn_thaw_cook">Thaw &amp; Cook Today</string>
+    <string name="rate_high_satisfaction_badge">★ Glad PantryPulse is helping! Your 4–5 star review supports indie development.</string>
+    <string name="rate_low_satisfaction_badge">🛠️ We want to fix this! Select an area below to send direct feedback to tuyenctbk@gmail.com:</string>
+    <string name="rate_btn_submit_play_fmt">Submit %1$d-Star Review (Google Play)</string>
+    <string name="rate_btn_send_private_feedback">Send Private Feedback to Developer</string>
+    <string name="shopping_share_card_title">📤 Export Household Restock Checklist</string>
+    <string name="shopping_share_card_subtitle">Share categorized items, quantities &amp; zero-waste buying tips with family</string>
+    <string name="shopping_btn_share_checklist">Share Checklist</string>
+    <string name="shopping_btn_copy_checklist">Copy Text</string>
 </resources>

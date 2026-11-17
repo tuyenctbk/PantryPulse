@@ -20,11 +20,18 @@ import com.example.data.PantryCategory
 import com.example.data.PantryDatabase
 import com.example.data.PantryItemEntity
 import com.example.data.PantryRepository
+import com.example.data.PreservationGuide
 import com.example.data.RecipeCategoryFilter
 import com.example.data.RecipeDietaryPreference
 import com.example.data.RecipeSuggestion
 import com.example.data.RestockItemEntity
 import com.example.data.ScanCaptureMode
+import android.content.Context
+import com.example.ui.engagement.AppEngagementAndDonationManager
+import com.example.ui.engagement.EngagementSnapshot
+import com.example.ui.engagement.GooglePlayDonationTier
+import com.example.ui.engagement.SmartAutoPromptType
+import com.example.ui.engagement.findActivity
 import com.example.widget.PantryPulseWidgetProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
@@ -44,6 +51,7 @@ enum class PantryTab {
     SCAN,
     MANUAL_ADD,
     RECIPES,
+    SHOPPING_LIST,
     CHEF_CHAT
 }
 
@@ -94,15 +102,31 @@ sealed interface VoiceParseUiState {
     data class Error(val message: String) : VoiceParseUiState
 }
 
+sealed interface PreservationCoachUiState {
+    data object Idle : PreservationCoachUiState
+    data object Analyzing : PreservationCoachUiState
+    data class Success(
+        val summaryNote: String,
+        val guides: List<PreservationGuide>,
+        val tierUsed: AiCapabilityTier = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
+    ) : PreservationCoachUiState
+    data object QuotaRecoveryNeeded : PreservationCoachUiState
+    data class Error(val message: String) : PreservationCoachUiState
+}
+
 class PantryPulseViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = PantryDatabase.getInstance(application)
     private val repository = PantryRepository(application, database.pantryDao())
     private val aiService = PantryAiService()
     private val quotaManager = UsageQuotaManager(application)
+    private val engagementManager = AppEngagementAndDonationManager(application)
 
     val quotaState: StateFlow<UsageQuotaSnapshot> = quotaManager.quotaFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UsageQuotaSnapshot())
+
+    val engagementState: StateFlow<EngagementSnapshot> = engagementManager.stateFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EngagementSnapshot())
 
     val pantryItems: StateFlow<List<PantryItemEntity>> = repository.activeItemsFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -172,6 +196,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
     private val _chatUiState = MutableStateFlow<ChatUiState>(ChatUiState.Idle)
     val chatUiState: StateFlow<ChatUiState> = _chatUiState.asStateFlow()
 
+    private val _preservationState = MutableStateFlow<PreservationCoachUiState>(PreservationCoachUiState.Idle)
+    val preservationState: StateFlow<PreservationCoachUiState> = _preservationState.asStateFlow()
+
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
@@ -179,6 +206,23 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             repository.ensureSeeded()
             quotaManager.ensureDailyRollover()
+        }
+        viewModelScope.launch {
+            repository.activeItemsFlow.collect { currentItems ->
+                val currentPreservation = _preservationState.value
+                if (currentItems.isNotEmpty() &&
+                    (currentPreservation is PreservationCoachUiState.Idle ||
+                        (currentPreservation is PreservationCoachUiState.Success &&
+                            currentPreservation.tierUsed == AiCapabilityTier.TIER_3_LOCAL_FALLBACK))
+                ) {
+                    val (summary, localGuides) = LocalCulinaryFallbackEngine.synthesizePreservationGuidesLocally(currentItems)
+                    _preservationState.value = PreservationCoachUiState.Success(
+                        summaryNote = summary,
+                        guides = localGuides,
+                        tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
+                    )
+                }
+            }
         }
     }
 
@@ -283,6 +327,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 if (_voiceParseState.value is VoiceParseUiState.QuotaRecoveryNeeded) {
                     _voiceParseState.value = VoiceParseUiState.Idle
                 }
+                if (_preservationState.value is PreservationCoachUiState.QuotaRecoveryNeeded) {
+                    _preservationState.value = PreservationCoachUiState.Idle
+                }
                 _snackbarMessage.value = "Claimed +3 Free Grace Credits! You can continue your task immediately."
             } else {
                 _snackbarMessage.value = "Daily +3 Grace Credits already claimed today. Use Eco Lite ⚡ or Local Tier 3 🛡️!"
@@ -309,6 +356,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     _recipeGenState.value = RecipeGenerationUiState.QuotaRecoveryNeeded
                     _chatUiState.value = ChatUiState.QuotaRecoveryNeeded
                     _voiceParseState.value = VoiceParseUiState.QuotaRecoveryNeeded
+                    _preservationState.value = PreservationCoachUiState.QuotaRecoveryNeeded
                     _snackbarMessage.value = "Simulated Stage 2 (100% / 429) — Smart Quota Recovery Card active!"
                 }
             }
@@ -496,8 +544,15 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 return
             }
             viewModelScope.launch {
-                repository.addDetectedIngredients(selected)
-                _snackbarMessage.value = "Saved ${selected.size} scanned items to Offline Pantry & updated Widget!"
+                val autoAdded = repository.addDetectedIngredients(selected)
+                engagementManager.recordCoreOperationCompleted(
+                    operationKey = "VISION_SCAN_SAVED",
+                    humanReadableTitle = "Saved ${selected.size} Scanned Fridge Items"
+                )
+                val autoNote = if (autoAdded.isNotEmpty()) {
+                    " • Auto-added ${autoAdded.size} low-stock item(s) to Smart Shopping List!"
+                } else ""
+                _snackbarMessage.value = "Saved ${selected.size} scanned items to Offline Pantry$autoNote"
                 _capturedBitmaps.value = emptyList()
                 _visionScanState.value = VisionScanUiState.Idle
                 _selectedTab.value = PantryTab.PANTRY
@@ -517,7 +572,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            repository.addItem(
+            val autoAdded = repository.addItem(
                 PantryItemEntity(
                     name = name.trim(),
                     category = category.name,
@@ -525,10 +580,17 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     daysUntilExpiry = daysUntilExpiry.coerceIn(1, 60),
                     visualConditionNote = conditionNote.ifBlank { "Added to offline inventory" }.trim(),
                     storageTip = storageTip.ifBlank { "Store in appropriate fridge zone to preserve freshness." }.trim(),
-                    estimatedValueDollars = estimatedValueDollars.coerceIn(0.50, 50.0)
+                    estimatedValueDollars = estimatedValueDollars.coerceIn(0.50, 50.0),
+                    stockPercent = PantryRepository.inferStockPercentFromQuantity(quantity),
+                    lowStockThresholdPercent = kitchenSetup.value.lowStockThresholdPercent
                 )
             )
-            _snackbarMessage.value = "Added ${name.trim()} to Offline Pantry & updated Widget!"
+            engagementManager.recordCoreOperationCompleted(
+                operationKey = "MANUAL_ITEM_ADDED",
+                humanReadableTitle = "Added ${name.trim()} to Pantry"
+            )
+            val autoSuffix = if (autoAdded.isNotEmpty()) " (⚡ Auto-added to Smart Shopping List!)" else ""
+            _snackbarMessage.value = "Added ${name.trim()} to Offline Pantry$autoSuffix!"
             if (returnToPantry) {
                 _selectedTab.value = PantryTab.PANTRY
             }
@@ -538,8 +600,15 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
     fun addManualBatchIngredients(items: List<DetectedIngredient>) {
         if (items.isEmpty()) return
         viewModelScope.launch {
-            repository.addDetectedIngredients(items)
-            _snackbarMessage.value = "Saved ${items.size} manually entered items to Offline Pantry & updated Widget!"
+            val autoAdded = repository.addDetectedIngredients(items)
+            engagementManager.recordCoreOperationCompleted(
+                operationKey = "BATCH_ITEMS_ADDED",
+                humanReadableTitle = "Added ${items.size} Pantry Items"
+            )
+            val autoSuffix = if (autoAdded.isNotEmpty()) {
+                " • ⚡ Auto-added ${autoAdded.size} low-stock item(s) to Smart Shopping List"
+            } else ""
+            _snackbarMessage.value = "Saved ${items.size} manually entered items to Offline Pantry$autoSuffix!"
             _selectedTab.value = PantryTab.PANTRY
         }
     }
@@ -692,17 +761,111 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun adjustItemStock(item: PantryItemEntity, deltaPercent: Int) {
+        viewModelScope.launch {
+            val newlyAutoAdded = repository.adjustItemStockPercent(item, deltaPercent)
+            val newStock = (item.stockPercent + deltaPercent).coerceIn(0, 100)
+            engagementManager.logCustomEvent(
+                eventType = "STOCK_LEVEL_ADJUSTED",
+                detail = "${item.name}: ${item.stockPercent}% -> $newStock%",
+                algorithmNote = if (newlyAutoAdded.isNotEmpty()) {
+                    "Low-stock threshold (≤${item.lowStockThresholdPercent}%) reached -> auto-added to Smart Shopping List."
+                } else {
+                    "Stock level above low-stock threshold."
+                }
+            )
+            if (newlyAutoAdded.isNotEmpty()) {
+                _snackbarMessage.value = "⚡ ${item.name} reached $newStock% stock (≤${item.lowStockThresholdPercent}%) — Auto-Added to Smart Shopping List!"
+            } else if (newStock == 0) {
+                _snackbarMessage.value = "Used up ${item.name}! Auto-added to Smart Shopping List."
+            }
+        }
+    }
+
+    fun updateLowStockThreshold(newThresholdPercent: Int) {
+        viewModelScope.launch {
+            val newlyAdded = repository.setGlobalLowStockThreshold(newThresholdPercent)
+            engagementManager.logCustomEvent(
+                eventType = "LOW_STOCK_THRESHOLD_UPDATED",
+                detail = "Threshold set to ≤$newThresholdPercent%",
+                algorithmNote = "Auto-added ${newlyAdded.size} low-stock inventory item(s) to Smart Shopping List."
+            )
+            _snackbarMessage.value = if (newlyAdded.isNotEmpty()) {
+                "Threshold set to ≤$newThresholdPercent% — Auto-added ${newlyAdded.joinToString()} to Smart Shopping List!"
+            } else {
+                "Auto Low-Stock Threshold updated to ≤$newThresholdPercent%."
+            }
+        }
+    }
+
+    fun runManualLowStockScan() {
+        viewModelScope.launch {
+            val newlyAdded = repository.syncLowStockToShoppingList()
+            _snackbarMessage.value = if (newlyAdded.isNotEmpty()) {
+                "⚡ Found & auto-added ${newlyAdded.size} low-stock item(s): ${newlyAdded.joinToString()}!"
+            } else {
+                "All low-stock items (≤${kitchenSetup.value.lowStockThresholdPercent}%) are already in your Smart Shopping List!"
+            }
+        }
+    }
+
+    fun toggleShoppingItemChecked(item: RestockItemEntity) {
+        viewModelScope.launch {
+            repository.toggleShoppingItemChecked(item)
+        }
+    }
+
+    fun addManualShoppingItem(
+        name: String,
+        category: PantryCategory,
+        quantity: String,
+        estimatedCostUsd: Double,
+        tip: String
+    ) {
+        viewModelScope.launch {
+            repository.addManualShoppingItem(
+                name = name,
+                category = category,
+                suggestedQuantity = quantity,
+                estimatedCostDollars = estimatedCostUsd,
+                buyingTip = tip
+            )
+            _snackbarMessage.value = "Added $name to Smart Shopping List!"
+        }
+    }
+
+    fun restockAllCheckedShoppingItems() {
+        viewModelScope.launch {
+            val count = repository.restockAllCheckedItems()
+            if (count > 0) {
+                engagementManager.recordCoreOperationCompleted(
+                    operationKey = "SMART_SHOPPING_RESTOCK",
+                    humanReadableTitle = "Restocked $count Item(s) to 100% Pantry Stock"
+                )
+                _snackbarMessage.value = "Restocked $count item(s) to Fridge at 100% stock!"
+            }
+        }
+    }
+
     fun markItemUsedUp(item: PantryItemEntity) {
         viewModelScope.launch {
             repository.consumeItem(item)
-            _snackbarMessage.value = "Used up ${item.name}! Saved ~$${String.format("%.2f", item.estimatedValueDollars)} & added to Smart Restock."
+            engagementManager.recordCoreOperationCompleted(
+                operationKey = "ITEM_RESCUED_USED_UP",
+                humanReadableTitle = "Used Up ${item.name} Zero-Waste"
+            )
+            _snackbarMessage.value = "Used up ${item.name}! Saved ~$${String.format("%.2f", item.estimatedValueDollars)} & auto-added to Smart Shopping List."
         }
     }
 
     fun restockItemToFridge(item: RestockItemEntity) {
         viewModelScope.launch {
             repository.restockItemToFridge(item)
-            _snackbarMessage.value = "Restocked ${item.name} (${item.defaultExpiryDays}d countdown) to Fridge!"
+            engagementManager.recordCoreOperationCompleted(
+                operationKey = "ITEM_RESTOCKED_100",
+                humanReadableTitle = "Restocked ${item.name} to 100% Stock"
+            )
+            _snackbarMessage.value = "Restocked ${item.name} to 100% stock (${item.defaultExpiryDays}d countdown) in Fridge!"
         }
     }
 
@@ -728,6 +891,144 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             repository.toggleSpice(spice)
         }
+    }
+
+    // --- Shelf-Life & Zero-Waste Preservation Coach (Cloud AI + Tier 3 Local Engine) ---
+
+    fun runLocalPreservationFallback() {
+        val currentItems = pantryItems.value
+        if (currentItems.isEmpty()) {
+            _preservationState.value = PreservationCoachUiState.Error(
+                "Add ingredients to your pantry first to analyze shelf-life & preservation methods."
+            )
+            return
+        }
+        val (summary, localGuides) = LocalCulinaryFallbackEngine.synthesizePreservationGuidesLocally(currentItems)
+        _preservationState.value = PreservationCoachUiState.Success(
+            summaryNote = summary,
+            guides = localGuides,
+            tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
+        )
+        _snackbarMessage.value = "Generated ${localGuides.size} Zero-Waste Preservation Guides on-device (0 cloud credits)!"
+    }
+
+    fun retryPreservationWithEcoLite() {
+        viewModelScope.launch {
+            quotaManager.setEcoLiteMode(true)
+            analyzeInventoryShelfLife(forceTier = AiCapabilityTier.TIER_2_ECO_LITE)
+        }
+    }
+
+    fun analyzeInventoryShelfLife(forceTier: AiCapabilityTier? = null) {
+        val currentItems = pantryItems.value
+        if (currentItems.isEmpty()) {
+            _preservationState.value = PreservationCoachUiState.Error(
+                "Add ingredients to your pantry first to analyze shelf-life & preservation methods."
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            val snap = quotaManager.getSnapshot()
+            if (snap.forceLocalOfflineMode && forceTier == null) {
+                runLocalPreservationFallback()
+                return@launch
+            }
+            if (snap.isExhausted && forceTier == null) {
+                _preservationState.value = PreservationCoachUiState.QuotaRecoveryNeeded
+                _snackbarMessage.value = "Daily cloud quota reached — claim Grace Credits, use Eco Lite ⚡, or run Instant On-Device Preservation Coach!"
+                return@launch
+            }
+
+            val preferredTier = forceTier ?: snap.activeCapabilityTier
+            _preservationState.value = PreservationCoachUiState.Analyzing
+            try {
+                val result = withTimeout(50_000L) {
+                    aiService.analyzeShelfLifeAndPreservation(
+                        items = currentItems,
+                        preferredTier = preferredTier
+                    )
+                }
+                val (summary, guides) = result.data
+                if (guides.isNotEmpty()) {
+                    if (!result.fromDedupCache) {
+                        quotaManager.recordSuccessfulInteraction(
+                            feature = AiFeatureType.SHELF_LIFE_PRESERVATION,
+                            usedFallbackCascade = result.autoCascadedToLite
+                        )
+                    }
+                    if (result.autoCascadedToLite) {
+                        quotaManager.recordAutoCascade()
+                    }
+                    engagementManager.recordCoreOperationCompleted(
+                        operationKey = "SHELF_LIFE_ANALYZED",
+                        humanReadableTitle = "Analyzed Shelf-Life & Preservation for ${guides.size} Expiring Items"
+                    )
+                    _preservationState.value = PreservationCoachUiState.Success(
+                        summaryNote = summary,
+                        guides = guides,
+                        tierUsed = result.tierUsed
+                    )
+                    val tierSuffix = when {
+                        result.fromDedupCache -> " [45s Dedup Cache • 0 tokens]"
+                        result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE -> " [Eco Lite ⚡]"
+                        else -> ""
+                    }
+                    _snackbarMessage.value = "Generated ${guides.size} personalized preservation & freezing guides$tierSuffix!"
+                } else {
+                    runLocalPreservationFallback()
+                }
+            } catch (e: TimeoutCancellationException) {
+                Log.e(TAG, "Preservation analysis timed out, falling back to local coach", e)
+                runLocalPreservationFallback()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Preservation analysis failed", e)
+                if (PantryAiService.isQuotaOrRateLimitException(e)) {
+                    _preservationState.value = PreservationCoachUiState.QuotaRecoveryNeeded
+                } else {
+                    runLocalPreservationFallback()
+                }
+            }
+        }
+    }
+
+    fun applyPreservationGuideToInventory(guide: PreservationGuide) {
+        viewModelScope.launch {
+            val targetItem = pantryItems.value.firstOrNull { it.id == guide.itemId }
+                ?: pantryItems.value.firstOrNull { it.name.equals(guide.ingredientName, ignoreCase = true) }
+
+            if (targetItem != null) {
+                val updatedItem = repository.applyPreservationGuide(targetItem, guide)
+                engagementManager.recordCoreOperationCompleted(
+                    operationKey = "PRESERVATION_METHOD_APPLIED",
+                    humanReadableTitle = "Preserved ${targetItem.name} via ${guide.methodType.label} (+${guide.extendedShelfLifeDays}d)"
+                )
+                val current = _preservationState.value
+                if (current is PreservationCoachUiState.Success) {
+                    val updatedGuides = current.guides.map { existing ->
+                        if (existing.itemId == targetItem.id || existing.id == guide.id) {
+                            existing.copy(
+                                currentDaysLeft = updatedItem.daysUntilExpiry,
+                                isApplied = true
+                            )
+                        } else {
+                            existing
+                        }
+                    }
+                    _preservationState.value = current.copy(guides = updatedGuides)
+                }
+                _snackbarMessage.value = "${guide.methodType.badgeEmoji} Preserved ${targetItem.name}! Shelf life extended to ${updatedItem.daysUntilExpiry}d (+$${String.format("%.2f", guide.estimatedSavingsDollars)} saved)."
+            } else {
+                _snackbarMessage.value = "Applied preservation tip for ${guide.ingredientName}!"
+            }
+        }
+    }
+
+    fun applyQuickPreservationForItem(item: PantryItemEntity) {
+        val guide = LocalCulinaryFallbackEngine.buildPreservationGuideForItem(item)
+        applyPreservationGuideToInventory(guide)
     }
 
     // --- Recipe Ranking & Tier 3 On-Device Culinary Synthesis ---
@@ -773,6 +1074,10 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 cravingNote = combinedNote
             )
             repository.saveGeneratedRecipes(localRecipes)
+            engagementManager.recordCoreOperationCompleted(
+                operationKey = "RECIPES_GENERATED_LOCAL",
+                humanReadableTitle = "Synthesized ${localRecipes.size} Rescue Recipes"
+            )
             _recipeGenState.value = RecipeGenerationUiState.Success(
                 count = localRecipes.size,
                 tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
@@ -841,6 +1146,10 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     if (result.autoCascadedToLite) {
                         quotaManager.recordAutoCascade()
                     }
+                    engagementManager.recordCoreOperationCompleted(
+                        operationKey = "RECIPES_GENERATED_CLOUD",
+                        humanReadableTitle = "Ranked ${recipes.size} Rescue Recipes"
+                    )
                     _recipeGenState.value = RecipeGenerationUiState.Success(
                         count = recipes.size,
                         tierUsed = result.tierUsed
@@ -889,9 +1198,16 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
 
     fun completeCookingRecipe(recipe: RecipeSuggestion) {
         viewModelScope.launch {
-            repository.completeRescueMeal(recipe, pantryItems.value)
+            val newlyAutoAdded = repository.completeRescueMeal(recipe, pantryItems.value)
             _activeCookingRecipe.value = null
-            _snackbarMessage.value = "Cooked '${recipe.title}'! Expiring ingredients rescued & widget updated."
+            engagementManager.recordCoreOperationCompleted(
+                operationKey = "RESCUE_MEAL_COOKED",
+                humanReadableTitle = "Cooked '${recipe.title}'"
+            )
+            val autoNote = if (newlyAutoAdded.isNotEmpty()) {
+                " • ⚡ Auto-added ${newlyAutoAdded.joinToString()} to Smart Shopping List!"
+            } else ""
+            _snackbarMessage.value = "Cooked '${recipe.title}'! Expiring ingredients rescued$autoNote"
         }
     }
 
@@ -1048,5 +1364,74 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         } else {
             "Widget data refreshed! Long-press your Android Home Screen -> Widgets -> PantryPulse to add."
         }
+    }
+
+    // --- App Engagement, Multi-Channel Donations, Rate, Share & Update ---
+
+    fun completeGooglePlayDonation(uiContext: Context, tier: GooglePlayDonationTier) {
+        engagementManager.completeGooglePlayDonation(uiContext, tier) { msg ->
+            _snackbarMessage.value = msg
+        }
+    }
+
+    fun launchPayPalDonation(uiContext: Context, amountDollars: Int) {
+        engagementManager.launchPayPalDonation(uiContext, amountDollars) { msg ->
+            _snackbarMessage.value = msg
+        }
+    }
+
+    fun launchKofiDonation(uiContext: Context) {
+        engagementManager.launchKofiDonation(uiContext) { msg ->
+            _snackbarMessage.value = msg
+        }
+    }
+
+    fun submitAppRating(uiContext: Context, stars: Int, feedbackNote: String) {
+        engagementManager.submitAppRating(uiContext, stars, feedbackNote) { msg ->
+            _snackbarMessage.value = msg
+        }
+    }
+
+    fun shareAppWithFriends(uiContext: Context) {
+        engagementManager.shareAppWithFriends(uiContext) { msg ->
+            _snackbarMessage.value = msg
+        }
+    }
+
+    fun applyAppUpdate(uiContext: Context) {
+        engagementManager.applyAppUpdate(uiContext) { msg ->
+            _snackbarMessage.value = msg
+        }
+    }
+
+    fun triggerPromptPreview(type: SmartAutoPromptType) {
+        engagementManager.triggerPromptPreview(type)
+    }
+
+    fun dismissActiveAutoPrompt() {
+        engagementManager.dismissActiveAutoPrompt()
+    }
+
+    fun dismissHomeCompactBanner() {
+        engagementManager.dismissHomeCompactBanner()
+    }
+
+    fun dismissPostOperationValueCard() {
+        engagementManager.dismissPostOperationValueCard()
+    }
+
+    fun resetSupporterAndCooldownsForTesting() {
+        engagementManager.resetSupporterAndCooldownsForTesting { msg ->
+            _snackbarMessage.value = msg
+        }
+    }
+
+    fun bindBillingHostActivity(uiContext: Context) {
+        engagementManager.bindHostActivity(uiContext.findActivity())
+    }
+
+    override fun onCleared() {
+        engagementManager.closeBillingConnection()
+        super.onCleared()
     }
 }

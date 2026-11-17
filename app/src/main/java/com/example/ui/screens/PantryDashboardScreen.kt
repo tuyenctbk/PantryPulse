@@ -24,8 +24,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddShoppingCart
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
@@ -39,6 +42,7 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.RestaurantMenu
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Widgets
@@ -47,6 +51,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -80,12 +85,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
+import com.example.ai.AiCapabilityTier
+import com.example.ai.LocalCulinaryFallbackEngine
 import com.example.data.FreshnessStatus
 import com.example.data.KitchenSetupState
 import com.example.data.PantryCategory
 import com.example.data.PantryItemEntity
+import com.example.data.PreservationGuide
 import com.example.data.RestockItemEntity
 import com.example.ui.PantrySortOrder
+import com.example.ui.PreservationCoachUiState
+import com.example.ui.components.HomeCompactSupportBanner
+import com.example.ui.components.PostOperationValueRealizationCard
+import com.example.ui.engagement.EngagementSnapshot
 import com.example.ui.theme.CriticalCrimson
 import com.example.ui.theme.CriticalCrimsonContainer
 import com.example.ui.theme.ExpiringAmber
@@ -102,23 +114,38 @@ fun PantryDashboardScreen(
     searchQuery: String,
     sortOrder: PantrySortOrder,
     kitchenSetup: KitchenSetupState,
+    engagementState: EngagementSnapshot,
+    preservationState: PreservationCoachUiState,
     onSelectCategory: (PantryCategory?) -> Unit,
     onSearchQueryChange: (String) -> Unit,
     onSortOrderChange: (PantrySortOrder) -> Unit,
     onNavigateToScan: () -> Unit,
     onNavigateToManualInput: () -> Unit,
     onNavigateToRecipes: () -> Unit,
+    onNavigateToShoppingList: () -> Unit,
+    onAnalyzeShelfLife: () -> Unit,
+    onRunLocalPreservation: () -> Unit,
+    onRetryPreservationEcoLite: () -> Unit,
+    onClaimGraceCredits: () -> Unit,
+    onApplyPreservationGuide: (PreservationGuide) -> Unit,
     onAddManualItem: (String, PantryCategory, String, Int, String) -> Unit,
     onUpdateItem: (PantryItemEntity, String, PantryCategory, String, Int, String) -> Unit,
     onAdjustDays: (PantryItemEntity, Int) -> Unit,
+    onAdjustStockPercent: (PantryItemEntity, Int) -> Unit,
     onMarkUsedUp: (PantryItemEntity) -> Unit,
     onDeleteItem: (PantryItemEntity) -> Unit,
     onRestockToFridge: (RestockItemEntity) -> Unit,
     onDismissRestock: (RestockItemEntity) -> Unit,
-    onPinOrRefreshWidget: () -> Unit
+    onPinOrRefreshWidget: () -> Unit,
+    onOpenSupportHub: () -> Unit,
+    onOpenRatePrompt: () -> Unit,
+    onShareApp: () -> Unit,
+    onDismissHomeBanner: () -> Unit,
+    onDismissPostOpCard: () -> Unit
 ) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<PantryItemEntity?>(null) }
+    var inspectingPreservationGuide by remember { mutableStateOf<PreservationGuide?>(null) }
 
     val filteredItems = remember(items, selectedCategory, searchQuery, sortOrder) {
         val byCat = if (selectedCategory == null) items else items.filter { it.parsedCategory == selectedCategory }
@@ -165,6 +192,27 @@ fun PantryDashboardScreen(
                 )
             }
 
+            item {
+                PostOperationValueRealizationCard(
+                    engagement = engagementState,
+                    onOpenSupportDialog = onOpenSupportHub,
+                    onOpenRateDialog = onOpenRatePrompt,
+                    onShareApp = onShareApp,
+                    onDismiss = onDismissPostOpCard,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            item {
+                HomeCompactSupportBanner(
+                    engagement = engagementState,
+                    onOpenSupportDialog = onOpenSupportHub,
+                    onOpenRateDialog = onOpenRatePrompt,
+                    onShareApp = onShareApp,
+                    onDismissBanner = onDismissHomeBanner
+                )
+            }
+
             if (items.isNotEmpty()) {
                 item {
                     FreshnessPulseBreakdownCard(
@@ -173,6 +221,37 @@ fun PantryDashboardScreen(
                         freshCount = freshCount,
                         atRiskDollars = atRiskDollars,
                         onRescueNow = onNavigateToRecipes
+                    )
+                }
+
+                item {
+                    val preservedFreezerItems = remember(items) {
+                        items.filter {
+                            it.daysUntilExpiry >= 14 ||
+                                it.visualConditionNote.contains("Preserved:", ignoreCase = true) ||
+                                it.visualConditionNote.contains("Freeze", ignoreCase = true)
+                        }
+                    }
+                    ShelfLifePreservationCoachCard(
+                        preservationState = preservationState,
+                        preservedFreezerItems = preservedFreezerItems,
+                        onAnalyzeShelfLife = onAnalyzeShelfLife,
+                        onRunLocalPreservation = onRunLocalPreservation,
+                        onRetryEcoLite = onRetryPreservationEcoLite,
+                        onClaimGraceCredits = onClaimGraceCredits,
+                        onApplyGuide = onApplyPreservationGuide,
+                        onThawAndCookItem = { frozenItem ->
+                            onUpdateItem(
+                                frozenItem,
+                                frozenItem.name,
+                                frozenItem.parsedCategory,
+                                frozenItem.quantity,
+                                1,
+                                "Thawed today from 30-Day Freezer Vault — ready for Rescue Recipes!"
+                            )
+                            onNavigateToRecipes()
+                        },
+                        onInspectGuide = { guide -> inspectingPreservationGuide = guide }
                     )
                 }
             }
@@ -188,6 +267,8 @@ fun PantryDashboardScreen(
                 item {
                     SmartRestockCard(
                         restockItems = restockItems,
+                        lowStockThresholdPercent = kitchenSetup.lowStockThresholdPercent,
+                        onOpenShoppingList = onNavigateToShoppingList,
                         onRestockToFridge = onRestockToFridge,
                         onDismissRestock = onDismissRestock
                     )
@@ -228,11 +309,28 @@ fun PantryDashboardScreen(
                     PantryIngredientCard(
                         item = item,
                         onAdjustDays = { delta -> onAdjustDays(item, delta) },
+                        onAdjustStockPercent = { deltaPct -> onAdjustStockPercent(item, deltaPct) },
+                        onOpenPreservationGuide = {
+                            val existingGuide = (preservationState as? PreservationCoachUiState.Success)
+                                ?.guides
+                                ?.firstOrNull { it.itemId == item.id }
+                            inspectingPreservationGuide = existingGuide
+                                ?: LocalCulinaryFallbackEngine.buildPreservationGuideForItem(item)
+                        },
                         onEdit = { editingItem = item },
                         onMarkUsedUp = { onMarkUsedUp(item) },
                         onDelete = { onDeleteItem(item) }
                     )
                 }
+            }
+
+            item {
+                StaticAboutAndSupportCard(
+                    engagement = engagementState,
+                    onOpenSupportHub = onOpenSupportHub,
+                    onOpenRatePrompt = onOpenRatePrompt,
+                    onShareApp = onShareApp
+                )
             }
         }
 
@@ -289,15 +387,686 @@ fun PantryDashboardScreen(
             }
         )
     }
+
+    inspectingPreservationGuide?.let { guide ->
+        IngredientPreservationModal(
+            guide = guide,
+            onApplyGuide = {
+                onApplyPreservationGuide(guide)
+                inspectingPreservationGuide = null
+            },
+            onDismiss = { inspectingPreservationGuide = null }
+        )
+    }
+}
+
+@Composable
+private fun ShelfLifePreservationCoachCard(
+    preservationState: PreservationCoachUiState,
+    preservedFreezerItems: List<PantryItemEntity>,
+    onAnalyzeShelfLife: () -> Unit,
+    onRunLocalPreservation: () -> Unit,
+    onRetryEcoLite: () -> Unit,
+    onClaimGraceCredits: () -> Unit,
+    onApplyGuide: (PreservationGuide) -> Unit,
+    onThawAndCookItem: (PantryItemEntity) -> Unit,
+    onInspectGuide: (PreservationGuide) -> Unit
+) {
+    var expandedGuides by rememberSaveable { mutableStateOf(true) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .testTag("shelf_life_preservation_coach_card"),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expandedGuides = !expandedGuides },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = CircleShape,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.AcUnit,
+                                contentDescription = "Shelf-Life & Preservation Coach",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = stringResource(id = R.string.preservation_coach_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        val tierText = when (preservationState) {
+                            is PreservationCoachUiState.Success -> preservationState.tierUsed.badgeLabel
+                            is PreservationCoachUiState.Analyzing -> stringResource(id = R.string.preservation_coach_analyzing)
+                            else -> stringResource(id = R.string.preservation_coach_subtitle)
+                        }
+                        Text(
+                            text = tierText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                TextButton(onClick = { expandedGuides = !expandedGuides }) {
+                    Text(if (expandedGuides) stringResource(id = R.string.restock_btn_hide) else stringResource(id = R.string.restock_btn_view))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Action Buttons: Cloud AI Deep Shelf-Life Analysis vs. 0-Credit Local Coach
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onAnalyzeShelfLife,
+                    enabled = preservationState !is PreservationCoachUiState.Analyzing,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("analyze_shelf_life_button"),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    if (preservationState is PreservationCoachUiState.Analyzing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(id = R.string.preservation_coach_analyzing), style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(id = R.string.preservation_btn_ai_analyze), style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onRunLocalPreservation,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("local_preservation_guide_button"),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(id = R.string.preservation_btn_local_coach), style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
+            when (preservationState) {
+                is PreservationCoachUiState.QuotaRecoveryNeeded -> {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        color = ExpiringAmberContainer,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Cloud AI Allowance Reached — Choose Zero-Friction Recovery:",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF311F00)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = onClaimGraceCredits,
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                ) {
+                                    Text("+3 Grace Credits", style = MaterialTheme.typography.labelSmall)
+                                }
+                                OutlinedButton(
+                                    onClick = onRetryEcoLite,
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Eco Lite ⚡", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                is PreservationCoachUiState.Error -> {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = preservationState.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CriticalCrimson
+                    )
+                }
+
+                is PreservationCoachUiState.Success -> {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = preservationState.summaryNote,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    AnimatedVisibility(visible = expandedGuides && preservationState.guides.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier.padding(top = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            preservationState.guides.forEach { guide ->
+                                PreservationGuideItemCard(
+                                    guide = guide,
+                                    onApplyGuide = { onApplyGuide(guide) },
+                                    onInspectGuide = { onInspectGuide(guide) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                else -> Unit
+            }
+
+            // 30-Day Freezer Vault & Rotation Check-In Tracker (High-Value Suggestion #2)
+            if (preservedFreezerItems.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("freezer_vault_rotation_section")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.freezer_vault_title_fmt, preservedFreezerItems.size),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(id = R.string.freezer_vault_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        preservedFreezerItems.take(4).forEach { frozenItem ->
+                            val needs30DayCheckIn = frozenItem.daysUntilExpiry <= 30
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "${frozenItem.parsedCategory.emoji} ${frozenItem.name} (${frozenItem.quantity})",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (needs30DayCheckIn) {
+                                            "❄️ 30-Day Check-In: ${frozenItem.daysUntilExpiry}d left • Rotate soon"
+                                        } else {
+                                            "❄️ Deep Freeze: ${frozenItem.daysUntilExpiry}d shelf life locked"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                OutlinedButton(
+                                    onClick = { onThawAndCookItem(frozenItem) },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.testTag("thaw_cook_today_${frozenItem.id}")
+                                ) {
+                                    Text(
+                                        text = stringResource(id = R.string.freezer_btn_thaw_cook),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PreservationGuideItemCard(
+    guide: PreservationGuide,
+    onApplyGuide: () -> Unit,
+    onInspectGuide: () -> Unit
+) {
+    var showFullSteps by rememberSaveable(guide.id) { mutableStateOf(guide.currentDaysLeft <= 2) }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showFullSteps = !showFullSteps }
+            .testTag("preservation_guide_card_${guide.itemId}")
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "${guide.category.emoji} ${guide.ingredientName}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = guide.urgencyHeadline,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (guide.currentDaysLeft <= 1) CriticalCrimson else MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Surface(
+                    color = if (guide.isApplied) FreshEmeraldContainer else ExpiringAmberContainer,
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Text(
+                        text = if (guide.isApplied) {
+                            "✅ +${guide.extendedShelfLifeDays}d Locked"
+                        } else {
+                            "${guide.currentDaysLeft}d → +${guide.extendedShelfLifeDays}d"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (guide.isApplied) FreshEmerald else ExpiringAmber,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Method Pill & Storage Tip
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "${guide.methodType.badgeEmoji} ${guide.methodType.label}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                Text(
+                    text = "Saves ~$${String.format("%.2f", guide.estimatedSavingsDollars)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = guide.personalizedStorageTip,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            AnimatedVisibility(visible = showFullSteps) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Step-by-Step Preservation Method:",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            guide.preservationSteps.forEach { step ->
+                                Text(
+                                    text = step,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "🍳 Best Culinary Use After Preserving: ${guide.bestUseAfterPreserving}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = onInspectGuide,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = if (showFullSteps) "Full Guide Modal" else "View ${guide.preservationSteps.size} Steps (${guide.methodType.label})",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+
+                Button(
+                    onClick = onApplyGuide,
+                    enabled = !guide.isApplied,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (guide.isApplied) FreshEmerald else MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.testTag("apply_preservation_${guide.itemId}")
+                ) {
+                    Icon(
+                        imageVector = if (guide.isApplied) Icons.Default.CheckCircle else Icons.Default.AcUnit,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = if (guide.isApplied) {
+                            stringResource(id = R.string.preservation_btn_applied_fmt, guide.extendedShelfLifeDays)
+                        } else {
+                            stringResource(id = R.string.preservation_btn_apply_fmt, guide.extendedShelfLifeDays)
+                        },
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StaticAboutAndSupportCard(
+    engagement: EngagementSnapshot,
+    onOpenSupportHub: () -> Unit,
+    onOpenRatePrompt: () -> Unit,
+    onShareApp: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .testTag("static_about_support_card"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(id = R.string.static_support_card_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                if (engagement.isActiveSupporter) {
+                    Surface(
+                        color = Color(0xFF1F6E43),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.support_chip_active),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = stringResource(id = R.string.static_support_card_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onOpenSupportHub,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .weight(1.25f)
+                        .testTag("static_support_open_hub_button")
+                ) {
+                    Text(stringResource(id = R.string.hub_tab_donate), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                }
+
+                OutlinedButton(
+                    onClick = onOpenRatePrompt,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .weight(0.85f)
+                        .testTag("static_support_rate_button")
+                ) {
+                    Text(stringResource(id = R.string.btn_rate_star), style = MaterialTheme.typography.labelSmall)
+                }
+
+                OutlinedButton(
+                    onClick = onShareApp,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .weight(0.85f)
+                        .testTag("static_support_share_button")
+                ) {
+                    Text(stringResource(id = R.string.btn_share), style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun IngredientPreservationModal(
+    guide: PreservationGuide,
+    onApplyGuide: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column {
+                Text(
+                    text = "${guide.methodType.badgeEmoji} ${guide.ingredientName}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${guide.methodType.label} • Extends Shelf-Life by +${guide.extendedShelfLifeDays} Days",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "Immediate Fridge Storage Tip:",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = guide.personalizedStorageTip,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+
+                Text(
+                    text = "Zero-Waste Preservation Steps:",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                guide.preservationSteps.forEach { step ->
+                    Text(
+                        text = step,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "🍳 How to Cook After Preserving:",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = guide.bestUseAfterPreserving,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onApplyGuide,
+                enabled = !guide.isApplied,
+                modifier = Modifier.testTag("modal_apply_preservation_button")
+            ) {
+                Icon(Icons.Default.AcUnit, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    if (guide.isApplied) {
+                        "Already Preserved (+${guide.extendedShelfLifeDays}d)"
+                    } else {
+                        "Apply Preservation (+${guide.extendedShelfLifeDays}d)"
+                    }
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(id = R.string.dialog_cancel))
+            }
+        }
+    )
 }
 
 @Composable
 private fun SmartRestockCard(
     restockItems: List<RestockItemEntity>,
+    lowStockThresholdPercent: Int,
+    onOpenShoppingList: () -> Unit,
     onRestockToFridge: (RestockItemEntity) -> Unit,
     onDismissRestock: (RestockItemEntity) -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val autoAddedCount = remember(restockItems) { restockItems.count { it.isAutoAdded } }
 
     Card(
         modifier = Modifier
@@ -317,7 +1086,10 @@ private fun SmartRestockCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Surface(
                         color = MaterialTheme.colorScheme.tertiary,
                         shape = CircleShape,
@@ -340,7 +1112,7 @@ private fun SmartRestockCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = stringResource(id = R.string.restock_card_subtitle),
+                            text = "⚡ $autoAddedCount auto-added via Low-Stock Threshold (≤$lowStockThresholdPercent%)",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -350,6 +1122,23 @@ private fun SmartRestockCard(
                 TextButton(onClick = { expanded = !expanded }) {
                     Text(if (expanded) stringResource(id = R.string.restock_btn_hide) else stringResource(id = R.string.restock_btn_view))
                 }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = onOpenShoppingList,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("open_smart_shopping_list_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AddShoppingCart,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Open Smart Shopping List (${restockItems.size}) →", fontWeight = FontWeight.Bold)
             }
 
             AnimatedVisibility(visible = expanded) {
@@ -373,9 +1162,9 @@ private fun SmartRestockCard(
                                         style = MaterialTheme.typography.titleSmall
                                     )
                                     Text(
-                                        text = "Tip: ${item.zeroWasteBuyingTip}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        text = item.triggerReason,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                                 IconButton(
@@ -885,6 +1674,8 @@ private fun CategoryFilterRow(
 private fun PantryIngredientCard(
     item: PantryItemEntity,
     onAdjustDays: (Int) -> Unit,
+    onAdjustStockPercent: (Int) -> Unit,
+    onOpenPreservationGuide: () -> Unit,
     onEdit: () -> Unit,
     onMarkUsedUp: () -> Unit,
     onDelete: () -> Unit
@@ -987,6 +1778,84 @@ private fun PantryIngredientCard(
                 )
             }
 
+            // Stock Level Progress & Low-Stock Threshold Auto-Shopping List Control
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                color = if (item.isLowStock) {
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (item.isLowStock) {
+                                "⚡ Low Stock: ${item.stockPercent}% (≤${item.lowStockThresholdPercent}%) • Auto-Listed in Cart"
+                            } else {
+                                "Stock Level: ${item.stockPercent}% (Auto-List ≤${item.lowStockThresholdPercent}%)"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (item.isLowStock) FontWeight.Bold else FontWeight.Medium,
+                            color = if (item.isLowStock) {
+                                MaterialTheme.colorScheme.onTertiaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth((item.stockPercent / 100f).coerceIn(0.05f, 1f))
+                                    .fillMaxHeight()
+                                    .background(
+                                        when {
+                                            item.isLowStock -> CriticalCrimson
+                                            item.stockPercent <= 50 -> ExpiringAmber
+                                            else -> FreshEmerald
+                                        }
+                                    )
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        TextButton(
+                            onClick = { onAdjustStockPercent(-25) },
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.testTag("decrease_stock_${item.id}")
+                        ) {
+                            Text("-25%", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(
+                            onClick = { onAdjustStockPercent(25) },
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.testTag("increase_stock_${item.id}")
+                        ) {
+                            Text("+25%", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
             AnimatedVisibility(visible = expandedTip && item.storageTip.isNotBlank()) {
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f),
@@ -1055,6 +1924,25 @@ private fun PantryIngredientCard(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = onOpenPreservationGuide,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.testTag("preserve_item_${item.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AcUnit,
+                            contentDescription = "Preserve or freeze tip",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Preserve",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
                     IconButton(
                         onClick = onEdit,
                         modifier = Modifier.testTag("edit_item_${item.id}")

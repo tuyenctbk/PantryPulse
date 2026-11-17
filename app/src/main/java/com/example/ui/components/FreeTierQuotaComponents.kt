@@ -221,6 +221,8 @@ fun SmartQuotaRecoveryCard(
             "Use the Instant Local Reflex Chef for context-aware cooking & storage answers (0 cloud credits)."
         AiFeatureType.VOICE_MEMO_PARSE ->
             "Save & parse spoken grocery transcript on-device using Local Culinary Parser (0 cloud credits)."
+        AiFeatureType.SHELF_LIFE_PRESERVATION ->
+            "Generate personalized freezing, blanching & storage guides on-device using the Local Preservation Coach (0 cloud credits)."
     }
 
     val localButtonLabel = when (feature) {
@@ -228,6 +230,7 @@ fun SmartQuotaRecoveryCard(
         AiFeatureType.RECIPE_RANKING -> "Run On-Device Chef Synthesis (0 Credits)"
         AiFeatureType.SOUS_CHEF_CHAT -> "Ask Local Reflex Chef (0 Credits)"
         AiFeatureType.VOICE_MEMO_PARSE -> "Parse Raw Transcript On-Device (0 Credits)"
+        AiFeatureType.SHELF_LIFE_PRESERVATION -> "Run On-Device Preservation Coach (0 Credits)"
     }
 
     Card(
