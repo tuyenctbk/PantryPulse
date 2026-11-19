@@ -1,6 +1,11 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -93,6 +99,8 @@ import com.example.data.PantryCategory
 import com.example.data.PantryItemEntity
 import com.example.data.PreservationGuide
 import com.example.data.RestockItemEntity
+import com.example.data.computeExpiryEpochMillis
+import com.example.data.formatExpiryDate
 import com.example.ui.PantrySortOrder
 import com.example.ui.PreservationCoachUiState
 import com.example.ui.components.HomeCompactSupportBanner
@@ -146,6 +154,7 @@ fun PantryDashboardScreen(
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<PantryItemEntity?>(null) }
     var inspectingPreservationGuide by remember { mutableStateOf<PreservationGuide?>(null) }
+    val thawedNote = stringResource(id = R.string.thawed_note)
 
     val filteredItems = remember(items, selectedCategory, searchQuery, sortOrder) {
         val byCat = if (selectedCategory == null) items else items.filter { it.parsedCategory == selectedCategory }
@@ -161,17 +170,17 @@ fun PantryDashboardScreen(
         }
         when (sortOrder) {
             PantrySortOrder.URGENCY -> bySearch.sortedWith(
-                compareBy<PantryItemEntity> { it.daysUntilExpiry }.thenByDescending { it.estimatedValueDollars }
+                compareBy<PantryItemEntity> { it.effectiveDaysUntilExpiry }.thenByDescending { it.estimatedValueDollars }
             )
             PantrySortOrder.VALUE_HIGH -> bySearch.sortedByDescending { it.estimatedValueDollars }
             PantrySortOrder.RECENT -> bySearch.sortedByDescending { it.addedTimestamp }
         }
     }
 
-    val expiringItems = remember(items) { items.filter { it.daysUntilExpiry <= 3 } }
-    val criticalCount = remember(items) { items.count { it.daysUntilExpiry <= 1 } }
-    val soonCount = remember(items) { items.count { it.daysUntilExpiry in 2..3 } }
-    val freshCount = remember(items) { items.count { it.daysUntilExpiry > 3 } }
+    val expiringItems = remember(items) { items.filter { it.effectiveDaysUntilExpiry <= 3 } }
+    val criticalCount = remember(items) { items.count { it.effectiveDaysUntilExpiry <= 1 } }
+    val soonCount = remember(items) { items.count { it.effectiveDaysUntilExpiry in 2..3 } }
+    val freshCount = remember(items) { items.count { it.effectiveDaysUntilExpiry > 3 } }
     val atRiskDollars = remember(expiringItems) { expiringItems.sumOf { it.estimatedValueDollars } }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -227,7 +236,7 @@ fun PantryDashboardScreen(
                 item {
                     val preservedFreezerItems = remember(items) {
                         items.filter {
-                            it.daysUntilExpiry >= 14 ||
+                            it.effectiveDaysUntilExpiry >= 14 ||
                                 it.visualConditionNote.contains("Preserved:", ignoreCase = true) ||
                                 it.visualConditionNote.contains("Freeze", ignoreCase = true)
                         }
@@ -247,7 +256,7 @@ fun PantryDashboardScreen(
                                 frozenItem.parsedCategory,
                                 frozenItem.quantity,
                                 1,
-                                "Thawed today from 30-Day Freezer Vault — ready for Rescue Recipes!"
+                                thawedNote
                             )
                             onNavigateToRecipes()
                         },
@@ -308,6 +317,7 @@ fun PantryDashboardScreen(
                 items(filteredItems, key = { it.id }) { item ->
                     PantryIngredientCard(
                         item = item,
+                        modifier = Modifier.animateItem(),
                         onAdjustDays = { delta -> onAdjustDays(item, delta) },
                         onAdjustStockPercent = { deltaPct -> onAdjustStockPercent(item, deltaPct) },
                         onOpenPreservationGuide = {
@@ -378,7 +388,7 @@ fun PantryDashboardScreen(
             initialName = target.name,
             initialQuantity = target.quantity,
             initialCategory = target.parsedCategory,
-            initialDays = target.daysUntilExpiry,
+            initialDays = target.effectiveDaysUntilExpiry,
             initialNote = target.visualConditionNote,
             onDismiss = { editingItem = null },
             onConfirm = { name, category, qty, days, note ->
@@ -445,7 +455,7 @@ private fun ShelfLifePreservationCoachCard(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.AcUnit,
-                                contentDescription = "Shelf-Life & Preservation Coach",
+                                contentDescription = stringResource(id = R.string.cd_shelf_life_coach),
                                 tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -460,7 +470,7 @@ private fun ShelfLifePreservationCoachCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         val tierText = when (preservationState) {
-                            is PreservationCoachUiState.Success -> preservationState.tierUsed.badgeLabel
+                            is PreservationCoachUiState.Success -> stringResource(id = preservationState.tierUsed.badgeLabelRes)
                             is PreservationCoachUiState.Analyzing -> stringResource(id = R.string.preservation_coach_analyzing)
                             else -> stringResource(id = R.string.preservation_coach_subtitle)
                         }
@@ -539,7 +549,7 @@ private fun ShelfLifePreservationCoachCard(
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
-                                text = "Cloud AI Allowance Reached — Choose Zero-Friction Recovery:",
+                                text = stringResource(id = R.string.preservation_quota_reached_msg),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF311F00)
@@ -554,7 +564,7 @@ private fun ShelfLifePreservationCoachCard(
                                     modifier = Modifier.weight(1f),
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                                 ) {
-                                    Text("+3 Grace Credits", style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(id = R.string.preservation_btn_grace_short), style = MaterialTheme.typography.labelSmall)
                                 }
                                 OutlinedButton(
                                     onClick = onRetryEcoLite,
@@ -563,7 +573,7 @@ private fun ShelfLifePreservationCoachCard(
                                 ) {
                                     Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Eco Lite ⚡", style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(id = R.string.preservation_btn_eco_short), style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
@@ -632,7 +642,8 @@ private fun ShelfLifePreservationCoachCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         preservedFreezerItems.take(4).forEach { frozenItem ->
-                            val needs30DayCheckIn = frozenItem.daysUntilExpiry <= 30
+                            val frozenDays = frozenItem.effectiveDaysUntilExpiry
+                            val needs30DayCheckIn = frozenDays <= 30
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -648,11 +659,11 @@ private fun ShelfLifePreservationCoachCard(
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = if (needs30DayCheckIn) {
-                                            "❄️ 30-Day Check-In: ${frozenItem.daysUntilExpiry}d left • Rotate soon"
+                                        text = (if (needs30DayCheckIn) {
+                                            stringResource(id = R.string.freezer_checkin_urgent_fmt, frozenDays)
                                         } else {
-                                            "❄️ Deep Freeze: ${frozenItem.daysUntilExpiry}d shelf life locked"
-                                        },
+                                            stringResource(id = R.string.freezer_checkin_deep_fmt, frozenDays)
+                                        }) + " · ${frozenItem.formattedExpiryDate}",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -725,9 +736,9 @@ private fun PreservationGuideItemCard(
                 ) {
                     Text(
                         text = if (guide.isApplied) {
-                            "✅ +${guide.extendedShelfLifeDays}d Locked"
+                            stringResource(id = R.string.preservation_locked_fmt, guide.extendedShelfLifeDays)
                         } else {
-                            "${guide.currentDaysLeft}d → +${guide.extendedShelfLifeDays}d"
+                            stringResource(id = R.string.preservation_extend_fmt, guide.currentDaysLeft, guide.extendedShelfLifeDays)
                         },
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -749,7 +760,7 @@ private fun PreservationGuideItemCard(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = "${guide.methodType.badgeEmoji} ${guide.methodType.label}",
+                        text = "${guide.methodType.badgeEmoji} ${stringResource(id = guide.methodType.labelRes)}",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -758,7 +769,7 @@ private fun PreservationGuideItemCard(
                 }
 
                 Text(
-                    text = "Saves ~$${String.format("%.2f", guide.estimatedSavingsDollars)}",
+                    text = stringResource(id = R.string.preservation_saves_fmt, guide.estimatedSavingsDollars),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -789,7 +800,7 @@ private fun PreservationGuideItemCard(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "Step-by-Step Preservation Method:",
+                                text = stringResource(id = R.string.preservation_steps_header),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -803,7 +814,7 @@ private fun PreservationGuideItemCard(
                             }
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "🍳 Best Culinary Use After Preserving: ${guide.bestUseAfterPreserving}",
+                                text = stringResource(id = R.string.preservation_best_use_fmt, guide.bestUseAfterPreserving),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.secondary
@@ -825,7 +836,15 @@ private fun PreservationGuideItemCard(
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = if (showFullSteps) "Full Guide Modal" else "View ${guide.preservationSteps.size} Steps (${guide.methodType.label})",
+                        text = if (showFullSteps) {
+                            stringResource(id = R.string.preservation_btn_full_modal)
+                        } else {
+                            stringResource(
+                                id = R.string.preservation_btn_view_steps_fmt,
+                                guide.preservationSteps.size,
+                                stringResource(id = guide.methodType.labelRes)
+                            )
+                        },
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -968,7 +987,11 @@ private fun IngredientPreservationModal(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${guide.methodType.label} • Extends Shelf-Life by +${guide.extendedShelfLifeDays} Days",
+                    text = stringResource(
+                        id = R.string.preservation_modal_extends_fmt,
+                        stringResource(id = guide.methodType.labelRes),
+                        guide.extendedShelfLifeDays
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -983,7 +1006,7 @@ private fun IngredientPreservationModal(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = "Immediate Fridge Storage Tip:",
+                            text = stringResource(id = R.string.preservation_modal_fridge_tip_header),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -998,7 +1021,7 @@ private fun IngredientPreservationModal(
                 }
 
                 Text(
-                    text = "Zero-Waste Preservation Steps:",
+                    text = stringResource(id = R.string.preservation_modal_steps_header),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1018,7 +1041,7 @@ private fun IngredientPreservationModal(
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = "🍳 How to Cook After Preserving:",
+                            text = stringResource(id = R.string.preservation_modal_how_to_cook_header),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.secondary
@@ -1042,9 +1065,9 @@ private fun IngredientPreservationModal(
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     if (guide.isApplied) {
-                        "Already Preserved (+${guide.extendedShelfLifeDays}d)"
+                        stringResource(id = R.string.preservation_modal_already_applied_fmt, guide.extendedShelfLifeDays)
                     } else {
-                        "Apply Preservation (+${guide.extendedShelfLifeDays}d)"
+                        stringResource(id = R.string.preservation_modal_apply_fmt, guide.extendedShelfLifeDays)
                     }
                 )
             }
@@ -1112,7 +1135,7 @@ private fun SmartRestockCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "⚡ $autoAddedCount auto-added via Low-Stock Threshold (≤$lowStockThresholdPercent%)",
+                            text = stringResource(id = R.string.restock_auto_added_fmt, autoAddedCount, lowStockThresholdPercent),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1138,7 +1161,7 @@ private fun SmartRestockCard(
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Open Smart Shopping List (${restockItems.size}) →", fontWeight = FontWeight.Bold)
+                Text(stringResource(id = R.string.open_smart_shopping_list_fmt, restockItems.size), fontWeight = FontWeight.Bold)
             }
 
             AnimatedVisibility(visible = expanded) {
@@ -1173,7 +1196,7 @@ private fun SmartRestockCard(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Dismiss restock item",
+                                        contentDescription = stringResource(id = R.string.cd_dismiss_restock),
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -1208,12 +1231,28 @@ private fun FreshnessPulseBreakdownCard(
     onRescueNow: () -> Unit
 ) {
     val total = (criticalCount + soonCount + freshCount).coerceAtLeast(1)
+    val animatedCritical by animateFloatAsState(
+        targetValue = (criticalCount.toFloat() / total).coerceAtLeast(0.0001f),
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "critical_bar"
+    )
+    val animatedSoon by animateFloatAsState(
+        targetValue = (soonCount.toFloat() / total).coerceAtLeast(0.0001f),
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "soon_bar"
+    )
+    val animatedFresh by animateFloatAsState(
+        targetValue = (freshCount.toFloat() / total).coerceAtLeast(0.0001f),
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "fresh_bar"
+    )
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1222,7 +1261,7 @@ private fun FreshnessPulseBreakdownCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(id = R.string.pulse_title),
                         style = MaterialTheme.typography.titleSmall,
@@ -1250,14 +1289,14 @@ private fun FreshnessPulseBreakdownCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(10.dp)
+                    .height(11.dp)
                     .clip(RoundedCornerShape(50))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (criticalCount > 0) {
                     Box(
                         modifier = Modifier
-                            .weight(criticalCount.toFloat() / total)
+                            .weight(animatedCritical)
                             .fillMaxHeight()
                             .background(CriticalCrimson)
                     )
@@ -1265,7 +1304,7 @@ private fun FreshnessPulseBreakdownCard(
                 if (soonCount > 0) {
                     Box(
                         modifier = Modifier
-                            .weight(soonCount.toFloat() / total)
+                            .weight(animatedSoon)
                             .fillMaxHeight()
                             .background(ExpiringAmber)
                     )
@@ -1273,7 +1312,7 @@ private fun FreshnessPulseBreakdownCard(
                 if (freshCount > 0) {
                     Box(
                         modifier = Modifier
-                            .weight(freshCount.toFloat() / total)
+                            .weight(animatedFresh)
                             .fillMaxHeight()
                             .background(FreshEmerald)
                     )
@@ -1329,12 +1368,12 @@ private fun SearchAndSortSection(
             onValueChange = onSearchQueryChange,
             placeholder = { Text(stringResource(id = R.string.search_pantry_placeholder)) },
             leadingIcon = {
-                Icon(Icons.Default.Search, contentDescription = "Search Pantry")
+                Icon(Icons.Default.Search, contentDescription = stringResource(id = R.string.cd_search_pantry))
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                        Icon(Icons.Default.Clear, contentDescription = stringResource(id = R.string.cd_clear_search))
                     }
                 }
             },
@@ -1369,7 +1408,7 @@ private fun SearchAndSortSection(
                 FilterChip(
                     selected = sortOrder == order,
                     onClick = { onSortOrderChange(order) },
-                    label = { Text(order.label, style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(stringResource(id = order.labelRes), style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.testTag("sort_chip_${order.name.lowercase()}")
                 )
             }
@@ -1393,19 +1432,20 @@ private fun HeroPantryBanner(
         shape = RoundedCornerShape(26.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 248.dp)
+        ) {
             Image(
                 painter = painterResource(id = R.drawable.img_hero_pantry),
-                contentDescription = "Open fridge shelf filled with fresh produce and jars",
+                contentDescription = stringResource(id = R.string.cd_hero_fridge_image),
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(245.dp)
+                modifier = Modifier.matchParentSize()
             )
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(245.dp)
+                    .matchParentSize()
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
@@ -1600,7 +1640,8 @@ private fun ExpiringWidgetPreviewCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     expiringItems.take(4).forEach { item ->
-                        val isCritical = item.daysUntilExpiry <= 1
+                        val daysLeft = item.effectiveDaysUntilExpiry
+                        val isCritical = daysLeft <= 1
                         Surface(
                             color = if (isCritical) CriticalCrimsonContainer else ExpiringAmberContainer,
                             shape = RoundedCornerShape(12.dp)
@@ -1620,7 +1661,7 @@ private fun ExpiringWidgetPreviewCard(
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text(
-                                        text = "${item.daysUntilExpiry}d",
+                                        text = stringResource(id = R.string.expiry_short_days_fmt, daysLeft.coerceAtLeast(0)),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = Color.White,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -1660,7 +1701,7 @@ private fun CategoryFilterRow(
                 onClick = {
                     onSelectCategory(if (selectedCategory == category) null else category)
                 },
-                label = { Text("${category.emoji} ${category.displayName}") },
+                label = { Text("${category.emoji} ${stringResource(id = category.displayNameRes)}") },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
                 ),
@@ -1673,6 +1714,7 @@ private fun CategoryFilterRow(
 @Composable
 private fun PantryIngredientCard(
     item: PantryItemEntity,
+    modifier: Modifier = Modifier,
     onAdjustDays: (Int) -> Unit,
     onAdjustStockPercent: (Int) -> Unit,
     onOpenPreservationGuide: () -> Unit,
@@ -1680,25 +1722,40 @@ private fun PantryIngredientCard(
     onMarkUsedUp: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val daysLeft = item.effectiveDaysUntilExpiry
     val status = item.freshnessStatus
     val (badgeBg, badgeFg) = when (status) {
         FreshnessStatus.CRITICAL -> CriticalCrimsonContainer to CriticalCrimson
         FreshnessStatus.EXPIRING_SOON -> ExpiringAmberContainer to ExpiringAmber
         FreshnessStatus.FRESH -> FreshEmeraldContainer to FreshEmerald
     }
+    val cardBorderColor by animateColorAsState(
+        targetValue = when {
+            status == FreshnessStatus.CRITICAL -> CriticalCrimson.copy(alpha = 0.35f)
+            item.isLowStock -> ExpiringAmber.copy(alpha = 0.45f)
+            else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+        },
+        label = "pantry_card_border"
+    )
+    val animatedStockFraction by animateFloatAsState(
+        targetValue = (item.stockPercent / 100f).coerceIn(0.05f, 1f),
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "stock_progress_fill"
+    )
 
     var expandedTip by rememberSaveable(item.id) { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clickable { expandedTip = !expandedTip }
             .testTag("pantry_item_card_${item.id}"),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
+        border = BorderStroke(1.dp, cardBorderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1733,39 +1790,51 @@ private fun PantryIngredientCard(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${item.quantity} • Est. $${String.format("%.2f", item.estimatedValueDollars)}",
+                            text = stringResource(id = R.string.pantry_item_value_fmt, item.quantity, item.estimatedValueDollars),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                Surface(
-                    color = badgeBg,
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Surface(
+                        color = badgeBg,
+                        shape = RoundedCornerShape(50)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = "Expiry Countdown",
-                            tint = badgeFg,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = when {
-                                item.daysUntilExpiry <= 0 -> stringResource(id = R.string.expiry_use_today)
-                                item.daysUntilExpiry == 1 -> stringResource(id = R.string.expiry_one_day)
-                                else -> stringResource(id = R.string.expiry_many_days, item.daysUntilExpiry)
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = badgeFg
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = stringResource(id = R.string.cd_expiry_countdown),
+                                tint = badgeFg,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = when {
+                                    daysLeft <= 0 -> stringResource(id = R.string.expiry_use_today)
+                                    daysLeft == 1 -> stringResource(id = R.string.expiry_one_day)
+                                    else -> stringResource(id = R.string.expiry_many_days, daysLeft)
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = badgeFg
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = item.formattedExpiryDate,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
@@ -1786,22 +1855,22 @@ private fun PantryIngredientCard(
                 } else {
                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
                 },
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (item.isLowStock) {
-                                "⚡ Low Stock: ${item.stockPercent}% (≤${item.lowStockThresholdPercent}%) • Auto-Listed in Cart"
+                                stringResource(id = R.string.pantry_stock_low_fmt, item.stockPercent, item.lowStockThresholdPercent)
                             } else {
-                                "Stock Level: ${item.stockPercent}% (Auto-List ≤${item.lowStockThresholdPercent}%)"
+                                stringResource(id = R.string.pantry_stock_level_fmt, item.stockPercent, item.lowStockThresholdPercent)
                             },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = if (item.isLowStock) FontWeight.Bold else FontWeight.Medium,
@@ -1811,18 +1880,19 @@ private fun PantryIngredientCard(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(5.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(0.92f)
-                                .height(6.dp)
+                                .height(7.dp)
                                 .clip(RoundedCornerShape(50))
                                 .background(MaterialTheme.colorScheme.surface)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth((item.stockPercent / 100f).coerceIn(0.05f, 1f))
+                                    .fillMaxWidth(animatedStockFraction)
                                     .fillMaxHeight()
+                                    .clip(RoundedCornerShape(50))
                                     .background(
                                         when {
                                             item.isLowStock -> CriticalCrimson
@@ -1836,18 +1906,18 @@ private fun PantryIngredientCard(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         TextButton(
                             onClick = { onAdjustStockPercent(-25) },
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                             modifier = Modifier.testTag("decrease_stock_${item.id}")
                         ) {
                             Text("-25%", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                         }
                         TextButton(
                             onClick = { onAdjustStockPercent(25) },
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                             modifier = Modifier.testTag("increase_stock_${item.id}")
                         ) {
                             Text("+25%", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
@@ -1891,55 +1961,57 @@ private fun PantryIngredientCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = { onAdjustDays(-1) },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .testTag("decrease_days_${item.id}")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Remove,
-                            contentDescription = "Decrease expiry days",
-                            modifier = Modifier.size(18.dp)
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { onAdjustDays(-1) },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .testTag("decrease_days_${item.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Remove,
+                                contentDescription = stringResource(id = R.string.cd_decrease_expiry),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Text(
+                            text = stringResource(id = R.string.expiry_short_days_fmt, daysLeft.coerceAtLeast(0)),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 2.dp)
                         )
-                    }
-                    Text(
-                        text = "${item.daysUntilExpiry}d",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-                    IconButton(
-                        onClick = { onAdjustDays(1) },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .testTag("increase_days_${item.id}")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Increase expiry days",
-                            modifier = Modifier.size(18.dp)
-                        )
+                        IconButton(
+                            onClick = { onAdjustDays(1) },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .testTag("increase_days_${item.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = stringResource(id = R.string.cd_increase_expiry),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    IconButton(
                         onClick = onOpenPreservationGuide,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         modifier = Modifier.testTag("preserve_item_${item.id}")
                     ) {
                         Icon(
                             imageVector = Icons.Default.AcUnit,
-                            contentDescription = "Preserve or freeze tip",
+                            contentDescription = stringResource(id = R.string.cd_preserve_tip),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Preserve",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
@@ -1949,7 +2021,7 @@ private fun PantryIngredientCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit item",
+                            contentDescription = stringResource(id = R.string.cd_edit_item),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
@@ -1961,14 +2033,14 @@ private fun PantryIngredientCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Remove item",
+                            contentDescription = stringResource(id = R.string.cd_remove_item),
                             tint = MaterialTheme.colorScheme.outline
                         )
                     }
 
                     Button(
                         onClick = onMarkUsedUp,
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         ),
@@ -1979,8 +2051,13 @@ private fun PantryIngredientCard(
                             contentDescription = stringResource(id = R.string.btn_used_up),
                             modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(id = R.string.btn_used_up), style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = stringResource(id = R.string.btn_used_up),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -2069,7 +2146,7 @@ private fun IngredientFormDialog(
     var name by rememberSaveable { mutableStateOf(initialName) }
     var quantity by rememberSaveable { mutableStateOf(initialQuantity) }
     var selectedCategory by rememberSaveable { mutableStateOf(initialCategory) }
-    var daysSlider by rememberSaveable { mutableFloatStateOf(initialDays.coerceIn(1, 21).toFloat()) }
+    var daysSlider by rememberSaveable { mutableFloatStateOf(initialDays.coerceIn(0, 90).toFloat()) }
     var note by rememberSaveable { mutableStateOf(initialNote) }
 
     AlertDialog(
@@ -2116,26 +2193,53 @@ private fun IngredientFormDialog(
                         FilterChip(
                             selected = selectedCategory == cat,
                             onClick = { selectedCategory = cat },
-                            label = { Text("${cat.emoji} ${cat.displayName}") }
+                            label = { Text("${cat.emoji} ${stringResource(id = cat.displayNameRes)}") }
                         )
                     }
                 }
 
-                val daysInt = daysSlider.roundToInt().coerceIn(1, 21)
-                Text(
-                    text = if (daysInt == 1) {
-                        stringResource(id = R.string.expiry_one_day)
-                    } else {
-                        stringResource(id = R.string.expiry_many_days, daysInt)
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (daysInt <= 2) CriticalCrimson else MaterialTheme.colorScheme.primary
-                )
+                val daysInt = daysSlider.roundToInt().coerceIn(0, 90)
+                val computedDateText = remember(daysInt) {
+                    formatExpiryDate(computeExpiryEpochMillis(daysInt))
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = when {
+                            daysInt <= 0 -> stringResource(id = R.string.expiry_use_today)
+                            daysInt == 1 -> stringResource(id = R.string.expiry_one_day)
+                            else -> stringResource(id = R.string.expiry_many_days, daysInt)
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (daysInt <= 2) CriticalCrimson else MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = computedDateText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(1, 3, 7, 14, 30, 60).forEach { preset ->
+                        FilterChip(
+                            selected = daysInt == preset,
+                            onClick = { daysSlider = preset.toFloat() },
+                            label = { Text(stringResource(id = R.string.expiry_short_days_fmt, preset)) }
+                        )
+                    }
+                }
                 Slider(
                     value = daysSlider,
                     onValueChange = { daysSlider = it },
-                    valueRange = 1f..21f,
-                    steps = 19
+                    valueRange = 0f..90f
                 )
 
                 OutlinedTextField(
@@ -2155,7 +2259,7 @@ private fun IngredientFormDialog(
                             name,
                             selectedCategory,
                             quantity,
-                            daysSlider.roundToInt().coerceIn(1, 21),
+                            daysSlider.roundToInt().coerceIn(0, 90),
                             note
                         )
                     }

@@ -7,7 +7,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.StringRes
 import com.android.billingclient.api.AcknowledgePurchaseParams
+import com.example.R
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
 import com.android.billingclient.api.BillingClientStateListener
@@ -36,12 +38,15 @@ private const val TAG = "BillingManager"
 /**
  * Represents the current connection state of the Google Play [BillingClient].
  */
-enum class BillingConnectionState(val displayLabel: String) {
-    DISCONNECTED("Disconnected"),
-    CONNECTING("Connecting to Google Play…"),
-    CONNECTED("Google Play Billing Ready"),
-    SANDBOX_FALLBACK_READY("Play Billing Sandbox Ready"),
-    CLOSED("Closed")
+enum class BillingConnectionState(
+    val displayLabel: String,
+    @StringRes val displayLabelRes: Int
+) {
+    DISCONNECTED("Disconnected", R.string.billing_conn_disconnected),
+    CONNECTING("Connecting to Google Play…", R.string.billing_conn_connecting),
+    CONNECTED("Google Play Billing Ready", R.string.billing_conn_connected),
+    SANDBOX_FALLBACK_READY("Play Billing Sandbox Ready", R.string.billing_conn_sandbox),
+    CLOSED("Closed", R.string.billing_conn_closed)
 }
 
 /**

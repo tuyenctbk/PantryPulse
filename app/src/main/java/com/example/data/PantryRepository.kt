@@ -6,8 +6,10 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.R
 import com.example.widget.PantryPulseWidgetProvider
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -66,13 +68,17 @@ data class KitchenSetupState(
 
 class PantryRepository(
     private val appContext: Context,
-    private val dao: PantryDao
+    private val dao: PantryDao,
+    private val ingredientDao: IngredientDao? = null
 ) {
     private val appliancesKey = stringSetPreferencesKey("owned_appliances")
     private val spicesKey = stringSetPreferencesKey("owned_spices")
     private val rescuedMealsKey = intPreferencesKey("rescued_meals_count")
     private val savedDollarsKey = doublePreferencesKey("saved_dollars_total")
     private val lowStockThresholdKey = intPreferencesKey("low_stock_threshold_percent")
+
+    val allIngredientsFlow: Flow<List<Ingredient>> =
+        ingredientDao?.getAllIngredients() ?: emptyFlow()
 
     val activeItemsFlow: Flow<List<PantryItemEntity>> = dao.getActiveItemsFlow()
 
@@ -203,6 +209,10 @@ class PantryRepository(
                 )
             )
             dao.insertItems(starterItems)
+            if (ingredientDao != null) {
+                val seededActive = dao.getActiveItemsSnapshot()
+                ingredientDao.insertIngredients(seededActive.map { Ingredient.fromPantryItemEntity(it) })
+            }
 
             val starterRecipes = listOf(
                 RecipeSuggestion(
@@ -315,8 +325,41 @@ class PantryRepository(
             syncLowStockToShoppingList()
             PantryPulseWidgetProvider.updateAllWidgets(appContext)
         } else {
+            refreshDynamicExpiryCountdowns()
             syncLowStockToShoppingList()
         }
+    }
+
+    /**
+     * Reconciles each active pantry item's integer daysUntilExpiry countdown with its
+     * persisted calendar expiryDateEpochMillis so offline shelf-life countdowns advance
+     * accurately across calendar days without network connectivity.
+     */
+    suspend fun refreshDynamicExpiryCountdowns(): Int {
+        val active = dao.getActiveItemsSnapshot()
+        val now = System.currentTimeMillis()
+        var updatedCount = 0
+        for (item in active) {
+            val resolvedExpiryMillis = if (item.expiryDateEpochMillis > 0L) {
+                item.expiryDateEpochMillis
+            } else {
+                computeExpiryEpochMillis(item.daysUntilExpiry, now)
+            }
+            val dynamicDays = computeDaysUntilExpiry(resolvedExpiryMillis, now).coerceAtLeast(0)
+            if (item.expiryDateEpochMillis != resolvedExpiryMillis || item.daysUntilExpiry != dynamicDays) {
+                dao.updateExpiryCountdown(
+                    id = item.id,
+                    daysUntilExpiry = dynamicDays,
+                    expiryDateEpochMillis = resolvedExpiryMillis,
+                    updatedTimestamp = now
+                )
+                updatedCount++
+            }
+        }
+        if (updatedCount > 0) {
+            PantryPulseWidgetProvider.updateAllWidgets(appContext)
+        }
+        return updatedCount
     }
 
     /**
@@ -376,35 +419,69 @@ class PantryRepository(
     }
 
     suspend fun addItem(item: PantryItemEntity): List<String> {
-        dao.insertItem(item)
+        val now = System.currentTimeMillis()
+        val normalized = item.copy(
+            expiryDateEpochMillis = if (item.expiryDateEpochMillis > 0L) {
+                item.expiryDateEpochMillis
+            } else {
+                computeExpiryEpochMillis(item.daysUntilExpiry, now)
+            },
+            updatedTimestamp = now
+        )
+        val insertedId = dao.insertItem(normalized)
+        ingredientDao?.insertIngredient(
+            Ingredient.fromPantryItemEntity(normalized.copy(id = insertedId))
+        )
         val autoAdded = syncLowStockToShoppingList()
         PantryPulseWidgetProvider.updateAllWidgets(appContext)
         return autoAdded
     }
 
+    suspend fun insertIngredient(ingredient: Ingredient): Long {
+        return ingredientDao?.insertIngredient(ingredient) ?: -1L
+    }
+
+    suspend fun updateIngredient(ingredient: Ingredient) {
+        ingredientDao?.updateIngredient(ingredient)
+    }
+
     suspend fun addDetectedIngredients(detected: List<DetectedIngredient>): List<String> {
         val currentSetup = kitchenSetupFlow.first()
+        val now = System.currentTimeMillis()
         val entities = detected.map { d ->
+            val clampedDays = d.daysUntilExpiry.coerceIn(0, 90)
             PantryItemEntity(
-                name = d.name,
+                name = d.name.trim(),
                 category = d.category.name,
-                quantity = d.quantity,
-                daysUntilExpiry = d.daysUntilExpiry,
-                visualConditionNote = d.visualConditionNote,
-                storageTip = d.storageTip,
-                estimatedValueDollars = d.estimatedValueDollars,
+                quantity = d.quantity.ifBlank { "1 unit" }.trim(),
+                daysUntilExpiry = clampedDays,
+                expiryDateEpochMillis = computeExpiryEpochMillis(clampedDays, now),
+                visualConditionNote = d.visualConditionNote.trim(),
+                storageTip = d.storageTip.trim(),
+                estimatedValueDollars = d.estimatedValueDollars.coerceIn(0.50, 100.0),
                 stockPercent = inferStockPercentFromQuantity(d.quantity),
-                lowStockThresholdPercent = currentSetup.lowStockThresholdPercent
+                lowStockThresholdPercent = currentSetup.lowStockThresholdPercent,
+                addedTimestamp = now,
+                updatedTimestamp = now
             )
         }
-        dao.insertItems(entities)
+        entities.forEach { entity ->
+            val id = dao.insertItem(entity)
+            ingredientDao?.insertIngredient(Ingredient.fromPantryItemEntity(entity.copy(id = id)))
+        }
         val autoAdded = syncLowStockToShoppingList()
         PantryPulseWidgetProvider.updateAllWidgets(appContext)
         return autoAdded
     }
 
     suspend fun adjustExpiryDays(item: PantryItemEntity, delta: Int) {
-        val updated = item.copy(daysUntilExpiry = (item.daysUntilExpiry + delta).coerceIn(0, 60))
+        val now = System.currentTimeMillis()
+        val newDays = (item.effectiveDaysUntilExpiry + delta).coerceIn(0, 90)
+        val updated = item.copy(
+            daysUntilExpiry = newDays,
+            expiryDateEpochMillis = computeExpiryEpochMillis(newDays, now),
+            updatedTimestamp = now
+        )
         dao.updateItem(updated)
         PantryPulseWidgetProvider.updateAllWidgets(appContext)
     }
@@ -412,14 +489,26 @@ class PantryRepository(
     /**
      * Applies a personalized zero-waste preservation method (e.g., Blanch & Ice Shock,
      * Oil/Pesto Cube, Quick Pickle, Freeze & Lock) to an inventory item, extending its
-     * shelf-life countdown and updating its storage tip and condition note.
+     * shelf-life countdown and updating its calendar expiry date, storage tip, and condition note.
      */
     suspend fun applyPreservationGuide(item: PantryItemEntity, guide: PreservationGuide): PantryItemEntity {
-        val newDays = (item.daysUntilExpiry + guide.extendedShelfLifeDays).coerceIn(3, 90)
+        val now = System.currentTimeMillis()
+        val newDays = (item.effectiveDaysUntilExpiry + guide.extendedShelfLifeDays).coerceIn(3, 90)
         val updated = item.copy(
             daysUntilExpiry = newDays,
-            visualConditionNote = "Preserved via ${guide.methodType.badgeEmoji} ${guide.methodType.label} (+${guide.extendedShelfLifeDays}d shelf life)",
-            storageTip = "${guide.personalizedStorageTip} • Best Use: ${guide.bestUseAfterPreserving}"
+            expiryDateEpochMillis = computeExpiryEpochMillis(newDays, now),
+            visualConditionNote = appContext.getString(
+                R.string.repo_preserved_note_fmt,
+                guide.methodType.badgeEmoji,
+                appContext.getString(guide.methodType.labelRes),
+                guide.extendedShelfLifeDays
+            ),
+            storageTip = appContext.getString(
+                R.string.repo_best_use_fmt,
+                guide.personalizedStorageTip,
+                guide.bestUseAfterPreserving
+            ),
+            updatedTimestamp = now
         )
         dao.updateItem(updated)
         appContext.kitchenDataStore.edit { prefs ->
@@ -449,7 +538,8 @@ class PantryRepository(
         }
         val updated = item.copy(
             stockPercent = newStock,
-            quantity = updatedQuantityLabel
+            quantity = updatedQuantityLabel,
+            updatedTimestamp = System.currentTimeMillis()
         )
         dao.updateItem(updated)
         val autoAdded = syncLowStockToShoppingList()
@@ -462,22 +552,29 @@ class PantryRepository(
         appContext.kitchenDataStore.edit { prefs ->
             prefs[lowStockThresholdKey] = clamped
         }
-        // Update active items so their threshold aligns with the new global threshold
+        val now = System.currentTimeMillis()
         val active = dao.getActiveItemsSnapshot()
         for (item in active) {
-            dao.updateItem(item.copy(lowStockThresholdPercent = clamped))
+            dao.updateItem(item.copy(lowStockThresholdPercent = clamped, updatedTimestamp = now))
         }
         return syncLowStockToShoppingList(thresholdOverride = clamped)
     }
 
     suspend fun updateItemDetails(item: PantryItemEntity): List<String> {
-        dao.updateItem(item)
+        val now = System.currentTimeMillis()
+        val clampedDays = item.daysUntilExpiry.coerceIn(0, 90)
+        val synced = item.copy(
+            daysUntilExpiry = clampedDays,
+            expiryDateEpochMillis = computeExpiryEpochMillis(clampedDays, now),
+            updatedTimestamp = now
+        )
+        dao.updateItem(synced)
         val autoAdded = syncLowStockToShoppingList()
         PantryPulseWidgetProvider.updateAllWidgets(appContext)
         return autoAdded
     }
 
-    suspend fun consumeItem(item: PantryItemEntity) {
+    suspend fun consumeItem(item: PantryItemEntity, recordSavings: Boolean = true) {
         dao.markConsumed(item.id)
         val existingShoppingItems = dao.getRestockItemsSnapshot()
         val alreadyListed = existingShoppingItems.firstOrNull {
@@ -499,7 +596,7 @@ class PantryRepository(
                     },
                     zeroWasteBuyingTip = item.storageTip.ifBlank { "Buy smaller packs or freeze half on day 1." },
                     estimatedCostDollars = item.estimatedValueDollars,
-                    triggerReason = "Auto-Added • Finished / 0% Stock",
+                    triggerReason = appContext.getString(R.string.repo_restock_finished_reason),
                     isAutoAdded = true,
                     isChecked = false,
                     sourcePantryItemId = item.id
@@ -508,14 +605,16 @@ class PantryRepository(
         } else {
             dao.updateRestockItem(
                 alreadyListed.copy(
-                    triggerReason = "Auto-Added • Finished / 0% Stock",
+                    triggerReason = appContext.getString(R.string.repo_restock_finished_reason),
                     isAutoAdded = true
                 )
             )
         }
-        appContext.kitchenDataStore.edit { prefs ->
-            val currentSaved = prefs[savedDollarsKey] ?: 38.50
-            prefs[savedDollarsKey] = currentSaved + item.estimatedValueDollars
+        if (recordSavings) {
+            appContext.kitchenDataStore.edit { prefs ->
+                val currentSaved = prefs[savedDollarsKey] ?: 38.50
+                prefs[savedDollarsKey] = currentSaved + item.estimatedValueDollars
+            }
         }
         PantryPulseWidgetProvider.updateAllWidgets(appContext)
     }
@@ -546,25 +645,76 @@ class PantryRepository(
                 },
                 zeroWasteBuyingTip = buyingTip.ifBlank { "Check fridge before buying duplicate packs." }.trim(),
                 estimatedCostDollars = estimatedCostDollars.coerceIn(0.50, 50.0),
-                triggerReason = "Manual Shopping List Addition",
+                triggerReason = appContext.getString(R.string.repo_restock_manual_reason),
                 isAutoAdded = false,
                 isChecked = false
             )
         )
     }
 
+    suspend fun movePantryItemToShoppingList(pantryItem: PantryItemEntity): Boolean {
+        val existing = dao.getRestockItemsSnapshot().firstOrNull { restock ->
+            (restock.sourcePantryItemId != null && restock.sourcePantryItemId == pantryItem.id) ||
+                restock.name.equals(pantryItem.name, ignoreCase = true)
+        }
+        if (existing == null) {
+            val cat = pantryItem.parsedCategory
+            dao.insertRestockItem(
+                RestockItemEntity(
+                    name = pantryItem.name,
+                    category = pantryItem.category,
+                    suggestedQuantity = defaultReplenishQuantityFor(cat, pantryItem.quantity),
+                    defaultExpiryDays = when (cat) {
+                        PantryCategory.PRODUCE -> 6
+                        PantryCategory.DAIRY_CHEESE -> 10
+                        PantryCategory.SAUCES_JARS -> 14
+                        PantryCategory.PROTEIN -> 7
+                        else -> 7
+                    },
+                    zeroWasteBuyingTip = pantryItem.storageTip.ifBlank {
+                        appContext.getString(R.string.shopping_default_tip)
+                    },
+                    estimatedCostDollars = pantryItem.estimatedValueDollars.coerceAtLeast(0.50),
+                    triggerReason = appContext.getString(R.string.repo_restock_moved_reason_fmt, pantryItem.stockPercent),
+                    isAutoAdded = true,
+                    isChecked = false,
+                    sourcePantryItemId = pantryItem.id
+                )
+            )
+            return true
+        }
+        return false
+    }
+
+    suspend fun moveAllLowSupplyItemsToShoppingList(): Int {
+        val currentSetup = kitchenSetupFlow.first()
+        val threshold = currentSetup.lowStockThresholdPercent
+        val lowStockItems = dao.getActiveItemsSnapshot().filter { it.stockPercent <= threshold }
+        var addedCount = 0
+        for (item in lowStockItems) {
+            if (movePantryItemToShoppingList(item)) {
+                addedCount++
+            }
+        }
+        return addedCount
+    }
+
     suspend fun restockItemToFridge(restockItem: RestockItemEntity) {
         dao.deleteRestockItemById(restockItem.id)
+        val now = System.currentTimeMillis()
+        val freshExpiryMillis = computeExpiryEpochMillis(restockItem.defaultExpiryDays, now)
         val existingSource = restockItem.sourcePantryItemId?.let { dao.getItemById(it) }
-            ?: dao.getActiveItemsSnapshot().firstOrNull { it.name.equals(restockItem.name, ignoreCase = true) }
+            ?: dao.getActiveItemByNameIgnoreCase(restockItem.name)
 
         if (existingSource != null && !existingSource.isConsumed) {
             dao.updateItem(
                 existingSource.copy(
                     quantity = restockItem.suggestedQuantity,
                     daysUntilExpiry = restockItem.defaultExpiryDays,
+                    expiryDateEpochMillis = freshExpiryMillis,
                     visualConditionNote = "Restocked to 100% from Smart Shopping List",
-                    stockPercent = 100
+                    stockPercent = 100,
+                    updatedTimestamp = now
                 )
             )
         } else {
@@ -574,10 +724,13 @@ class PantryRepository(
                     category = restockItem.category,
                     quantity = restockItem.suggestedQuantity,
                     daysUntilExpiry = restockItem.defaultExpiryDays,
+                    expiryDateEpochMillis = freshExpiryMillis,
                     visualConditionNote = "Freshly restocked (100%) from Smart Shopping List",
                     storageTip = restockItem.zeroWasteBuyingTip,
                     estimatedValueDollars = restockItem.estimatedCostDollars,
-                    stockPercent = 100
+                    stockPercent = 100,
+                    addedTimestamp = now,
+                    updatedTimestamp = now
                 )
             )
         }
@@ -586,19 +739,26 @@ class PantryRepository(
 
     suspend fun restockAllCheckedItems(): Int {
         val checked = dao.getRestockItemsSnapshot().filter { it.isChecked }
-        val targets = checked.ifEmpty { dao.getRestockItemsSnapshot() }
-        for (item in targets) {
+        if (checked.isEmpty()) return 0
+        for (item in checked) {
             restockItemToFridge(item)
         }
-        return targets.size
+        return checked.size
     }
 
     suspend fun deleteRestockItem(id: Long) {
         dao.deleteRestockItemById(id)
     }
 
+    suspend fun deleteIngredient(ingredient: Ingredient) {
+        ingredientDao?.deleteIngredient(ingredient)
+        dao.deleteItemById(ingredient.id)
+        PantryPulseWidgetProvider.updateAllWidgets(appContext)
+    }
+
     suspend fun deleteItem(id: Long) {
         dao.deleteItemById(id)
+        ingredientDao?.deleteIngredientById(id)
         PantryPulseWidgetProvider.updateAllWidgets(appContext)
     }
 
@@ -609,29 +769,36 @@ class PantryRepository(
 
     suspend fun completeRescueMeal(recipe: RecipeSuggestion, activeItems: List<PantryItemEntity>): List<String> {
         var rescuedValue = 0.0
+        val now = System.currentTimeMillis()
         val matchedItems = activeItems.filter { item ->
             recipe.expiringIngredientsUsed.any { used ->
                 used.contains(item.name, ignoreCase = true) ||
                     item.name.split(" ").any { word -> word.length > 3 && used.contains(word, ignoreCase = true) }
             }
         }
-        val toConsume = if (matchedItems.isNotEmpty()) matchedItems else activeItems.filter { it.daysUntilExpiry <= 3 }.take(2)
+        val toConsume = if (matchedItems.isNotEmpty()) {
+            matchedItems
+        } else {
+            activeItems.filter { it.effectiveDaysUntilExpiry <= 3 }.take(2)
+        }
         toConsume.forEach { item ->
-            // Reduce stock by 50% or consume if already low
             val nextStock = (item.stockPercent - 55).coerceAtLeast(0)
             if (nextStock == 0) {
-                consumeItem(item)
+                // Pass recordSavings = false so savings are tallied exactly once below (fixes double-counting bug)
+                consumeItem(item, recordSavings = false)
+                rescuedValue += item.estimatedValueDollars
             } else {
                 dao.updateItem(
                     item.copy(
                         stockPercent = nextStock,
-                        quantity = "Low (~$nextStock% left after cooking)"
+                        quantity = "Low (~$nextStock% left after cooking)",
+                        updatedTimestamp = now
                     )
                 )
+                rescuedValue += (item.estimatedValueDollars * 0.55)
             }
-            rescuedValue += item.estimatedValueDollars
         }
-        if (rescuedValue == 0.0) rescuedValue = 6.50
+        if (rescuedValue <= 0.0) rescuedValue = 6.50
 
         appContext.kitchenDataStore.edit { prefs ->
             val meals = prefs[rescuedMealsKey] ?: 4

@@ -158,7 +158,12 @@ fun QuotaSoftNudgeBanner(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "You've used $percentInt% of today's standard AI allowance (${quota.remainingCredits} checks left • Resets in ${quota.resetCountdownText}).",
+                        text = stringResource(
+                            id = R.string.quota_soft_nudge_usage_fmt,
+                            percentInt,
+                            quota.remainingCredits,
+                            quota.resetCountdownText
+                        ),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF311F00)
@@ -169,7 +174,7 @@ fun QuotaSoftNudgeBanner(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Turn on Eco Lite Mode (Gemini 3.5 Flash-Lite) to use our high-speed lightweight AI and stretch your remaining quota 3× further.",
+                text = stringResource(id = R.string.quota_soft_nudge_body),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFF4E3300)
             )
@@ -192,7 +197,7 @@ fun QuotaSoftNudgeBanner(
                 }
 
                 TextButton(onClick = onOpenValueReceipt) {
-                    Text("View Quota Details", color = Color(0xFF311F00))
+                    Text(stringResource(id = R.string.quota_view_details), color = Color(0xFF311F00))
                 }
             }
         }
@@ -213,24 +218,19 @@ fun SmartQuotaRecoveryCard(
     onOpenValueReceipt: () -> Unit
 ) {
     val localCopy = when (feature) {
-        AiFeatureType.VISION_SCAN ->
-            "Use Honor Pledge / On-Device Shelf Check-In & queue photo for cloud verification (0 cloud credits)."
-        AiFeatureType.RECIPE_RANKING ->
-            "Synthesize 3 Ranked Rescue Recipes immediately using the On-Device Chef Engine (0 cloud credits)."
-        AiFeatureType.SOUS_CHEF_CHAT ->
-            "Use the Instant Local Reflex Chef for context-aware cooking & storage answers (0 cloud credits)."
-        AiFeatureType.VOICE_MEMO_PARSE ->
-            "Save & parse spoken grocery transcript on-device using Local Culinary Parser (0 cloud credits)."
-        AiFeatureType.SHELF_LIFE_PRESERVATION ->
-            "Generate personalized freezing, blanching & storage guides on-device using the Local Preservation Coach (0 cloud credits)."
+        AiFeatureType.VISION_SCAN -> stringResource(id = R.string.quota_local_copy_vision)
+        AiFeatureType.RECIPE_RANKING -> stringResource(id = R.string.quota_local_copy_recipes)
+        AiFeatureType.SOUS_CHEF_CHAT -> stringResource(id = R.string.quota_local_copy_chat)
+        AiFeatureType.VOICE_MEMO_PARSE -> stringResource(id = R.string.quota_local_copy_voice)
+        AiFeatureType.SHELF_LIFE_PRESERVATION -> stringResource(id = R.string.quota_local_copy_preservation)
     }
 
     val localButtonLabel = when (feature) {
-        AiFeatureType.VISION_SCAN -> "1-Tap Honor Check-In & Queue Photo (0 Credits)"
-        AiFeatureType.RECIPE_RANKING -> "Run On-Device Chef Synthesis (0 Credits)"
-        AiFeatureType.SOUS_CHEF_CHAT -> "Ask Local Reflex Chef (0 Credits)"
-        AiFeatureType.VOICE_MEMO_PARSE -> "Parse Raw Transcript On-Device (0 Credits)"
-        AiFeatureType.SHELF_LIFE_PRESERVATION -> "Run On-Device Preservation Coach (0 Credits)"
+        AiFeatureType.VISION_SCAN -> stringResource(id = R.string.quota_local_btn_vision)
+        AiFeatureType.RECIPE_RANKING -> stringResource(id = R.string.quota_local_btn_recipes)
+        AiFeatureType.SOUS_CHEF_CHAT -> stringResource(id = R.string.quota_local_btn_chat)
+        AiFeatureType.VOICE_MEMO_PARSE -> stringResource(id = R.string.quota_local_btn_voice)
+        AiFeatureType.SHELF_LIFE_PRESERVATION -> stringResource(id = R.string.quota_local_btn_preservation)
     }
 
     Card(
@@ -283,12 +283,12 @@ fun SmartQuotaRecoveryCard(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "1. Claim One-Time Grace Credits (+3 Free Credits)",
+                        text = stringResource(id = R.string.quota_grace_title),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "Mid-task? Claim +3 Free Grace Credits (once per day) to finish what you're working on right now.",
+                        text = stringResource(id = R.string.quota_grace_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -303,7 +303,11 @@ fun SmartQuotaRecoveryCard(
                         Icon(Icons.Default.CardGiftcard, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            if (quota.graceClaimed) "Grace Credits Already Claimed Today" else "Claim +3 Free Grace Credits"
+                            if (quota.graceClaimed) {
+                                stringResource(id = R.string.quota_grace_claimed_today)
+                            } else {
+                                stringResource(id = R.string.quota_grace_claim_btn)
+                            }
                         )
                     }
                 }
@@ -317,12 +321,12 @@ fun SmartQuotaRecoveryCard(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "2. Retry with Eco Lite AI (Fast & Quota-Friendly)",
+                        text = stringResource(id = R.string.quota_eco_title),
                         style = MaterialTheme.typography.labelLarge,
                         color = ExpiringAmber
                     )
                     Text(
-                        text = "Run this request using Eco Lite AI (Gemini 3.5 Flash-Lite) — uses a lighter, faster model tier with higher free availability.",
+                        text = stringResource(id = R.string.quota_eco_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -335,7 +339,7 @@ fun SmartQuotaRecoveryCard(
                     ) {
                         Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Run with Eco Lite AI ⚡")
+                        Text(stringResource(id = R.string.quota_eco_run_btn))
                     }
                 }
             }
@@ -348,7 +352,7 @@ fun SmartQuotaRecoveryCard(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "3. Use Zero-Quota Local Alternative (0 Cloud Credits)",
+                        text = stringResource(id = R.string.quota_local_section_title),
                         style = MaterialTheme.typography.labelLarge,
                         color = FreshEmerald
                     )
@@ -392,14 +396,14 @@ fun SmartQuotaRecoveryCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Free allowance resets in ${quota.resetCountdownText} (midnight)",
+                        text = stringResource(id = R.string.quota_reset_midnight_fmt, quota.resetCountdownText),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 TextButton(onClick = onOpenValueReceipt) {
-                    Text("Value Receipt →", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(id = R.string.quota_value_receipt_link), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -457,19 +461,29 @@ fun AiValueReceiptDialog(
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text(
-                            text = "TODAY'S AI VALUE RECEIPT",
+                            text = stringResource(id = R.string.receipt_today_header),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${quota.visionUsed} shelf scans • ${quota.recipeUsed} rescue menus • ${quota.chatUsed} sous-chef chats • ${quota.audioUsed} voice memos",
+                            text = stringResource(
+                                id = R.string.receipt_breakdown_fmt,
+                                quota.visionUsed,
+                                quota.recipeUsed,
+                                quota.chatUsed,
+                                quota.audioUsed
+                            ),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "Cumulative impact: $rescuedMealsCount meals rescued • $${String.format("%.2f", savedDollarsTotal)} saved from food waste",
+                            text = stringResource(
+                                id = R.string.receipt_cumulative_fmt,
+                                rescuedMealsCount,
+                                savedDollarsTotal
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -488,18 +502,25 @@ fun AiValueReceiptDialog(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = quota.activeCapabilityTier.badgeLabel,
+                                text = stringResource(id = quota.activeCapabilityTier.badgeLabelRes),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "${quota.remainingCredits}/${quota.totalAllowance} left",
+                                text = stringResource(
+                                    id = R.string.receipt_remaining_fmt,
+                                    quota.remainingCredits,
+                                    quota.totalAllowance
+                                ),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
                         Text(
-                            text = "Active Model: ${quota.activeCapabilityTier.modelDisplayName}",
+                            text = stringResource(
+                                id = R.string.receipt_active_model_fmt,
+                                quota.activeCapabilityTier.modelDisplayName
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -526,7 +547,11 @@ fun AiValueReceiptDialog(
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Automatic Rollover Reset in ${quota.resetCountdownText} (${quota.dateIso}) • Atomic Deduct-with-Refund & 45s Dedup Cache active",
+                            text = stringResource(
+                                id = R.string.receipt_rollover_footer_fmt,
+                                quota.resetCountdownText,
+                                quota.dateIso
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -541,11 +566,11 @@ fun AiValueReceiptDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Eco Lite Mode (Tier 2 ⚡)",
+                            text = stringResource(id = R.string.receipt_eco_lite_title),
                             style = MaterialTheme.typography.titleSmall
                         )
                         Text(
-                            text = "Route to Gemini 3.5 Flash-Lite to stretch quota 3× further",
+                            text = stringResource(id = R.string.receipt_eco_lite_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -564,11 +589,11 @@ fun AiValueReceiptDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Zero-Cost Local Mode (Tier 3 🛡️)",
+                            text = stringResource(id = R.string.receipt_local_mode_title),
                             style = MaterialTheme.typography.titleSmall
                         )
                         Text(
-                            text = "Use On-Device Culinary Synthesis & Local Reflex (0 cloud tokens)",
+                            text = stringResource(id = R.string.receipt_local_mode_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -591,9 +616,9 @@ fun AiValueReceiptDialog(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         if (quota.graceClaimed) {
-                            "+3 Grace Credits Claimed Today"
+                            stringResource(id = R.string.receipt_grace_claimed_short)
                         } else {
-                            "Claim +3 Free Grace Credits (1x/Day)"
+                            stringResource(id = R.string.receipt_grace_claim_short)
                         }
                     )
                 }
@@ -602,7 +627,7 @@ fun AiValueReceiptDialog(
 
                 // 4. Interactive Playbook Simulator (Test Stage 1 80% & Stage 2 100% Recovery)
                 Text(
-                    text = "Preview Free-Tier Playbook Stages:",
+                    text = stringResource(id = R.string.receipt_preview_stages_title),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -615,19 +640,19 @@ fun AiValueReceiptDialog(
                     FilterChip(
                         selected = !quota.isSoftNudgeThreshold && !quota.isExhausted,
                         onClick = { onSimulatePreset("HEALTHY") },
-                        label = { Text("Healthy (30%)") },
+                        label = { Text(stringResource(id = R.string.receipt_stage_healthy)) },
                         modifier = Modifier.testTag("simulate_healthy_chip")
                     )
                     FilterChip(
                         selected = quota.isSoftNudgeThreshold,
                         onClick = { onSimulatePreset("SOFT_NUDGE_80") },
-                        label = { Text("Stage 1: 80% Soft Nudge") },
+                        label = { Text(stringResource(id = R.string.receipt_stage_soft_nudge)) },
                         modifier = Modifier.testTag("simulate_soft_nudge_chip")
                     )
                     FilterChip(
                         selected = quota.isExhausted,
                         onClick = { onSimulatePreset("EXHAUSTED_100") },
-                        label = { Text("Stage 2: 100% / 429 Recovery") },
+                        label = { Text(stringResource(id = R.string.receipt_stage_exhausted)) },
                         modifier = Modifier.testTag("simulate_exhausted_chip")
                     )
                 }
@@ -668,28 +693,28 @@ fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Effective Date: November 15, 2026",
+                    text = stringResource(id = R.string.privacy_effective_date),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "1. Local-First Pantry & Inventory Storage\nPantryPulse stores your fridge inventory, expiry countdowns, owned appliances, spice rack preferences, and restock list locally on your device using Android Room Database and Jetpack DataStore. Your inventory works 100% offline.",
+                    text = stringResource(id = R.string.privacy_sec_1),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = "2. Camera & Photo Picker Usage\nWhen you use Fridge Vision or Receipt Scan, you may capture a photo via CameraX (android.permission.CAMERA) or select photos using the zero-permission Android Photo Picker. Images are downscaled on-device (<=896px) before being sent to Firebase AI Logic (Gemini) solely to identify ingredients and estimate freshness.",
+                    text = stringResource(id = R.string.privacy_sec_2),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = "3. Voice Dictation & Speech Output\nVoice-to-Inventory and Sous-Chef voice queries use Android's system Speech Recognizer (RecognizerIntent) only when you tap the microphone button. Hands-free recipe reading uses on-device Android TextToSpeech.",
+                    text = stringResource(id = R.string.privacy_sec_3),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = "4. Zero-Cost Local Mode & Data Control\nYou can enable Zero-Cost Local Mode (Tier 3) at any time so 100% of shelf check-ins, recipe synthesis, and Sous-Chef responses run locally on your device with zero cloud requests. You can delete any inventory item or clear chat history at any time.",
+                    text = stringResource(id = R.string.privacy_sec_4),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Text(
-                    text = "5. Contact\nFor privacy inquiries, contact: tuyenctbk@gmail.com",
+                    text = stringResource(id = R.string.privacy_sec_5),
                     style = MaterialTheme.typography.bodySmall
                 )
             }

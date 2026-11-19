@@ -10,6 +10,8 @@ import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.widget.Toast
+import androidx.annotation.StringRes
+import com.example.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,7 +37,9 @@ enum class GooglePlayDonationTier(
     val priceFormatted: String,
     val amountDollars: Double,
     val badgeEmoji: String,
-    val description: String
+    val description: String,
+    @StringRes val titleRes: Int,
+    @StringRes val descriptionRes: Int
 ) {
     TIER_1(
         skuId = "pantrypulse_supporter_199",
@@ -43,7 +47,9 @@ enum class GooglePlayDonationTier(
         priceFormatted = "$1.99",
         amountDollars = 1.99,
         badgeEmoji = "☕",
-        description = "Fuel late-night bug fixes & offline database tuning"
+        description = "Fuel late-night bug fixes & offline database tuning",
+        titleRes = R.string.donation_tier_1_title,
+        descriptionRes = R.string.donation_tier_1_desc
     ),
     TIER_2(
         skuId = "pantrypulse_supporter_499",
@@ -51,7 +57,9 @@ enum class GooglePlayDonationTier(
         priceFormatted = "$4.99",
         amountDollars = 4.99,
         badgeEmoji = "🥗",
-        description = "Support zero-waste recipe algorithms & widget updates"
+        description = "Support zero-waste recipe algorithms & widget updates",
+        titleRes = R.string.donation_tier_2_title,
+        descriptionRes = R.string.donation_tier_2_desc
     ),
     TIER_3(
         skuId = "pantrypulse_supporter_999",
@@ -59,7 +67,9 @@ enum class GooglePlayDonationTier(
         priceFormatted = "$9.99",
         amountDollars = 9.99,
         badgeEmoji = "🍳",
-        description = "Sponsor CameraX vision upgrades & 20-language localization"
+        description = "Sponsor CameraX vision upgrades & 20-language localization",
+        titleRes = R.string.donation_tier_3_title,
+        descriptionRes = R.string.donation_tier_3_desc
     ),
     TIER_4(
         skuId = "pantrypulse_supporter_1999",
@@ -67,15 +77,20 @@ enum class GooglePlayDonationTier(
         priceFormatted = "$19.99",
         amountDollars = 19.99,
         badgeEmoji = "🏆",
-        description = "Champion 100% ad-free, privacy-first independent development"
+        description = "Champion 100% ad-free, privacy-first independent development",
+        titleRes = R.string.donation_tier_4_title,
+        descriptionRes = R.string.donation_tier_4_desc
     )
 }
 
-enum class SmartAutoPromptType(val title: String) {
-    MILESTONE_DONATION("Milestone Reached • Support PantryPulse"),
-    RATE_APP("Enjoying PantryPulse? Rate Us"),
-    SHARE_APP("Share Zero-Waste Cooking"),
-    UPDATE_APP("New PantryPulse Update Available")
+enum class SmartAutoPromptType(
+    val title: String,
+    @StringRes val titleRes: Int
+) {
+    MILESTONE_DONATION("Milestone Reached • Support PantryPulse", R.string.prompt_title_milestone),
+    RATE_APP("Enjoying PantryPulse? Rate Us", R.string.prompt_title_rate),
+    SHARE_APP("Share Zero-Waste Cooking", R.string.prompt_title_share),
+    UPDATE_APP("New PantryPulse Update Available", R.string.prompt_title_update)
 }
 
 data class AppTrackedEvent(
@@ -406,8 +421,12 @@ class AppEngagementAndDonationManager(context: Context) {
 
                 override fun onPurchaseVerified(receipt: VerifiedPurchaseReceipt) {
                     applyVerifiedGooglePlayReceipt(receipt)
-                    val msg = "Google Play 1-Tap Verified: ${receipt.tier.title} (${receipt.formattedPrice}) " +
-                        "[Order ${receipt.orderId} • Activity: ${receipt.activitySessionName}] — Active Supporter ★ unlocked!"
+                    val localizedTierTitle = appContext.getString(receipt.tier.titleRes)
+                    val msg = appContext.getString(
+                        R.string.engagement_gplay_verified_fmt,
+                        localizedTierTitle,
+                        receipt.formattedPrice
+                    )
                     try {
                         Toast.makeText(appContext, msg, Toast.LENGTH_SHORT).show()
                     } catch (_: Exception) {}
@@ -493,7 +512,7 @@ class AppEngagementAndDonationManager(context: Context) {
             algorithmNote = "PayPal link copied & launched; supporter status updated."
         )
         refreshState()
-        onStatusMessage("PayPal link ($url) opened & copied to clipboard! Active Supporter unlocked.")
+        onStatusMessage(appContext.getString(R.string.engagement_paypal_opened_fmt, url))
     }
 
     /**
@@ -536,7 +555,7 @@ class AppEngagementAndDonationManager(context: Context) {
             algorithmNote = "Ko-fi link launched with clipboard fallback."
         )
         refreshState()
-        onStatusMessage("Ko-fi page ($url) opened & copied! Thank you for supporting PantryPulse.")
+        onStatusMessage(appContext.getString(R.string.engagement_kofi_opened_fmt, url))
     }
 
     fun submitAppRating(
@@ -570,7 +589,7 @@ class AppEngagementAndDonationManager(context: Context) {
                 algorithmNote = "4-5★ satisfaction routed to Google Play review; permanently disabled future Rate prompts."
             )
             refreshState()
-            onStatusMessage("Thank you for your $stars-star review! Google Play review recorded & future rate prompts disabled.")
+            onStatusMessage(appContext.getString(R.string.engagement_rating_high_msg_fmt, stars))
         } else {
             val cleanNote = feedbackNote.ifBlank { "General UX / Kitchen Workflow Improvement" }
             copyToClipboard(
@@ -584,7 +603,7 @@ class AppEngagementAndDonationManager(context: Context) {
                 algorithmNote = "1-3★ routed to private developer feedback channel (tuyenctbk@gmail.com); rate prompts disabled."
             )
             refreshState()
-            onStatusMessage("Private feedback logged & copied for tuyenctbk@gmail.com! Thank you for helping us improve PantryPulse.")
+            onStatusMessage(appContext.getString(R.string.engagement_rating_private_msg))
         }
     }
 
@@ -599,25 +618,28 @@ class AppEngagementAndDonationManager(context: Context) {
             .apply()
         activeAutoPrompt = null
 
-        val shareMessage = "Check out PantryPulse — Fridge Vision & Zero-Waste Meal Planner! " +
-            "It scans fridge shelves, tracks expiring food, auto-builds a Smart Shopping List, and creates 3 ranked rescue recipes: " +
-            "https://play.google.com/store/apps/details?id=${uiContext.packageName}"
+        val storeUrl = "https://play.google.com/store/apps/details?id=${uiContext.packageName}"
+        val shareMessage = uiContext.getString(R.string.engagement_share_message_fmt, storeUrl)
 
-        copyToClipboard(uiContext, "PantryPulse Share Link", shareMessage)
+        copyToClipboard(uiContext, uiContext.getString(R.string.engagement_share_subject), shareMessage)
 
         val activity = uiContext.findActivity()
         try {
             val sendIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, "PantryPulse — Zero-Waste Meal Planner")
+                putExtra(Intent.EXTRA_SUBJECT, uiContext.getString(R.string.engagement_share_subject))
                 putExtra(Intent.EXTRA_TEXT, shareMessage)
             }
-            val chooser = Intent.createChooser(sendIntent, "Share PantryPulse").apply {
+            val chooser = Intent.createChooser(sendIntent, uiContext.getString(R.string.engagement_share_chooser)).apply {
                 if (activity == null) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             (activity ?: uiContext).startActivity(chooser)
         } catch (_: Exception) {
-            Toast.makeText(uiContext, "Share message copied to clipboard!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                uiContext,
+                uiContext.getString(R.string.engagement_share_copied_toast),
+                Toast.LENGTH_SHORT
+            ).show()
         }
 
         logEventInternal(
@@ -626,7 +648,7 @@ class AppEngagementAndDonationManager(context: Context) {
             algorithmNote = "Share link dispatched & 14-day cooldown applied."
         )
         refreshState()
-        onStatusMessage("Share sheet opened & invite link copied to clipboard!")
+        onStatusMessage(uiContext.getString(R.string.engagement_share_dispatched))
     }
 
     fun applyAppUpdate(
@@ -645,7 +667,7 @@ class AppEngagementAndDonationManager(context: Context) {
             algorithmNote = "Update suggestion satisfied; version now matches latest v$LATEST_VERSION."
         )
         refreshState()
-        onStatusMessage("PantryPulse updated to v$LATEST_VERSION (Smart Shopping List & Low-Stock Auto-Sync enabled)!")
+        onStatusMessage(uiContext.getString(R.string.engagement_update_applied_fmt, LATEST_VERSION))
     }
 
     fun resetSupporterAndCooldownsForTesting(onStatusMessage: (String) -> Unit) {

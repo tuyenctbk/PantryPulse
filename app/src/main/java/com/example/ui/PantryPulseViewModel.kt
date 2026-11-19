@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.R
@@ -26,6 +27,7 @@ import com.example.data.RecipeDietaryPreference
 import com.example.data.RecipeSuggestion
 import com.example.data.RestockItemEntity
 import com.example.data.ScanCaptureMode
+import com.example.data.computeExpiryEpochMillis
 import android.content.Context
 import com.example.ui.engagement.AppEngagementAndDonationManager
 import com.example.ui.engagement.EngagementSnapshot
@@ -55,10 +57,10 @@ enum class PantryTab {
     CHEF_CHAT
 }
 
-enum class PantrySortOrder(val label: String) {
-    URGENCY("Expiring First"),
-    VALUE_HIGH("Highest Value $"),
-    RECENT("Recently Added")
+enum class PantrySortOrder(val label: String, @StringRes val labelRes: Int) {
+    URGENCY("Expiring First", R.string.sort_urgency),
+    VALUE_HIGH("Highest Value $", R.string.sort_value_high),
+    RECENT("Recently Added", R.string.sort_recent)
 }
 
 sealed interface VisionScanUiState {
@@ -116,8 +118,11 @@ sealed interface PreservationCoachUiState {
 
 class PantryPulseViewModel(application: Application) : AndroidViewModel(application) {
 
+    private fun str(@StringRes resId: Int, vararg formatArgs: Any): String =
+        getApplication<Application>().getString(resId, *formatArgs)
+
     private val database = PantryDatabase.getInstance(application)
-    private val repository = PantryRepository(application, database.pantryDao())
+    private val repository = PantryRepository(application, database.pantryDao(), database.ingredientDao())
     private val aiService = PantryAiService()
     private val quotaManager = UsageQuotaManager(application)
     private val engagementManager = AppEngagementAndDonationManager(application)
@@ -185,10 +190,11 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
 
     private var lastPendingChatPrompt: String = ""
 
-    private val initialWelcomeMessage = ChatMessage(
-        isUser = false,
-        text = "Chef Pulse here! I can see your offline fridge inventory, expiring produce, and your owned appliances & spices. Ask me how to rescue expiring items, swap an ingredient, or adapt any recipe!"
-    )
+    private val initialWelcomeMessage: ChatMessage
+        get() = ChatMessage(
+            isUser = false,
+            text = str(R.string.sous_chef_welcome_msg)
+        )
 
     private val _chatMessages = MutableStateFlow(listOf(initialWelcomeMessage))
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
@@ -228,6 +234,12 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
 
     fun selectTab(tab: PantryTab) {
         _selectedTab.value = tab
+    }
+
+    fun refreshOfflineExpiryCountdowns() {
+        viewModelScope.launch {
+            repository.refreshDynamicExpiryCountdowns()
+        }
     }
 
     fun setCategoryFilter(category: PantryCategory?) {
@@ -293,9 +305,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             quotaManager.setEcoLiteMode(enabled)
             _snackbarMessage.value = if (enabled) {
-                "Eco Lite Mode (Tier 2 ⚡) active — stretching remaining quota 3× further!"
+                str(R.string.vm_eco_lite_on)
             } else {
-                "Switched to Primary Standard AI (Tier 1)."
+                str(R.string.vm_eco_lite_off)
             }
         }
     }
@@ -304,9 +316,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             quotaManager.setForceLocalOfflineMode(enabled)
             _snackbarMessage.value = if (enabled) {
-                "Zero-Cost Local Mode (Tier 3 🛡️) active — 0 cloud tokens used."
+                str(R.string.vm_local_mode_on)
             } else {
-                "Cloud AI capabilities re-enabled."
+                str(R.string.vm_local_mode_off)
             }
         }
     }
@@ -330,9 +342,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 if (_preservationState.value is PreservationCoachUiState.QuotaRecoveryNeeded) {
                     _preservationState.value = PreservationCoachUiState.Idle
                 }
-                _snackbarMessage.value = "Claimed +3 Free Grace Credits! You can continue your task immediately."
+                _snackbarMessage.value = str(R.string.vm_grace_claimed)
             } else {
-                _snackbarMessage.value = "Daily +3 Grace Credits already claimed today. Use Eco Lite ⚡ or Local Tier 3 🛡️!"
+                _snackbarMessage.value = str(R.string.vm_grace_already_claimed)
             }
         }
     }
@@ -346,10 +358,10 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     _recipeGenState.value = RecipeGenerationUiState.Idle
                     _chatUiState.value = ChatUiState.Idle
                     _voiceParseState.value = VoiceParseUiState.Idle
-                    _snackbarMessage.value = "Quota simulated at 30% used (Tier 1 Primary Standard active)."
+                    _snackbarMessage.value = str(R.string.vm_quota_sim_healthy)
                 }
                 "SOFT_NUDGE_80" -> {
-                    _snackbarMessage.value = "Simulated Stage 1 (80% used) — Soft Nudge Banner & Eco Lite auto-tier active!"
+                    _snackbarMessage.value = str(R.string.vm_quota_sim_soft)
                 }
                 "EXHAUSTED_100" -> {
                     _visionScanState.value = VisionScanUiState.QuotaRecoveryNeeded
@@ -357,7 +369,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     _chatUiState.value = ChatUiState.QuotaRecoveryNeeded
                     _voiceParseState.value = VoiceParseUiState.QuotaRecoveryNeeded
                     _preservationState.value = PreservationCoachUiState.QuotaRecoveryNeeded
-                    _snackbarMessage.value = "Simulated Stage 2 (100% / 429) — Smart Quota Recovery Card active!"
+                    _snackbarMessage.value = str(R.string.vm_quota_sim_exhausted)
                 }
             }
         }
@@ -406,7 +418,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
             _capturedBitmaps.value = listOf(sampleBmp)
             analyzeCapturedPhotos(customNote)
         } else {
-            _visionScanState.value = VisionScanUiState.Error("Could not prepare sample scan image.")
+            _visionScanState.value = VisionScanUiState.Error(str(R.string.vm_vision_sample_error))
         }
     }
 
@@ -424,7 +436,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 detectedItems = detected,
                 tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
             )
-            _snackbarMessage.value = "Tier 3 Local Shelf Check-In complete (0 cloud credits used)!"
+            _snackbarMessage.value = str(R.string.vm_vision_local_done)
         }
     }
 
@@ -444,7 +456,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
     ) {
         val photos = _capturedBitmaps.value
         if (photos.isEmpty()) {
-            _visionScanState.value = VisionScanUiState.Error("Please snap or pick 1–2 photos first.")
+            _visionScanState.value = VisionScanUiState.Error(str(R.string.vm_vision_pick_first))
             return
         }
 
@@ -456,7 +468,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
             }
             if (snap.isExhausted && forceTier == null) {
                 _visionScanState.value = VisionScanUiState.QuotaRecoveryNeeded
-                _snackbarMessage.value = "Daily cloud quota reached — choose Grace Credits, Eco Lite ⚡, or 0-Credit Local Check-In!"
+                _snackbarMessage.value = str(R.string.vm_vision_quota_reached)
                 return@launch
             }
 
@@ -479,11 +491,11 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                             usedFallbackCascade = result.autoCascadedToLite
                         )
                     } else {
-                        _snackbarMessage.value = "Instant 45s Dedup Cache hit — 0 extra tokens used!"
+                        _snackbarMessage.value = str(R.string.vm_vision_dedup_hit)
                     }
                     if (result.autoCascadedToLite) {
                         quotaManager.recordAutoCascade()
-                        _snackbarMessage.value = "Auto-cascaded to Tier 2 Eco Lite AI ⚡ to prevent rate-limit interruption."
+                        _snackbarMessage.value = str(R.string.vm_vision_auto_eco)
                     }
                     _visionScanState.value = VisionScanUiState.Success(
                         summaryNote = summary,
@@ -492,13 +504,13 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     )
                 } else {
                     _visionScanState.value = VisionScanUiState.Error(
-                        "No distinct food ingredients were detected. Try closer lighting or another angle."
+                        str(R.string.vm_vision_none_detected)
                     )
                 }
             } catch (e: TimeoutCancellationException) {
                 Log.e(TAG, "Gemini Vision scan timed out", e)
                 _visionScanState.value = VisionScanUiState.Error(
-                    "Vision analysis timed out after 60 seconds (0 credits charged). You can also use 1-Tap Local Check-In."
+                    str(R.string.vm_vision_timeout)
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -508,7 +520,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     _visionScanState.value = VisionScanUiState.QuotaRecoveryNeeded
                 } else {
                     _visionScanState.value = VisionScanUiState.Error(
-                        e.localizedMessage ?: "Vision analysis failed (0 credits charged)."
+                        e.localizedMessage ?: str(R.string.vm_vision_failed)
                     )
                 }
             }
@@ -540,7 +552,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         if (state is VisionScanUiState.Success) {
             val selected = state.detectedItems.filter { it.isSelected }
             if (selected.isEmpty()) {
-                _snackbarMessage.value = "Select at least one detected ingredient to save."
+                _snackbarMessage.value = str(R.string.vm_select_one_detected)
                 return
             }
             viewModelScope.launch {
@@ -550,9 +562,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     humanReadableTitle = "Saved ${selected.size} Scanned Fridge Items"
                 )
                 val autoNote = if (autoAdded.isNotEmpty()) {
-                    " • Auto-added ${autoAdded.size} low-stock item(s) to Smart Shopping List!"
+                    str(R.string.vm_auto_added_shopping_fmt, autoAdded.size)
                 } else ""
-                _snackbarMessage.value = "Saved ${selected.size} scanned items to Offline Pantry$autoNote"
+                _snackbarMessage.value = str(R.string.vm_saved_scanned_fmt, selected.size) + autoNote
                 _capturedBitmaps.value = emptyList()
                 _visionScanState.value = VisionScanUiState.Idle
                 _selectedTab.value = PantryTab.PANTRY
@@ -566,31 +578,39 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         quantity: String,
         daysUntilExpiry: Int,
         conditionNote: String,
-        storageTip: String = "Store in appropriate fridge zone to preserve freshness.",
+        storageTip: String = "",
         estimatedValueDollars: Double = 3.75,
         returnToPantry: Boolean = false
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
+            val clampedDays = daysUntilExpiry.coerceIn(0, 90)
+            val now = System.currentTimeMillis()
+            val resolvedUnit = quantity.ifBlank { str(R.string.qty_1_unit) }.trim()
+            val resolvedNote = conditionNote.ifBlank { str(R.string.vm_default_condition_note) }.trim()
+            val resolvedTip = storageTip.ifBlank { str(R.string.vm_default_storage_tip) }.trim()
             val autoAdded = repository.addItem(
                 PantryItemEntity(
                     name = name.trim(),
                     category = category.name,
-                    quantity = quantity.ifBlank { "1 unit" }.trim(),
-                    daysUntilExpiry = daysUntilExpiry.coerceIn(1, 60),
-                    visualConditionNote = conditionNote.ifBlank { "Added to offline inventory" }.trim(),
-                    storageTip = storageTip.ifBlank { "Store in appropriate fridge zone to preserve freshness." }.trim(),
-                    estimatedValueDollars = estimatedValueDollars.coerceIn(0.50, 50.0),
-                    stockPercent = PantryRepository.inferStockPercentFromQuantity(quantity),
-                    lowStockThresholdPercent = kitchenSetup.value.lowStockThresholdPercent
+                    quantity = resolvedUnit,
+                    daysUntilExpiry = clampedDays,
+                    expiryDateEpochMillis = computeExpiryEpochMillis(clampedDays, now),
+                    visualConditionNote = resolvedNote,
+                    storageTip = resolvedTip,
+                    estimatedValueDollars = estimatedValueDollars.coerceIn(0.50, 100.0),
+                    stockPercent = PantryRepository.inferStockPercentFromQuantity(resolvedUnit),
+                    lowStockThresholdPercent = kitchenSetup.value.lowStockThresholdPercent,
+                    addedTimestamp = now,
+                    updatedTimestamp = now
                 )
             )
             engagementManager.recordCoreOperationCompleted(
                 operationKey = "MANUAL_ITEM_ADDED",
                 humanReadableTitle = "Added ${name.trim()} to Pantry"
             )
-            val autoSuffix = if (autoAdded.isNotEmpty()) " (⚡ Auto-added to Smart Shopping List!)" else ""
-            _snackbarMessage.value = "Added ${name.trim()} to Offline Pantry$autoSuffix!"
+            val autoSuffix = if (autoAdded.isNotEmpty()) str(R.string.vm_manual_auto_suffix) else ""
+            _snackbarMessage.value = str(R.string.vm_manual_added_fmt, name.trim(), autoSuffix)
             if (returnToPantry) {
                 _selectedTab.value = PantryTab.PANTRY
             }
@@ -606,9 +626,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 humanReadableTitle = "Added ${items.size} Pantry Items"
             )
             val autoSuffix = if (autoAdded.isNotEmpty()) {
-                " • ⚡ Auto-added ${autoAdded.size} low-stock item(s) to Smart Shopping List"
+                str(R.string.vm_auto_added_shopping_fmt, autoAdded.size)
             } else ""
-            _snackbarMessage.value = "Saved ${items.size} manually entered items to Offline Pantry$autoSuffix!"
+            _snackbarMessage.value = str(R.string.vm_saved_manual_batch_fmt, items.size, autoSuffix)
             _selectedTab.value = PantryTab.PANTRY
         }
     }
@@ -627,7 +647,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         onItemsParsed: (List<DetectedIngredient>) -> Unit
     ) {
         if (transcript.isBlank()) {
-            _voiceParseState.value = VoiceParseUiState.Error("Speak or enter a grocery list first.")
+            _voiceParseState.value = VoiceParseUiState.Error(str(R.string.vm_voice_empty))
             return
         }
         val localItems = LocalCulinaryFallbackEngine.parseVoiceTranscriptLocally(transcript)
@@ -637,9 +657,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
             )
             onItemsParsed(localItems)
-            _snackbarMessage.value = "Parsed ${localItems.size} items on-device (0 cloud credits • Raw Transcript Local Parser)!"
+            _snackbarMessage.value = str(R.string.vm_voice_local_done_fmt, localItems.size)
         } else {
-            _voiceParseState.value = VoiceParseUiState.Error("Could not extract ingredients from transcript.")
+            _voiceParseState.value = VoiceParseUiState.Error(str(R.string.vm_voice_extract_failed))
         }
     }
 
@@ -664,7 +684,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
     ) {
         val cleaned = transcript.trim()
         if (cleaned.isEmpty()) {
-            _voiceParseState.value = VoiceParseUiState.Error("Speak or type your grocery dictation first.")
+            _voiceParseState.value = VoiceParseUiState.Error(str(R.string.vm_voice_dictation_empty))
             return
         }
 
@@ -676,7 +696,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
             }
             if (snap.isExhausted && forceTier == null) {
                 _voiceParseState.value = VoiceParseUiState.QuotaRecoveryNeeded
-                _snackbarMessage.value = "Daily cloud quota reached — claim Grace Credits, use Eco Lite ⚡, or Parse On-Device (0 Credits)!"
+                _snackbarMessage.value = str(R.string.vm_voice_quota_reached)
                 return@launch
             }
 
@@ -706,11 +726,11 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     )
                     onItemsParsed(parsed)
                     val suffix = when {
-                        result.fromDedupCache -> " [45s Dedup Cache • 0 tokens]"
-                        result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE -> " [Eco Lite ⚡]"
+                        result.fromDedupCache -> str(R.string.vm_tier_suffix_dedup)
+                        result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE -> str(R.string.vm_tier_suffix_eco)
                         else -> ""
                     }
-                    _snackbarMessage.value = "Voice AI parsed ${parsed.size} ingredients into your basket$suffix!"
+                    _snackbarMessage.value = str(R.string.vm_voice_parsed_fmt, parsed.size, suffix)
                 } else {
                     // Graceful Tier 3 fallback if cloud returned empty list
                     runLocalVoiceParseFallback(cleaned, onItemsParsed)
@@ -742,16 +762,20 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
     ) {
         if (newName.isBlank()) return
         viewModelScope.launch {
+            val clampedDays = newDays.coerceIn(0, 90)
+            val now = System.currentTimeMillis()
             repository.updateItemDetails(
                 item.copy(
                     name = newName.trim(),
                     category = newCategory.name,
                     quantity = newQuantity.ifBlank { item.quantity }.trim(),
-                    daysUntilExpiry = newDays.coerceIn(0, 60),
-                    visualConditionNote = newNote.trim()
+                    daysUntilExpiry = clampedDays,
+                    expiryDateEpochMillis = computeExpiryEpochMillis(clampedDays, now),
+                    visualConditionNote = newNote.trim(),
+                    updatedTimestamp = now
                 )
             )
-            _snackbarMessage.value = "Updated ${newName.trim()}."
+            _snackbarMessage.value = str(R.string.vm_updated_item_fmt, newName.trim())
         }
     }
 
@@ -775,9 +799,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 }
             )
             if (newlyAutoAdded.isNotEmpty()) {
-                _snackbarMessage.value = "⚡ ${item.name} reached $newStock% stock (≤${item.lowStockThresholdPercent}%) — Auto-Added to Smart Shopping List!"
+                _snackbarMessage.value = str(R.string.vm_stock_low_added_fmt, item.name, newStock, item.lowStockThresholdPercent)
             } else if (newStock == 0) {
-                _snackbarMessage.value = "Used up ${item.name}! Auto-added to Smart Shopping List."
+                _snackbarMessage.value = str(R.string.vm_used_up_auto_fmt, item.name)
             }
         }
     }
@@ -791,9 +815,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 algorithmNote = "Auto-added ${newlyAdded.size} low-stock inventory item(s) to Smart Shopping List."
             )
             _snackbarMessage.value = if (newlyAdded.isNotEmpty()) {
-                "Threshold set to ≤$newThresholdPercent% — Auto-added ${newlyAdded.joinToString()} to Smart Shopping List!"
+                str(R.string.vm_threshold_updated_auto_fmt, newThresholdPercent, newlyAdded.joinToString())
             } else {
-                "Auto Low-Stock Threshold updated to ≤$newThresholdPercent%."
+                str(R.string.vm_threshold_updated_fmt, newThresholdPercent)
             }
         }
     }
@@ -802,9 +826,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             val newlyAdded = repository.syncLowStockToShoppingList()
             _snackbarMessage.value = if (newlyAdded.isNotEmpty()) {
-                "⚡ Found & auto-added ${newlyAdded.size} low-stock item(s): ${newlyAdded.joinToString()}!"
+                str(R.string.vm_low_stock_found_fmt, newlyAdded.size, newlyAdded.joinToString())
             } else {
-                "All low-stock items (≤${kitchenSetup.value.lowStockThresholdPercent}%) are already in your Smart Shopping List!"
+                str(R.string.vm_low_stock_all_listed_fmt, kitchenSetup.value.lowStockThresholdPercent)
             }
         }
     }
@@ -830,7 +854,37 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 estimatedCostDollars = estimatedCostUsd,
                 buyingTip = tip
             )
-            _snackbarMessage.value = "Added $name to Smart Shopping List!"
+            _snackbarMessage.value = str(R.string.vm_added_shopping_fmt, name)
+        }
+    }
+
+    fun moveLowSupplyItemToShoppingList(item: PantryItemEntity) {
+        viewModelScope.launch {
+            val added = repository.movePantryItemToShoppingList(item)
+            if (added) {
+                engagementManager.recordCoreOperationCompleted(
+                    operationKey = "MOVE_LOW_SUPPLY_TO_SHOPPING",
+                    humanReadableTitle = "Moved ${item.name} to Shopping List"
+                )
+                _snackbarMessage.value = str(R.string.vm_moved_shopping_fmt, item.name, item.stockPercent)
+            } else {
+                _snackbarMessage.value = str(R.string.vm_already_in_shopping_fmt, item.name)
+            }
+        }
+    }
+
+    fun moveAllLowSupplyToShoppingList() {
+        viewModelScope.launch {
+            val count = repository.moveAllLowSupplyItemsToShoppingList()
+            if (count > 0) {
+                engagementManager.recordCoreOperationCompleted(
+                    operationKey = "MOVE_ALL_LOW_SUPPLY",
+                    humanReadableTitle = "Moved $count Low-Supply Item(s) to Shopping List"
+                )
+                _snackbarMessage.value = str(R.string.vm_moved_all_low_fmt, count)
+            } else {
+                _snackbarMessage.value = str(R.string.vm_all_low_in_shopping)
+            }
         }
     }
 
@@ -842,7 +896,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     operationKey = "SMART_SHOPPING_RESTOCK",
                     humanReadableTitle = "Restocked $count Item(s) to 100% Pantry Stock"
                 )
-                _snackbarMessage.value = "Restocked $count item(s) to Fridge at 100% stock!"
+                _snackbarMessage.value = str(R.string.vm_restocked_checked_fmt, count)
             }
         }
     }
@@ -854,7 +908,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 operationKey = "ITEM_RESCUED_USED_UP",
                 humanReadableTitle = "Used Up ${item.name} Zero-Waste"
             )
-            _snackbarMessage.value = "Used up ${item.name}! Saved ~$${String.format("%.2f", item.estimatedValueDollars)} & auto-added to Smart Shopping List."
+            _snackbarMessage.value = str(R.string.vm_used_up_saved_fmt, item.name, item.estimatedValueDollars)
         }
     }
 
@@ -865,7 +919,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 operationKey = "ITEM_RESTOCKED_100",
                 humanReadableTitle = "Restocked ${item.name} to 100% Stock"
             )
-            _snackbarMessage.value = "Restocked ${item.name} to 100% stock (${item.defaultExpiryDays}d countdown) in Fridge!"
+            _snackbarMessage.value = str(R.string.vm_restocked_single_fmt, item.name, item.defaultExpiryDays)
         }
     }
 
@@ -899,7 +953,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         val currentItems = pantryItems.value
         if (currentItems.isEmpty()) {
             _preservationState.value = PreservationCoachUiState.Error(
-                "Add ingredients to your pantry first to analyze shelf-life & preservation methods."
+                str(R.string.vm_preservation_empty_pantry)
             )
             return
         }
@@ -909,7 +963,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
             guides = localGuides,
             tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
         )
-        _snackbarMessage.value = "Generated ${localGuides.size} Zero-Waste Preservation Guides on-device (0 cloud credits)!"
+        _snackbarMessage.value = str(R.string.vm_preservation_local_fmt, localGuides.size)
     }
 
     fun retryPreservationWithEcoLite() {
@@ -923,7 +977,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         val currentItems = pantryItems.value
         if (currentItems.isEmpty()) {
             _preservationState.value = PreservationCoachUiState.Error(
-                "Add ingredients to your pantry first to analyze shelf-life & preservation methods."
+                str(R.string.vm_preservation_empty_pantry)
             )
             return
         }
@@ -936,7 +990,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
             }
             if (snap.isExhausted && forceTier == null) {
                 _preservationState.value = PreservationCoachUiState.QuotaRecoveryNeeded
-                _snackbarMessage.value = "Daily cloud quota reached — claim Grace Credits, use Eco Lite ⚡, or run Instant On-Device Preservation Coach!"
+                _snackbarMessage.value = str(R.string.vm_preservation_quota_reached)
                 return@launch
             }
 
@@ -970,11 +1024,11 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                         tierUsed = result.tierUsed
                     )
                     val tierSuffix = when {
-                        result.fromDedupCache -> " [45s Dedup Cache • 0 tokens]"
-                        result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE -> " [Eco Lite ⚡]"
+                        result.fromDedupCache -> str(R.string.vm_tier_suffix_dedup)
+                        result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE -> str(R.string.vm_tier_suffix_eco)
                         else -> ""
                     }
-                    _snackbarMessage.value = "Generated ${guides.size} personalized preservation & freezing guides$tierSuffix!"
+                    _snackbarMessage.value = str(R.string.vm_preservation_generated_fmt, guides.size, tierSuffix)
                 } else {
                     runLocalPreservationFallback()
                 }
@@ -1019,9 +1073,15 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     }
                     _preservationState.value = current.copy(guides = updatedGuides)
                 }
-                _snackbarMessage.value = "${guide.methodType.badgeEmoji} Preserved ${targetItem.name}! Shelf life extended to ${updatedItem.daysUntilExpiry}d (+$${String.format("%.2f", guide.estimatedSavingsDollars)} saved)."
+                _snackbarMessage.value = str(
+                    R.string.vm_preservation_applied_savings_fmt,
+                    guide.methodType.badgeEmoji,
+                    targetItem.name,
+                    updatedItem.daysUntilExpiry,
+                    guide.estimatedSavingsDollars
+                )
             } else {
-                _snackbarMessage.value = "Applied preservation tip for ${guide.ingredientName}!"
+                _snackbarMessage.value = str(R.string.vm_preservation_applied_fmt, guide.ingredientName)
             }
         }
     }
@@ -1053,7 +1113,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         val currentItems = pantryItems.value
         if (currentItems.isEmpty()) {
             _recipeGenState.value = RecipeGenerationUiState.Error(
-                "Your pantry is empty! Scan your fridge or add ingredients first."
+                str(R.string.vm_recipes_empty_pantry)
             )
             return
         }
@@ -1082,7 +1142,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 count = localRecipes.size,
                 tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
             )
-            _snackbarMessage.value = "Synthesized 3 Rescue Recipes via Tier 3 On-Device Chef Engine (0 cloud credits)!"
+            _snackbarMessage.value = str(R.string.vm_recipes_local_done)
         }
     }
 
@@ -1103,7 +1163,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         val currentItems = pantryItems.value
         if (currentItems.isEmpty()) {
             _recipeGenState.value = RecipeGenerationUiState.Error(
-                "Your pantry is empty! Scan your fridge or add ingredients first."
+                str(R.string.vm_recipes_empty_pantry)
             )
             return
         }
@@ -1116,7 +1176,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
             }
             if (snap.isExhausted && forceTier == null) {
                 _recipeGenState.value = RecipeGenerationUiState.QuotaRecoveryNeeded
-                _snackbarMessage.value = "Daily cloud quota reached — claim Grace Credits, run Eco Lite ⚡, or use On-Device Chef!"
+                _snackbarMessage.value = str(R.string.vm_recipes_quota_reached)
                 return@launch
             }
 
@@ -1155,23 +1215,23 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                         tierUsed = result.tierUsed
                     )
                     val filterSummary = if (activeCats.isEmpty()) {
-                        "all categories"
+                        str(R.string.vm_recipes_all_categories)
                     } else {
-                        activeCats.joinToString(", ") { it.displayName }
+                        activeCats.joinToString(", ") { str(it.displayNameRes) }
                     }
                     val tierSuffix = when {
-                        result.fromDedupCache -> " [45s Dedup Cache • 0 tokens]"
-                        result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE -> " [Eco Lite ⚡]"
+                        result.fromDedupCache -> str(R.string.vm_tier_suffix_dedup)
+                        result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE -> str(R.string.vm_tier_suffix_eco)
                         else -> ""
                     }
-                    _snackbarMessage.value = "Ranked ${recipes.size} recipes ($filterSummary)$tierSuffix!"
+                    _snackbarMessage.value = str(R.string.vm_recipes_ranked_fmt, recipes.size, filterSummary, tierSuffix)
                 } else {
-                    _recipeGenState.value = RecipeGenerationUiState.Error("Model returned no recipes.")
+                    _recipeGenState.value = RecipeGenerationUiState.Error(str(R.string.vm_recipes_none_returned))
                 }
             } catch (e: TimeoutCancellationException) {
                 Log.e(TAG, "Recipe ranking timed out", e)
                 _recipeGenState.value = RecipeGenerationUiState.Error(
-                    "Recipe generation timed out after 60 seconds (0 credits charged)."
+                    str(R.string.vm_recipes_timeout)
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -1181,7 +1241,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     _recipeGenState.value = RecipeGenerationUiState.QuotaRecoveryNeeded
                 } else {
                     _recipeGenState.value = RecipeGenerationUiState.Error(
-                        e.localizedMessage ?: "Failed to generate rescue recipes (0 credits charged)."
+                        e.localizedMessage ?: str(R.string.vm_recipes_failed)
                     )
                 }
             }
@@ -1205,9 +1265,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 humanReadableTitle = "Cooked '${recipe.title}'"
             )
             val autoNote = if (newlyAutoAdded.isNotEmpty()) {
-                " • ⚡ Auto-added ${newlyAutoAdded.joinToString()} to Smart Shopping List!"
+                str(R.string.vm_cooked_auto_added_fmt, newlyAutoAdded.joinToString())
             } else ""
-            _snackbarMessage.value = "Cooked '${recipe.title}'! Expiring ingredients rescued$autoNote"
+            _snackbarMessage.value = str(R.string.vm_cooked_recipe_fmt, recipe.title, autoNote)
         }
     }
 
@@ -1221,7 +1281,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
 
     fun sendLocalReflexChatMessage(customPrompt: String = "") {
         val promptToUse = customPrompt.ifBlank { lastPendingChatPrompt }
-            .ifBlank { "What can I cook tonight with my expiring fridge items?" }
+            .ifBlank { str(R.string.vm_chat_default_tonight) }
 
         val needsUserBubble = customPrompt.isNotBlank()
         val reflexReply = LocalCulinaryFallbackEngine.generateLocalReflexReply(
@@ -1239,11 +1299,11 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
             withUser + ChatMessage(isUser = false, text = reflexReply, isStreaming = false)
         }
         _chatUiState.value = ChatUiState.Idle
-        _snackbarMessage.value = "Instant Local Reflex Chef replied (0 cloud credits used)!"
+        _snackbarMessage.value = str(R.string.vm_chat_local_replied)
     }
 
     fun retryChatWithEcoLite() {
-        val prompt = lastPendingChatPrompt.ifBlank { "How should I use my expiring produce tonight?" }
+        val prompt = lastPendingChatPrompt.ifBlank { str(R.string.vm_chat_default_produce) }
         viewModelScope.launch {
             quotaManager.setEcoLiteMode(true)
             sendChefChatMessage(
@@ -1277,7 +1337,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
 
             if (snap.isExhausted && forceTier == null) {
                 _chatUiState.value = ChatUiState.QuotaRecoveryNeeded
-                _snackbarMessage.value = "Daily cloud quota reached — choose Grace Credits, Eco Lite ⚡, or Local Reflex Chef!"
+                _snackbarMessage.value = str(R.string.vm_chat_quota_reached)
                 return@launch
             }
 
@@ -1331,7 +1391,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     _chatUiState.value = ChatUiState.Idle
                 } else {
                     _chatMessages.update { list -> list.filterNot { it.id == streamingId } }
-                    _chatUiState.value = ChatUiState.Error("Sous-Chef returned an empty response (0 credits charged).")
+                    _chatUiState.value = ChatUiState.Error(str(R.string.vm_chat_empty_resp))
                 }
             } catch (e: TimeoutCancellationException) {
                 Log.e(TAG, "Sous-Chef streaming timed out", e)
@@ -1340,7 +1400,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                         if (msg.id == streamingId) msg.copy(isStreaming = false) else msg
                     }.filter { it.text.isNotBlank() || it.isUser }
                 }
-                _chatUiState.value = ChatUiState.Error("Sous-Chef response timed out after 60 seconds (0 credits charged).")
+                _chatUiState.value = ChatUiState.Error(str(R.string.vm_chat_timeout))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1349,7 +1409,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 if (PantryAiService.isQuotaOrRateLimitException(e)) {
                     _chatUiState.value = ChatUiState.QuotaRecoveryNeeded
                 } else {
-                    _chatUiState.value = ChatUiState.Error(e.localizedMessage ?: "Sous-Chef chat failed (0 credits charged).")
+                    _chatUiState.value = ChatUiState.Error(e.localizedMessage ?: str(R.string.vm_chat_failed))
                 }
             }
         }
@@ -1360,9 +1420,9 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         PantryPulseWidgetProvider.updateAllWidgets(context)
         val pinned = PantryPulseWidgetProvider.requestPinWidget(context)
         _snackbarMessage.value = if (pinned) {
-            "Home Screen Widget pin requested! Expiring Soon badge synced."
+            str(R.string.vm_widget_pin_requested)
         } else {
-            "Widget data refreshed! Long-press your Android Home Screen -> Widgets -> PantryPulse to add."
+            str(R.string.vm_widget_refreshed)
         }
     }
 

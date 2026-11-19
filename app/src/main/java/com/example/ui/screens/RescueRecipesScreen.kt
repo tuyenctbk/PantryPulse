@@ -258,13 +258,13 @@ fun RescueRecipesScreen(
 
                     val activeFilterLabel = buildList {
                         if (selectedCategories.isNotEmpty()) {
-                            add(selectedCategories.joinToString("+") { it.displayName })
+                            add(selectedCategories.map { stringResource(id = it.displayNameRes) }.joinToString("+"))
                         }
                         if (selectedDietaryPreferences.isNotEmpty()) {
-                            add(selectedDietaryPreferences.joinToString("+") { it.displayName })
+                            add(selectedDietaryPreferences.map { stringResource(id = it.displayNameRes) }.joinToString("+"))
                         }
                         if (selectedIngredientFilters.isNotEmpty()) {
-                            add("${selectedIngredientFilters.size} Ing.")
+                            add(stringResource(id = R.string.recipes_ing_count_fmt, selectedIngredientFilters.size))
                         }
                     }.joinToString(" • ").ifBlank { stringResource(id = R.string.recipes_all_styles) }
 
@@ -286,7 +286,13 @@ fun RescueRecipesScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text("Ranking ($activeFilterLabel • ${quotaState.activeCapabilityTier.badgeLabel})...")
+                            Text(
+                                stringResource(
+                                    id = R.string.recipes_ranking_progress_fmt,
+                                    activeFilterLabel,
+                                    stringResource(id = quotaState.activeCapabilityTier.badgeLabelRes)
+                                )
+                            )
                         } else {
                             Icon(Icons.Default.AutoAwesome, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
@@ -333,7 +339,7 @@ fun RescueRecipesScreen(
                             onClick = { onUseLocalFallback(cravingNote) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Run On-Device Chef Synthesis (0 Cloud Credits)")
+                            Text(stringResource(id = R.string.recipes_run_on_device_btn))
                         }
                     }
                 }
@@ -485,12 +491,12 @@ private fun RecipeSearchAndFilterCard(
                 onValueChange = onSearchQueryChange,
                 placeholder = { Text(stringResource(id = R.string.recipes_search_placeholder)) },
                 leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = "Search recipes")
+                    Icon(Icons.Default.Search, contentDescription = stringResource(id = R.string.cd_search_recipes))
                 },
                 trailingIcon = {
                     if (searchQuery.isNotBlank()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear recipe search")
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(id = R.string.cd_clear_recipe_search))
                         }
                     }
                 },
@@ -525,7 +531,7 @@ private fun RecipeSearchAndFilterCard(
                     FilterChip(
                         selected = isSelected,
                         onClick = { onToggleCategory(category) },
-                        label = { Text(category.displayName) },
+                        label = { Text(stringResource(id = category.displayNameRes)) },
                         leadingIcon = if (isSelected) {
                             {
                                 Icon(
@@ -561,7 +567,7 @@ private fun RecipeSearchAndFilterCard(
                     FilterChip(
                         selected = isSelected,
                         onClick = { onToggleDietaryPreference(pref) },
-                        label = { Text(pref.badgeLabel) },
+                        label = { Text(stringResource(id = pref.badgeLabelRes)) },
                         leadingIcon = if (isSelected) {
                             {
                                 Icon(
@@ -673,14 +679,14 @@ private fun KitchenApplianceAndSpiceCard(
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = "Expand Kitchen Setup"
+                    contentDescription = stringResource(id = R.string.cd_expand_kitchen_setup)
                 )
             }
 
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 12.dp)) {
                     Text(
-                        text = "Owned Appliances (Gemini tailors cooking steps to these):",
+                        text = stringResource(id = R.string.recipes_owned_appliances_header),
                         style = MaterialTheme.typography.labelMedium
                     )
                     Spacer(modifier = Modifier.height(6.dp))
@@ -703,7 +709,7 @@ private fun KitchenApplianceAndSpiceCard(
 
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "Owned Spices & Condiments:",
+                        text = stringResource(id = R.string.recipes_owned_spices_header),
                         style = MaterialTheme.typography.labelMedium
                     )
                     Spacer(modifier = Modifier.height(6.dp))
@@ -763,7 +769,7 @@ private fun RankedRecipeCard(
                         shape = RoundedCornerShape(50)
                     ) {
                         Text(
-                            text = "RANK #${recipe.rank}",
+                            text = stringResource(id = R.string.recipe_rank_badge_fmt, recipe.rank),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
@@ -776,7 +782,7 @@ private fun RankedRecipeCard(
                         shape = RoundedCornerShape(50)
                     ) {
                         Text(
-                            text = recipe.recipeCategory.shortBadge,
+                            text = stringResource(id = recipe.recipeCategory.shortBadgeRes),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = ExpiringAmber,
@@ -801,7 +807,7 @@ private fun RankedRecipeCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${recipe.rescueScore}% Rescue",
+                            text = stringResource(id = R.string.recipe_rescue_pct_fmt, recipe.rescueScore),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = FreshEmerald
@@ -833,7 +839,7 @@ private fun RankedRecipeCard(
                         shape = RoundedCornerShape(50)
                     ) {
                         Text(
-                            text = "✓ Uses $matchedInStockCount In-Stock Fridge Items",
+                            text = stringResource(id = R.string.recipe_matched_pantry_fmt, matchedInStockCount),
                             style = MaterialTheme.typography.labelSmall,
                             color = FreshEmerald,
                             fontWeight = FontWeight.Bold,
@@ -847,7 +853,7 @@ private fun RankedRecipeCard(
                         shape = RoundedCornerShape(50)
                     ) {
                         Text(
-                            text = badge.badgeLabel,
+                            text = stringResource(id = badge.badgeLabelRes),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -874,7 +880,7 @@ private fun RankedRecipeCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${recipe.prepTimeMinutes} mins",
+                        text = stringResource(id = R.string.recipe_prep_mins_fmt, recipe.prepTimeMinutes),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -904,7 +910,7 @@ private fun RankedRecipeCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${recipe.caloriesPerServing} kcal/srv",
+                        text = stringResource(id = R.string.recipe_kcal_srv_fmt, recipe.caloriesPerServing),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -918,7 +924,7 @@ private fun RankedRecipeCard(
                         modifier = Modifier.size(15.dp)
                     )
                     Text(
-                        text = "${String.format("%.2f", recipe.estimatedCostPerServing)}/srv",
+                        text = stringResource(id = R.string.recipe_cost_srv_fmt, recipe.estimatedCostPerServing),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
@@ -1052,11 +1058,11 @@ private fun VisualChefPlatingDialog(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "Zero-Waste Chef Plating Card",
+                        text = stringResource(id = R.string.chef_card_dialog_title),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "Rendered On-Device via Compose Canvas • 0 Cloud Credits",
+                        text = stringResource(id = R.string.chef_card_dialog_subtitle),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1132,7 +1138,13 @@ private fun VisualChefPlatingDialog(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "${recipe.rescueScore}% Zero-Waste Rescue • ${recipe.prepTimeMinutes}m in ${recipe.applianceUsed} • $${String.format("%.2f", recipe.estimatedCostPerServing)}/srv",
+                            text = stringResource(
+                                id = R.string.chef_card_stats_fmt,
+                                recipe.rescueScore,
+                                recipe.prepTimeMinutes,
+                                recipe.applianceUsed,
+                                recipe.estimatedCostPerServing
+                            ),
                             style = MaterialTheme.typography.labelMedium,
                             color = Color(0xFFA6F2CA)
                         )
@@ -1140,7 +1152,7 @@ private fun VisualChefPlatingDialog(
                 }
 
                 Text(
-                    text = "Rescued Ingredients Featured:",
+                    text = stringResource(id = R.string.chef_card_rescued_header),
                     style = MaterialTheme.typography.labelLarge
                 )
                 Text(
@@ -1150,7 +1162,7 @@ private fun VisualChefPlatingDialog(
                 )
 
                 Text(
-                    text = "Chef's Plating & Zero-Waste Tip:",
+                    text = stringResource(id = R.string.chef_card_tip_header),
                     style = MaterialTheme.typography.labelLarge
                 )
                 Text(
@@ -1162,7 +1174,7 @@ private fun VisualChefPlatingDialog(
         },
         confirmButton = {
             androidx.compose.material3.TextButton(onClick = onDismiss) {
-                Text("Close Card")
+                Text(stringResource(id = R.string.chef_card_btn_close))
             }
         }
     )
@@ -1233,13 +1245,17 @@ private fun InteractiveCookingScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back to Recipes"
+                        contentDescription = stringResource(id = R.string.cd_back_to_recipes)
                     )
                 }
                 Spacer(modifier = Modifier.width(6.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Rank #${recipe.rank} • ${recipe.recipeCategory.displayName}",
+                        text = stringResource(
+                            id = R.string.cooking_rank_category_fmt,
+                            recipe.rank,
+                            stringResource(id = recipe.recipeCategory.displayNameRes)
+                        ),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -1256,9 +1272,9 @@ private fun InteractiveCookingScreen(
                             isSpeaking = false
                         } else {
                             val fullScript = buildString {
-                                append("Cooking ${recipe.title}. ")
+                                append(context.getString(R.string.tts_cooking_title_fmt, recipe.title))
                                 recipe.steps.forEachIndexed { i, s ->
-                                    append("Step ${i + 1}: $s. ")
+                                    append(context.getString(R.string.tts_step_fmt, i + 1, s))
                                 }
                             }
                             ttsEngine?.speak(fullScript, TextToSpeech.QUEUE_FLUSH, null, "recipe_all")
@@ -1269,11 +1285,11 @@ private fun InteractiveCookingScreen(
                 ) {
                     Icon(
                         imageVector = if (isSpeaking) Icons.Default.Stop else Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = "Hands-free voice guide",
+                        contentDescription = stringResource(id = R.string.cd_hands_free_voice_guide),
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (isSpeaking) "Stop" else "Voice")
+                    Text(stringResource(id = if (isSpeaking) R.string.btn_stop else R.string.btn_voice))
                 }
             }
         }
@@ -1296,11 +1312,16 @@ private fun InteractiveCookingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${recipe.applianceUsed} • ${recipe.caloriesPerServing} kcal • $${String.format("%.2f", recipe.estimatedCostPerServing)}/srv",
+                            text = stringResource(
+                                id = R.string.cooking_header_stats_fmt,
+                                recipe.applianceUsed,
+                                recipe.caloriesPerServing,
+                                recipe.estimatedCostPerServing
+                            ),
                             style = MaterialTheme.typography.titleSmall
                         )
                         Text(
-                            text = "$completedCount/${recipe.steps.size} steps",
+                            text = stringResource(id = R.string.cooking_steps_progress_fmt, completedCount, recipe.steps.size),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -1314,12 +1335,12 @@ private fun InteractiveCookingScreen(
                             .clip(RoundedCornerShape(50))
                     )
                     Text(
-                        text = "Rescuing: ${recipe.expiringIngredientsUsed.joinToString(", ")}",
+                        text = stringResource(id = R.string.cooking_rescuing_fmt, recipe.expiringIngredientsUsed.joinToString(", ")),
                         style = MaterialTheme.typography.bodySmall
                     )
                     if (recipe.spicesUsed.isNotEmpty()) {
                         Text(
-                            text = "Spices used: ${recipe.spicesUsed.joinToString(", ")}",
+                            text = stringResource(id = R.string.cooking_spices_used_fmt, recipe.spicesUsed.joinToString(", ")),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -1346,13 +1367,13 @@ private fun InteractiveCookingScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Timer,
-                                contentDescription = "Kitchen Timer",
+                                contentDescription = stringResource(id = R.string.cd_kitchen_timer),
                                 tint = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
-                                    text = "Built-In Kitchen Timer",
+                                    text = stringResource(id = R.string.cooking_timer_title),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
@@ -1377,11 +1398,13 @@ private fun InteractiveCookingScreen(
                             ) {
                                 Icon(
                                     imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isTimerRunning) "Pause timer" else "Start timer",
+                                    contentDescription = stringResource(
+                                        id = if (isTimerRunning) R.string.cd_pause_timer else R.string.cd_start_timer
+                                    ),
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(if (isTimerRunning) "Pause" else "Start")
+                                Text(stringResource(id = if (isTimerRunning) R.string.btn_pause else R.string.btn_start))
                             }
 
                             OutlinedButton(
@@ -1392,7 +1415,7 @@ private fun InteractiveCookingScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Replay,
-                                    contentDescription = "Reset timer",
+                                    contentDescription = stringResource(id = R.string.cd_reset_timer),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -1407,14 +1430,14 @@ private fun InteractiveCookingScreen(
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf(60 to "1 min", 180 to "3 min", 300 to "5 min", 480 to "8 min", 720 to "12 min").forEach { (sec, label) ->
+                        listOf(60 to 1, 180 to 3, 300 to 5, 480 to 8, 720 to 12).forEach { (sec, minutes) ->
                             FilterChip(
                                 selected = timerSecondsRemaining == sec && !isTimerRunning,
                                 onClick = {
                                     isTimerRunning = false
                                     timerSecondsRemaining = sec
                                 },
-                                label = { Text(label, style = MaterialTheme.typography.labelSmall) }
+                                label = { Text(stringResource(id = R.string.timer_min_fmt, minutes), style = MaterialTheme.typography.labelSmall) }
                             )
                         }
                     }
@@ -1458,7 +1481,7 @@ private fun InteractiveCookingScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Step ${idx + 1}",
+                            text = stringResource(id = R.string.cooking_step_num_fmt, idx + 1),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -1473,7 +1496,7 @@ private fun InteractiveCookingScreen(
                     IconButton(
                         onClick = {
                             ttsEngine?.speak(
-                                "Step ${idx + 1}. $stepText",
+                                context.getString(R.string.tts_step_single_fmt, idx + 1, stepText),
                                 TextToSpeech.QUEUE_FLUSH,
                                 null,
                                 "step_$idx"
@@ -1484,7 +1507,7 @@ private fun InteractiveCookingScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = "Read Step ${idx + 1} Aloud",
+                            contentDescription = stringResource(id = R.string.cd_read_step_aloud_fmt, idx + 1),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -1501,7 +1524,7 @@ private fun InteractiveCookingScreen(
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         Text(
-                            text = "Chef's Zero-Waste Secret",
+                            text = stringResource(id = R.string.cooking_chef_secret_title),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )

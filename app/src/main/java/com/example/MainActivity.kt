@@ -2,10 +2,28 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,14 +34,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Kitchen
@@ -51,6 +71,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,15 +80,23 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ai.configureAppCheck
@@ -87,6 +116,7 @@ import com.example.ui.screens.SmartShoppingListScreen
 import com.example.ui.screens.SousChefChatScreen
 import com.example.ui.theme.PantryPulseTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,6 +154,7 @@ fun PantryPulseApp(
     viewModel: PantryPulseViewModel = viewModel()
 ) {
     val uiContext = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val quotaState by viewModel.quotaState.collectAsStateWithLifecycle()
     val engagementState by viewModel.engagementState.collectAsStateWithLifecycle()
@@ -154,7 +185,18 @@ fun PantryPulseApp(
     var showValueReceiptDialog by rememberSaveable { mutableStateOf(false) }
     var showSupportHubDialog by rememberSaveable { mutableStateOf(false) }
 
-    BackHandler(enabled = selectedTab != PantryTab.PANTRY) {
+    // Keep offline expiry countdowns synced whenever the user returns to the app across days
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshOfflineExpiryCountdowns()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    BackHandler(enabled = !showSplashOverlay && activeCookingRecipe == null && selectedTab != PantryTab.PANTRY) {
         viewModel.selectTab(PantryTab.PANTRY)
     }
 
@@ -163,7 +205,7 @@ fun PantryPulseApp(
     }
 
     LaunchedEffect(Unit) {
-        delay(650L)
+        delay(1050L)
         showSplashOverlay = false
     }
 
@@ -175,7 +217,7 @@ fun PantryPulseApp(
     }
 
     val expiringCount = remember(pantryItems) {
-        pantryItems.count { it.daysUntilExpiry <= 3 }
+        pantryItems.count { it.effectiveDaysUntilExpiry <= 3 }
     }
 
     val destinations = remember {
@@ -271,10 +313,22 @@ fun PantryPulseApp(
                 topBar = {
                     TopAppBar(
                         title = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.pantrypulse_app_icon_1795047726134),
+                                    contentDescription = stringResource(id = R.string.cd_pantrypulse_emblem),
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(RoundedCornerShape(9.dp))
+                                )
                                 Text(
                                     text = stringResource(id = R.string.app_name),
-                                    style = MaterialTheme.typography.headlineSmall
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         },
@@ -282,12 +336,12 @@ fun PantryPulseApp(
                             SupporterHeaderActionChip(
                                 engagement = engagementState,
                                 onClick = { showSupportHubDialog = true },
-                                modifier = Modifier.padding(end = 8.dp)
+                                modifier = Modifier.padding(end = 6.dp)
                             )
                             AiQuotaStatusPill(
                                 quota = quotaState,
                                 onClick = { showValueReceiptDialog = true },
-                                modifier = Modifier.padding(end = 12.dp)
+                                modifier = Modifier.padding(end = 10.dp)
                             )
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
@@ -299,37 +353,35 @@ fun PantryPulseApp(
                 snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
                 bottomBar = {
                     if (!isWideScreen) {
-                        NavigationBar {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 3.dp
+                        ) {
                             destinations.forEach { dest ->
-                                val selected = selectedTab == dest.tab
+                                val selected = selectedTab == dest.tab ||
+                                    (selectedTab == PantryTab.MANUAL_ADD && dest.tab == PantryTab.PANTRY)
+                                val badgeCount = when (dest.tab) {
+                                    PantryTab.PANTRY -> expiringCount
+                                    PantryTab.SHOPPING_LIST -> restockItems.size
+                                    else -> 0
+                                }
                                 NavigationBarItem(
                                     selected = selected,
                                     onClick = { viewModel.selectTab(dest.tab) },
                                     icon = {
-                                        val badgeCount = when (dest.tab) {
-                                            PantryTab.PANTRY -> expiringCount
-                                            PantryTab.SHOPPING_LIST -> restockItems.size
-                                            else -> 0
-                                        }
-                                        if (badgeCount > 0) {
-                                            BadgedBox(
-                                                badge = {
-                                                    Badge { Text("$badgeCount") }
-                                                }
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                                    contentDescription = stringResource(id = dest.labelRes)
-                                                )
-                                            }
-                                        } else {
-                                            Icon(
-                                                imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                                contentDescription = stringResource(id = dest.labelRes)
-                                            )
-                                        }
+                                        NavDestinationBadgeIcon(
+                                            dest = dest,
+                                            selected = selected,
+                                            badgeCount = badgeCount
+                                        )
                                     },
-                                    label = { Text(stringResource(id = dest.labelRes)) },
+                                    label = {
+                                        Text(
+                                            text = stringResource(id = dest.labelRes),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    },
                                     modifier = Modifier.testTag(dest.testTag)
                                 )
                             }
@@ -343,186 +395,228 @@ fun PantryPulseApp(
                         .padding(innerPadding)
                 ) {
                     if (isWideScreen) {
-                        NavigationRail {
+                        NavigationRail(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ) {
+                            Spacer(modifier = Modifier.height(8.dp))
                             destinations.forEach { dest ->
-                                val selected = selectedTab == dest.tab
+                                val selected = selectedTab == dest.tab ||
+                                    (selectedTab == PantryTab.MANUAL_ADD && dest.tab == PantryTab.PANTRY)
+                                val badgeCount = when (dest.tab) {
+                                    PantryTab.PANTRY -> expiringCount
+                                    PantryTab.SHOPPING_LIST -> restockItems.size
+                                    else -> 0
+                                }
                                 NavigationRailItem(
                                     selected = selected,
                                     onClick = { viewModel.selectTab(dest.tab) },
                                     icon = {
-                                        Icon(
-                                            imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                                            contentDescription = stringResource(id = dest.labelRes)
+                                        NavDestinationBadgeIcon(
+                                            dest = dest,
+                                            selected = selected,
+                                            badgeCount = badgeCount
                                         )
                                     },
-                                    label = { Text(stringResource(id = dest.labelRes)) },
+                                    label = {
+                                        Text(
+                                            text = stringResource(id = dest.labelRes),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    },
                                     modifier = Modifier.testTag(dest.testTag)
                                 )
                             }
                         }
                     }
 
-                    Box(modifier = Modifier.weight(1f)) {
-                        when (selectedTab) {
-                            PantryTab.PANTRY -> PantryDashboardScreen(
-                                items = pantryItems,
-                                restockItems = restockItems,
-                                selectedCategory = selectedCategory,
-                                searchQuery = searchQuery,
-                                sortOrder = sortOrder,
-                                kitchenSetup = kitchenSetup,
-                                engagementState = engagementState,
-                                preservationState = preservationState,
-                                onSelectCategory = viewModel::setCategoryFilter,
-                                onSearchQueryChange = viewModel::setSearchQuery,
-                                onSortOrderChange = viewModel::setSortOrder,
-                                onNavigateToScan = { viewModel.selectTab(PantryTab.SCAN) },
-                                onNavigateToManualInput = { viewModel.selectTab(PantryTab.MANUAL_ADD) },
-                                onNavigateToRecipes = { viewModel.selectTab(PantryTab.RECIPES) },
-                                onNavigateToShoppingList = { viewModel.selectTab(PantryTab.SHOPPING_LIST) },
-                                onAnalyzeShelfLife = { viewModel.analyzeInventoryShelfLife() },
-                                onRunLocalPreservation = viewModel::runLocalPreservationFallback,
-                                onRetryPreservationEcoLite = viewModel::retryPreservationWithEcoLite,
-                                onClaimGraceCredits = viewModel::claimBonusGraceCredits,
-                                onApplyPreservationGuide = viewModel::applyPreservationGuideToInventory,
-                                onAddManualItem = { name, cat, qty, days, note ->
-                                    viewModel.addManualIngredient(name, cat, qty, days, note)
-                                },
-                                onUpdateItem = viewModel::updateExistingIngredient,
-                                onAdjustDays = viewModel::adjustItemDays,
-                                onAdjustStockPercent = viewModel::adjustItemStock,
-                                onMarkUsedUp = viewModel::markItemUsedUp,
-                                onDeleteItem = viewModel::deleteItem,
-                                onRestockToFridge = viewModel::restockItemToFridge,
-                                onDismissRestock = viewModel::dismissRestockItem,
-                                onPinOrRefreshWidget = viewModel::requestPinOrRefreshWidget,
-                                onOpenSupportHub = { showSupportHubDialog = true },
-                                onOpenRatePrompt = { viewModel.triggerPromptPreview(SmartAutoPromptType.RATE_APP) },
-                                onShareApp = { viewModel.shareAppWithFriends(uiContext) },
-                                onDismissHomeBanner = viewModel::dismissHomeCompactBanner,
-                                onDismissPostOpCard = viewModel::dismissPostOperationValueCard
-                            )
-                            PantryTab.SCAN -> FridgeScannerScreen(
-                                capturedBitmaps = capturedBitmaps,
-                                captureMode = scanCaptureMode,
-                                scanState = visionScanState,
-                                quotaState = quotaState,
-                                onSelectCaptureMode = viewModel::setScanCaptureMode,
-                                onAddPhoto = viewModel::addCapturedPhoto,
-                                onCaptureAndTriggerIngestion = viewModel::captureAndTriggerGeminiIngestion,
-                                onRemovePhoto = viewModel::removeCapturedPhoto,
-                                onClearPhotos = viewModel::clearCapturedPhotos,
-                                onAnalyzePhotos = { note -> viewModel.analyzeCapturedPhotos(note) },
-                                onRunSampleScan = viewModel::loadSamplePhotoAndAnalyze,
-                                onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
-                                onClaimGraceCredits = viewModel::claimBonusGraceCredits,
-                                onRetryEcoLite = viewModel::retryVisionWithEcoLite,
-                                onUseLocalFallback = viewModel::runLocalVisionFallback,
-                                onOpenValueReceipt = { showValueReceiptDialog = true },
-                                onToggleDetectedSelection = viewModel::toggleDetectedItemSelection,
-                                onAdjustDetectedDays = viewModel::adjustDetectedItemDays,
-                                onSaveSelectedToPantry = viewModel::saveSelectedDetectedItemsToPantry,
-                                onNavigateToManualInput = { viewModel.selectTab(PantryTab.MANUAL_ADD) },
-                                onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
-                            )
-                            PantryTab.MANUAL_ADD -> ManualIngredientInputScreen(
-                                existingInventoryCount = pantryItems.size,
-                                quotaState = quotaState,
-                                voiceParseState = voiceParseState,
-                                onParseVoiceTranscript = { transcript, onParsed ->
-                                    viewModel.parseVoiceMemoToIngredients(
-                                        transcript = transcript,
-                                        onItemsParsed = onParsed
-                                    )
-                                },
-                                onRetryVoiceEcoLite = { transcript, onParsed ->
-                                    viewModel.retryVoiceParseWithEcoLite(
-                                        transcript = transcript,
-                                        onItemsParsed = onParsed
-                                    )
-                                },
-                                onRunLocalVoiceFallback = { transcript, onParsed ->
-                                    viewModel.runLocalVoiceParseFallback(
-                                        transcript = transcript,
-                                        onItemsParsed = onParsed
-                                    )
-                                },
-                                onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
-                                onClaimGraceCredits = viewModel::claimBonusGraceCredits,
-                                onOpenValueReceipt = { showValueReceiptDialog = true },
-                                onSaveSingleItem = { name, cat, qty, days, note, tip, value, returnToPantry ->
-                                    viewModel.addManualIngredient(
-                                        name = name,
-                                        category = cat,
-                                        quantity = qty,
-                                        daysUntilExpiry = days,
-                                        conditionNote = note,
-                                        storageTip = tip,
-                                        estimatedValueDollars = value,
-                                        returnToPantry = returnToPantry
-                                    )
-                                },
-                                onSaveBatchItems = viewModel::addManualBatchIngredients,
-                                onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
-                            )
-                            PantryTab.RECIPES -> RescueRecipesScreen(
-                                recipes = savedRecipes,
-                                pantryItems = pantryItems,
-                                kitchenSetup = kitchenSetup,
-                                recipeSearchQuery = recipeSearchQuery,
-                                selectedCategories = selectedRecipeCategories,
-                                selectedDietaryPreferences = selectedDietaryPreferences,
-                                selectedIngredientFilters = selectedIngredientFilters,
-                                recipeGenState = recipeGenState,
-                                quotaState = quotaState,
-                                activeCookingRecipe = activeCookingRecipe,
-                                onSearchQueryChange = viewModel::setRecipeSearchQuery,
-                                onToggleRecipeCategory = viewModel::toggleRecipeCategoryFilter,
-                                onClearRecipeCategories = viewModel::clearRecipeCategoryFilters,
-                                onToggleDietaryPreference = viewModel::toggleDietaryPreference,
-                                onToggleIngredientFilter = viewModel::toggleIngredientFilter,
-                                onClearAllFilters = viewModel::clearAllRecipeFilters,
-                                onToggleAppliance = viewModel::toggleAppliance,
-                                onToggleSpice = viewModel::toggleSpice,
-                                onGenerateRecipes = { note -> viewModel.generateRankedRecipes(note) },
-                                onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
-                                onClaimGraceCredits = viewModel::claimBonusGraceCredits,
-                                onRetryEcoLite = viewModel::retryRecipesWithEcoLite,
-                                onUseLocalFallback = viewModel::runLocalRecipeFallback,
-                                onOpenValueReceipt = { showValueReceiptDialog = true },
-                                onOpenCookingMode = viewModel::openCookingMode,
-                                onCloseCookingMode = viewModel::closeCookingMode,
-                                onCompleteCookingMeal = viewModel::completeCookingRecipe,
-                                onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
-                            )
-                            PantryTab.SHOPPING_LIST -> SmartShoppingListScreen(
-                                shoppingItems = restockItems,
-                                pantryItems = pantryItems,
-                                kitchenSetup = kitchenSetup,
-                                onToggleItemChecked = viewModel::toggleShoppingItemChecked,
-                                onRestockSingleItemToPantry = viewModel::restockItemToFridge,
-                                onRestockAllCheckedToPantry = viewModel::restockAllCheckedShoppingItems,
-                                onDeleteShoppingItem = viewModel::dismissRestockItem,
-                                onAddManualShoppingItem = viewModel::addManualShoppingItem,
-                                onUpdateLowStockThreshold = viewModel::updateLowStockThreshold,
-                                onRunLowStockScanNow = viewModel::runManualLowStockScan,
-                                onNavigateToPantry = { viewModel.selectTab(PantryTab.PANTRY) }
-                            )
-                            PantryTab.CHEF_CHAT -> SousChefChatScreen(
-                                messages = chatMessages,
-                                chatUiState = chatUiState,
-                                quotaState = quotaState,
-                                pantryItems = pantryItems,
-                                kitchenSetup = kitchenSetup,
-                                onSendMessage = { prompt -> viewModel.sendChefChatMessage(prompt) },
-                                onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
-                                onClaimGraceCredits = viewModel::claimBonusGraceCredits,
-                                onRetryEcoLite = viewModel::retryChatWithEcoLite,
-                                onUseLocalFallback = viewModel::sendLocalReflexChatMessage,
-                                onOpenValueReceipt = { showValueReceiptDialog = true },
-                                onClearChat = viewModel::clearChatHistory,
-                                onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
-                            )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        AnimatedContent(
+                            targetState = selectedTab,
+                            transitionSpec = {
+                                val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
+                                (fadeIn(tween(220, easing = FastOutSlowInEasing)) +
+                                    slideInHorizontally(tween(240, easing = FastOutSlowInEasing)) { width ->
+                                        (width * 0.06f * direction).toInt()
+                                    }) togetherWith
+                                    (fadeOut(tween(170, easing = FastOutSlowInEasing)) +
+                                        slideOutHorizontally(tween(180, easing = FastOutSlowInEasing)) { width ->
+                                            (-width * 0.04f * direction).toInt()
+                                        })
+                            },
+                            label = "pantry_tab_transition",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .widthIn(max = 920.dp)
+                        ) { activeTab ->
+                            when (activeTab) {
+                                PantryTab.PANTRY -> PantryDashboardScreen(
+                                    items = pantryItems,
+                                    restockItems = restockItems,
+                                    selectedCategory = selectedCategory,
+                                    searchQuery = searchQuery,
+                                    sortOrder = sortOrder,
+                                    kitchenSetup = kitchenSetup,
+                                    engagementState = engagementState,
+                                    preservationState = preservationState,
+                                    onSelectCategory = viewModel::setCategoryFilter,
+                                    onSearchQueryChange = viewModel::setSearchQuery,
+                                    onSortOrderChange = viewModel::setSortOrder,
+                                    onNavigateToScan = { viewModel.selectTab(PantryTab.SCAN) },
+                                    onNavigateToManualInput = { viewModel.selectTab(PantryTab.MANUAL_ADD) },
+                                    onNavigateToRecipes = { viewModel.selectTab(PantryTab.RECIPES) },
+                                    onNavigateToShoppingList = { viewModel.selectTab(PantryTab.SHOPPING_LIST) },
+                                    onAnalyzeShelfLife = { viewModel.analyzeInventoryShelfLife() },
+                                    onRunLocalPreservation = viewModel::runLocalPreservationFallback,
+                                    onRetryPreservationEcoLite = viewModel::retryPreservationWithEcoLite,
+                                    onClaimGraceCredits = viewModel::claimBonusGraceCredits,
+                                    onApplyPreservationGuide = viewModel::applyPreservationGuideToInventory,
+                                    onAddManualItem = { name, cat, qty, days, note ->
+                                        viewModel.addManualIngredient(name, cat, qty, days, note)
+                                    },
+                                    onUpdateItem = viewModel::updateExistingIngredient,
+                                    onAdjustDays = viewModel::adjustItemDays,
+                                    onAdjustStockPercent = viewModel::adjustItemStock,
+                                    onMarkUsedUp = viewModel::markItemUsedUp,
+                                    onDeleteItem = viewModel::deleteItem,
+                                    onRestockToFridge = viewModel::restockItemToFridge,
+                                    onDismissRestock = viewModel::dismissRestockItem,
+                                    onPinOrRefreshWidget = viewModel::requestPinOrRefreshWidget,
+                                    onOpenSupportHub = { showSupportHubDialog = true },
+                                    onOpenRatePrompt = { viewModel.triggerPromptPreview(SmartAutoPromptType.RATE_APP) },
+                                    onShareApp = { viewModel.shareAppWithFriends(uiContext) },
+                                    onDismissHomeBanner = viewModel::dismissHomeCompactBanner,
+                                    onDismissPostOpCard = viewModel::dismissPostOperationValueCard
+                                )
+                                PantryTab.SCAN -> FridgeScannerScreen(
+                                    capturedBitmaps = capturedBitmaps,
+                                    captureMode = scanCaptureMode,
+                                    scanState = visionScanState,
+                                    quotaState = quotaState,
+                                    onSelectCaptureMode = viewModel::setScanCaptureMode,
+                                    onAddPhoto = viewModel::addCapturedPhoto,
+                                    onCaptureAndTriggerIngestion = viewModel::captureAndTriggerGeminiIngestion,
+                                    onRemovePhoto = viewModel::removeCapturedPhoto,
+                                    onClearPhotos = viewModel::clearCapturedPhotos,
+                                    onAnalyzePhotos = { note -> viewModel.analyzeCapturedPhotos(note) },
+                                    onRunSampleScan = viewModel::loadSamplePhotoAndAnalyze,
+                                    onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
+                                    onClaimGraceCredits = viewModel::claimBonusGraceCredits,
+                                    onRetryEcoLite = viewModel::retryVisionWithEcoLite,
+                                    onUseLocalFallback = viewModel::runLocalVisionFallback,
+                                    onOpenValueReceipt = { showValueReceiptDialog = true },
+                                    onToggleDetectedSelection = viewModel::toggleDetectedItemSelection,
+                                    onAdjustDetectedDays = viewModel::adjustDetectedItemDays,
+                                    onSaveSelectedToPantry = viewModel::saveSelectedDetectedItemsToPantry,
+                                    onNavigateToManualInput = { viewModel.selectTab(PantryTab.MANUAL_ADD) },
+                                    onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
+                                )
+                                PantryTab.MANUAL_ADD -> ManualIngredientInputScreen(
+                                    existingInventoryCount = pantryItems.size,
+                                    quotaState = quotaState,
+                                    voiceParseState = voiceParseState,
+                                    onParseVoiceTranscript = { transcript, onParsed ->
+                                        viewModel.parseVoiceMemoToIngredients(
+                                            transcript = transcript,
+                                            onItemsParsed = onParsed
+                                        )
+                                    },
+                                    onRetryVoiceEcoLite = { transcript, onParsed ->
+                                        viewModel.retryVoiceParseWithEcoLite(
+                                            transcript = transcript,
+                                            onItemsParsed = onParsed
+                                        )
+                                    },
+                                    onRunLocalVoiceFallback = { transcript, onParsed ->
+                                        viewModel.runLocalVoiceParseFallback(
+                                            transcript = transcript,
+                                            onItemsParsed = onParsed
+                                        )
+                                    },
+                                    onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
+                                    onClaimGraceCredits = viewModel::claimBonusGraceCredits,
+                                    onOpenValueReceipt = { showValueReceiptDialog = true },
+                                    onSaveSingleItem = { name, cat, qty, days, note, tip, value, returnToPantry ->
+                                        viewModel.addManualIngredient(
+                                            name = name,
+                                            category = cat,
+                                            quantity = qty,
+                                            daysUntilExpiry = days,
+                                            conditionNote = note,
+                                            storageTip = tip,
+                                            estimatedValueDollars = value,
+                                            returnToPantry = returnToPantry
+                                        )
+                                    },
+                                    onSaveBatchItems = viewModel::addManualBatchIngredients,
+                                    onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
+                                )
+                                PantryTab.RECIPES -> RescueRecipesScreen(
+                                    recipes = savedRecipes,
+                                    pantryItems = pantryItems,
+                                    kitchenSetup = kitchenSetup,
+                                    recipeSearchQuery = recipeSearchQuery,
+                                    selectedCategories = selectedRecipeCategories,
+                                    selectedDietaryPreferences = selectedDietaryPreferences,
+                                    selectedIngredientFilters = selectedIngredientFilters,
+                                    recipeGenState = recipeGenState,
+                                    quotaState = quotaState,
+                                    activeCookingRecipe = activeCookingRecipe,
+                                    onSearchQueryChange = viewModel::setRecipeSearchQuery,
+                                    onToggleRecipeCategory = viewModel::toggleRecipeCategoryFilter,
+                                    onClearRecipeCategories = viewModel::clearRecipeCategoryFilters,
+                                    onToggleDietaryPreference = viewModel::toggleDietaryPreference,
+                                    onToggleIngredientFilter = viewModel::toggleIngredientFilter,
+                                    onClearAllFilters = viewModel::clearAllRecipeFilters,
+                                    onToggleAppliance = viewModel::toggleAppliance,
+                                    onToggleSpice = viewModel::toggleSpice,
+                                    onGenerateRecipes = { note -> viewModel.generateRankedRecipes(note) },
+                                    onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
+                                    onClaimGraceCredits = viewModel::claimBonusGraceCredits,
+                                    onRetryEcoLite = viewModel::retryRecipesWithEcoLite,
+                                    onUseLocalFallback = viewModel::runLocalRecipeFallback,
+                                    onOpenValueReceipt = { showValueReceiptDialog = true },
+                                    onOpenCookingMode = viewModel::openCookingMode,
+                                    onCloseCookingMode = viewModel::closeCookingMode,
+                                    onCompleteCookingMeal = viewModel::completeCookingRecipe,
+                                    onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
+                                )
+                                PantryTab.SHOPPING_LIST -> SmartShoppingListScreen(
+                                    shoppingItems = restockItems,
+                                    pantryItems = pantryItems,
+                                    kitchenSetup = kitchenSetup,
+                                    onToggleItemChecked = viewModel::toggleShoppingItemChecked,
+                                    onRestockSingleItemToPantry = viewModel::restockItemToFridge,
+                                    onRestockAllCheckedToPantry = viewModel::restockAllCheckedShoppingItems,
+                                    onDeleteShoppingItem = viewModel::dismissRestockItem,
+                                    onAddManualShoppingItem = viewModel::addManualShoppingItem,
+                                    onMoveLowSupplyItemToShoppingList = viewModel::moveLowSupplyItemToShoppingList,
+                                    onMoveAllLowSupplyToShoppingList = viewModel::moveAllLowSupplyToShoppingList,
+                                    onUpdateLowStockThreshold = viewModel::updateLowStockThreshold,
+                                    onRunLowStockScanNow = viewModel::runManualLowStockScan,
+                                    onNavigateToPantry = { viewModel.selectTab(PantryTab.PANTRY) }
+                                )
+                                PantryTab.CHEF_CHAT -> SousChefChatScreen(
+                                    messages = chatMessages,
+                                    chatUiState = chatUiState,
+                                    quotaState = quotaState,
+                                    pantryItems = pantryItems,
+                                    kitchenSetup = kitchenSetup,
+                                    onSendMessage = { prompt -> viewModel.sendChefChatMessage(prompt) },
+                                    onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
+                                    onClaimGraceCredits = viewModel::claimBonusGraceCredits,
+                                    onRetryEcoLite = viewModel::retryChatWithEcoLite,
+                                    onUseLocalFallback = viewModel::sendLocalReflexChatMessage,
+                                    onOpenValueReceipt = { showValueReceiptDialog = true },
+                                    onClearChat = viewModel::clearChatHistory,
+                                    onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
+                                )
+                            }
                         }
                     }
                 }
@@ -531,7 +625,8 @@ fun PantryPulseApp(
 
         AnimatedVisibility(
             visible = showSplashOverlay,
-            exit = fadeOut()
+            exit = fadeOut(tween(340, easing = FastOutSlowInEasing)) +
+                scaleOut(targetScale = 1.04f, animationSpec = tween(340, easing = FastOutSlowInEasing))
         ) {
             BrandedSplashOverlay(onDismiss = { showSplashOverlay = false })
         }
@@ -539,15 +634,76 @@ fun PantryPulseApp(
 }
 
 @Composable
+private fun NavDestinationBadgeIcon(
+    dest: NavDestination,
+    selected: Boolean,
+    badgeCount: Int
+) {
+    if (badgeCount > 0) {
+        BadgedBox(
+            badge = {
+                Badge {
+                    Text(if (badgeCount > 99) "99+" else "$badgeCount")
+                }
+            }
+        ) {
+            Icon(
+                imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+                contentDescription = stringResource(id = dest.labelRes)
+            )
+        }
+    } else {
+        Icon(
+            imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
+            contentDescription = stringResource(id = dest.labelRes)
+        )
+    }
+}
+
+@Composable
 private fun BrandedSplashOverlay(onDismiss: () -> Unit) {
+    val iconScale = remember { Animatable(0.76f) }
+    val titleAlpha = remember { Animatable(0f) }
+    val titleOffsetY = remember { Animatable(24f) }
+    val infiniteTransition = rememberInfiniteTransition(label = "splash_pulse_rings")
+    val pulseProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "pulse_progress"
+    )
+
+    LaunchedEffect(Unit) {
+        launch {
+            iconScale.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+        }
+        delay(120L)
+        launch {
+            titleAlpha.animateTo(1f, animationSpec = tween(420, easing = FastOutSlowInEasing))
+        }
+        launch {
+            titleOffsetY.animateTo(0f, animationSpec = tween(420, easing = FastOutSlowInEasing))
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1B3B2B),
-                        Color(0xFF10251A)
+                        Color(0xFF18422C),
+                        Color(0xFF123221),
+                        Color(0xFF0C2216)
                     )
                 )
             )
@@ -560,25 +716,69 @@ private fun BrandedSplashOverlay(onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(32.dp)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.img_launcher_icon_1794705065014),
-                contentDescription = "PantryPulse Emblem",
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(188.dp)
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val baseRadius = size.minDimension * 0.34f
+                    val maxRadius = size.minDimension * 0.50f
+                    val ring1Radius = baseRadius + (maxRadius - baseRadius) * pulseProgress
+                    val ring1Alpha = (1f - pulseProgress) * 0.36f
+                    val ring2Progress = (pulseProgress + 0.5f) % 1f
+                    val ring2Radius = baseRadius + (maxRadius - baseRadius) * ring2Progress
+                    val ring2Alpha = (1f - ring2Progress) * 0.28f
+
+                    drawCircle(
+                        color = Color(0xFF7CE5B2).copy(alpha = ring1Alpha),
+                        radius = ring1Radius,
+                        style = Stroke(width = 3.dp.toPx())
+                    )
+                    drawCircle(
+                        color = Color(0xFFE05A36).copy(alpha = ring2Alpha),
+                        radius = ring2Radius,
+                        style = Stroke(width = 2.dp.toPx())
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(32.dp),
+                    shadowElevation = 14.dp,
+                    color = Color(0xFF18422C),
+                    modifier = Modifier
+                        .size(124.dp)
+                        .scale(iconScale.value)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.pantrypulse_app_icon_1795047726134),
+                        contentDescription = stringResource(id = R.string.cd_pantrypulse_emblem),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(32.dp))
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .size(116.dp)
-                    .clip(RoundedCornerShape(28.dp))
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = stringResource(id = R.string.app_name),
-                style = MaterialTheme.typography.displayMedium,
-                color = Color(0xFFF4F1EA)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = stringResource(id = R.string.splash_tagline),
-                style = MaterialTheme.typography.titleSmall,
-                color = Color(0xFFA6F2CA)
-            )
+                    .alpha(titleAlpha.value)
+                    .graphicsLayer { translationY = titleOffsetY.value }
+            ) {
+                Text(
+                    text = stringResource(id = R.string.app_name),
+                    style = MaterialTheme.typography.displayMedium,
+                    color = Color(0xFFF7F4ED)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(id = R.string.splash_tagline),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color(0xFF9AF0C4)
+                )
+            }
         }
     }
 }

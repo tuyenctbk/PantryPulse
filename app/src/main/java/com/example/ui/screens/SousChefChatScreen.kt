@@ -140,18 +140,18 @@ fun SousChefChatScreen(
         }
     }
 
-    val quickPrompts = remember(pantryItems, kitchenSetup) {
-        val topExpiring = pantryItems.firstOrNull { it.daysUntilExpiry <= 2 }?.name ?: "wilting greens"
-        val topAppliance = kitchenSetup.ownedAppliances.firstOrNull() ?: "Skillet"
-        listOf(
-            "1:1 Substitute for heavy cream or eggs using my fridge?",
-            "Spoilage Safety Fact-Check: Is $topExpiring safe to cook?",
-            "Quick 10-min sauce using $topExpiring?",
-            "How do I crisp leftovers in my $topAppliance?",
-            "What can I cook tonight with zero grocery shopping?",
-            "How to revive slightly wilted vegetables?"
-        )
-    }
+    val topExpiring = pantryItems.firstOrNull { it.daysUntilExpiry <= 2 }?.name
+        ?: stringResource(id = R.string.sous_chef_default_greens)
+    val topAppliance = kitchenSetup.ownedAppliances.firstOrNull()
+        ?: stringResource(id = R.string.sous_chef_default_skillet)
+    val quickPrompts = listOf(
+        stringResource(id = R.string.chat_quick_prompt_1),
+        stringResource(id = R.string.chat_quick_prompt_2_fmt, topExpiring),
+        stringResource(id = R.string.chat_quick_prompt_3_fmt, topExpiring),
+        stringResource(id = R.string.chat_quick_prompt_4_fmt, topAppliance),
+        stringResource(id = R.string.chat_quick_prompt_5),
+        stringResource(id = R.string.chat_quick_prompt_6)
+    )
 
     val voicePromptLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -203,7 +203,10 @@ fun SousChefChatScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = stringResource(id = R.string.chat_title, quotaState.activeCapabilityTier.badgeLabel),
+                                text = stringResource(
+                                    id = R.string.chat_title,
+                                    stringResource(id = quotaState.activeCapabilityTier.badgeLabelRes)
+                                ),
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
@@ -240,7 +243,7 @@ fun SousChefChatScreen(
                                     } else {
                                         Icons.AutoMirrored.Filled.VolumeOff
                                     },
-                                    contentDescription = "Toggle Hands-Free Spoken Replies",
+                                    contentDescription = stringResource(id = R.string.cd_toggle_spoken_replies),
                                     modifier = Modifier.size(15.dp)
                                 )
                             },
@@ -257,7 +260,7 @@ fun SousChefChatScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.DeleteSweep,
-                                    contentDescription = "Reset chat",
+                                    contentDescription = stringResource(id = R.string.cd_reset_chat),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -352,7 +355,7 @@ fun SousChefChatScreen(
                             TextButton(
                                 onClick = { onUseLocalFallback(inputText) }
                             ) {
-                                Text("Reply with Local Reflex Chef (0 Cloud Credits)")
+                                Text(stringResource(id = R.string.chat_local_reflex_btn))
                             }
                         }
                     }
@@ -381,7 +384,7 @@ fun SousChefChatScreen(
                                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
                                 putExtra(
                                     RecognizerIntent.EXTRA_PROMPT,
-                                    "Ask Sous-Chef a cooking, substitution, or spoilage question..."
+                                    context.getString(R.string.chat_voice_prompt)
                                 )
                             }
                             voicePromptLauncher.launch(intent)
@@ -397,7 +400,7 @@ fun SousChefChatScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Mic,
-                        contentDescription = "Ask Sous-Chef by Voice",
+                        contentDescription = stringResource(id = R.string.cd_ask_by_voice),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -438,7 +441,7 @@ fun SousChefChatScreen(
                     } else {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send to Sous-Chef"
+                            contentDescription = stringResource(id = R.string.cd_send_to_sous_chef)
                         )
                     }
                 }
@@ -478,7 +481,11 @@ private fun ChatBubbleRow(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (message.isStreaming) "Sous-Chef • typing..." else "Sous-Chef",
+                            text = if (message.isStreaming) {
+                                stringResource(id = R.string.chat_sender_typing)
+                            } else {
+                                stringResource(id = R.string.chat_sender_name)
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -490,7 +497,7 @@ private fun ChatBubbleRow(
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                                    contentDescription = "Read response aloud",
+                                    contentDescription = stringResource(id = R.string.cd_read_response_aloud),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(15.dp)
                                 )

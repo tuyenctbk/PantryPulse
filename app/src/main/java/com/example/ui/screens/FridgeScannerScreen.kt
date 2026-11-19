@@ -1,12 +1,9 @@
 package com.example.ui.screens
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -75,12 +72,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.example.R
 import com.example.ai.AiFeatureType
 import com.example.ai.UsageQuotaSnapshot
 import com.example.data.DetectedIngredient
 import com.example.data.ScanCaptureMode
 import com.example.ui.VisionScanUiState
+import com.example.ui.components.CameraBitmapProcessor
 import com.example.ui.components.CameraXFridgeViewfinder
 import com.example.ui.components.QuotaSoftNudgeBanner
 import com.example.ui.components.SmartQuotaRecoveryCard
@@ -131,6 +131,13 @@ fun FridgeScannerScreen(
         hasCameraPermission = granted
     }
 
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        hasCameraPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
     var focusNote by rememberSaveable { mutableStateOf("") }
 
     // Zero-permission Google Play compliant Photo Picker for up to 2 fridge/receipt photos
@@ -139,7 +146,7 @@ fun FridgeScannerScreen(
     ) { uris: List<Uri> ->
         var addedAny = false
         uris.take(2).forEach { uri ->
-            decodeUriToBitmap(context, uri)?.let { bmp ->
+            CameraBitmapProcessor.decodeSampledBitmapFromUri(context, uri)?.let { bmp ->
                 onAddPhoto(bmp)
                 addedAny = true
             }
@@ -172,7 +179,7 @@ fun FridgeScannerScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = captureMode.subtitle,
+                        text = stringResource(id = captureMode.subtitleRes),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -211,7 +218,7 @@ fun FridgeScannerScreen(
                     FilterChip(
                         selected = selected,
                         onClick = { onSelectCaptureMode(mode) },
-                        label = { Text(mode.title) },
+                        label = { Text(stringResource(id = mode.titleRes)) },
                         leadingIcon = {
                             Icon(
                                 imageVector = if (mode == ScanCaptureMode.FRIDGE_SHELF) {
@@ -314,9 +321,9 @@ fun FridgeScannerScreen(
                             Column {
                                 Text(
                                     text = if (captureMode == ScanCaptureMode.FRIDGE_SHELF) {
-                                        stringResource(id = R.string.scanner_inspecting_shelves, quotaState.activeCapabilityTier.badgeLabel)
+                                        stringResource(id = R.string.scanner_inspecting_shelves, stringResource(id = quotaState.activeCapabilityTier.badgeLabelRes))
                                     } else {
-                                        stringResource(id = R.string.scanner_extracting_receipt, quotaState.activeCapabilityTier.badgeLabel)
+                                        stringResource(id = R.string.scanner_extracting_receipt, stringResource(id = quotaState.activeCapabilityTier.badgeLabelRes))
                                     },
                                     style = MaterialTheme.typography.titleMedium
                                 )
@@ -396,7 +403,7 @@ fun FridgeScannerScreen(
                                     shape = RoundedCornerShape(50)
                                 ) {
                                     Text(
-                                        text = scanState.tierUsed.badgeLabel,
+                                        text = stringResource(id = scanState.tierUsed.badgeLabelRes),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold,
@@ -555,7 +562,7 @@ private fun CameraPermissionGateWithIngestionDock(
                         ) {
                             Image(
                                 bitmap = bmp.asImageBitmap(),
-                                contentDescription = "Selected Photo ${slotIndex + 1}",
+                                contentDescription = stringResource(id = R.string.cd_selected_photo_fmt, slotIndex + 1),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -563,16 +570,21 @@ private fun CameraPermissionGateWithIngestionDock(
                                 onClick = { onRemovePhoto(slotIndex) },
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .padding(4.dp)
-                                    .size(28.dp)
-                                    .background(Color(0x99000000), CircleShape)
+                                    .size(48.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Remove photo",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(15.dp)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .background(Color(0x99000000), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = stringResource(id = R.string.cd_remove_photo),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -589,6 +601,11 @@ private fun CameraPermissionGateWithIngestionDock(
                     .testTag("scan_focus_note_input")
             )
 
+            val photoWord = if (capturedBitmaps.size == 1) {
+                stringResource(id = R.string.word_photo_singular)
+            } else {
+                stringResource(id = R.string.word_photo_plural)
+            }
             Button(
                 onClick = onAnalyze,
                 enabled = capturedBitmaps.isNotEmpty() && !isAnalyzing,
@@ -602,7 +619,7 @@ private fun CameraPermissionGateWithIngestionDock(
             ) {
                 Icon(Icons.Default.AutoAwesome, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Inspect with Gemini Vision (${capturedBitmaps.size} Photo${if (capturedBitmaps.size == 1) "" else "s"})")
+                Text(stringResource(id = R.string.scanner_inspect_photos_btn_fmt, capturedBitmaps.size, photoWord))
             }
         }
     }
@@ -653,13 +670,13 @@ private fun DetectedIngredientItemCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = { onAdjustDays(-1) },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(Icons.Default.Remove, contentDescription = "Decrease detected days", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Remove, contentDescription = stringResource(id = R.string.cd_decrease_detected_days), modifier = Modifier.size(18.dp))
                         }
                         Surface(color = badgeBg, shape = RoundedCornerShape(50)) {
                             Text(
-                                text = "${item.daysUntilExpiry}d left",
+                                text = stringResource(id = R.string.scanner_days_left_short_fmt, item.daysUntilExpiry),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = badgeFg,
                                 fontWeight = FontWeight.Bold,
@@ -668,9 +685,9 @@ private fun DetectedIngredientItemCard(
                         }
                         IconButton(
                             onClick = { onAdjustDays(1) },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Increase detected days", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Add, contentDescription = stringResource(id = R.string.cd_increase_detected_days), modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -681,16 +698,5 @@ private fun DetectedIngredientItemCard(
                 )
             }
         }
-    }
-}
-
-private fun decodeUriToBitmap(context: Context, uri: Uri): Bitmap? {
-    return try {
-        context.contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream)
-        }
-    } catch (e: Exception) {
-        Log.e("FridgeScanner", "Failed to decode URI bitmap", e)
-        null
     }
 }

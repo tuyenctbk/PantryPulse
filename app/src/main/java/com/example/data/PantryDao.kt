@@ -9,14 +9,29 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PantryDao {
-    @Query("SELECT * FROM pantry_items WHERE isConsumed = 0 ORDER BY daysUntilExpiry ASC, addedTimestamp DESC")
+    @Query("SELECT * FROM pantry_items WHERE isConsumed = 0 ORDER BY expiryDateEpochMillis ASC, daysUntilExpiry ASC, addedTimestamp DESC")
     fun getActiveItemsFlow(): Flow<List<PantryItemEntity>>
 
-    @Query("SELECT * FROM pantry_items WHERE isConsumed = 0 ORDER BY daysUntilExpiry ASC, addedTimestamp DESC")
+    @Query("SELECT * FROM pantry_items WHERE isConsumed = 0 ORDER BY expiryDateEpochMillis ASC, daysUntilExpiry ASC, addedTimestamp DESC")
     suspend fun getActiveItemsSnapshot(): List<PantryItemEntity>
+
+    @Query("SELECT * FROM pantry_items WHERE isConsumed = 0 AND expiryDateEpochMillis <= :cutoffEpochMillis ORDER BY expiryDateEpochMillis ASC")
+    fun getExpiringBeforeFlow(cutoffEpochMillis: Long): Flow<List<PantryItemEntity>>
+
+    @Query("SELECT * FROM pantry_items WHERE isConsumed = 0 AND stockPercent <= :thresholdPercent ORDER BY stockPercent ASC, expiryDateEpochMillis ASC")
+    fun getLowStockItemsFlow(thresholdPercent: Int): Flow<List<PantryItemEntity>>
+
+    @Query("SELECT * FROM pantry_items WHERE isConsumed = 0 AND (name LIKE '%' || :query || '%' OR visualConditionNote LIKE '%' || :query || '%' OR category LIKE '%' || :query || '%') ORDER BY expiryDateEpochMillis ASC")
+    fun searchActiveItemsFlow(query: String): Flow<List<PantryItemEntity>>
+
+    @Query("SELECT COUNT(*) FROM pantry_items WHERE isConsumed = 0")
+    fun getActiveItemsCountFlow(): Flow<Int>
 
     @Query("SELECT * FROM pantry_items WHERE id = :id LIMIT 1")
     suspend fun getItemById(id: Long): PantryItemEntity?
+
+    @Query("SELECT * FROM pantry_items WHERE isConsumed = 0 AND LOWER(name) = LOWER(:name) LIMIT 1")
+    suspend fun getActiveItemByNameIgnoreCase(name: String): PantryItemEntity?
 
     @Query("SELECT COUNT(*) FROM pantry_items")
     suspend fun getTotalEverCount(): Int
@@ -30,8 +45,16 @@ interface PantryDao {
     @Update
     suspend fun updateItem(item: PantryItemEntity)
 
-    @Query("UPDATE pantry_items SET isConsumed = 1 WHERE id = :id")
-    suspend fun markConsumed(id: Long)
+    @Query("UPDATE pantry_items SET daysUntilExpiry = :daysUntilExpiry, expiryDateEpochMillis = :expiryDateEpochMillis, updatedTimestamp = :updatedTimestamp WHERE id = :id")
+    suspend fun updateExpiryCountdown(
+        id: Long,
+        daysUntilExpiry: Int,
+        expiryDateEpochMillis: Long,
+        updatedTimestamp: Long
+    )
+
+    @Query("UPDATE pantry_items SET isConsumed = 1, updatedTimestamp = :updatedTimestamp WHERE id = :id")
+    suspend fun markConsumed(id: Long, updatedTimestamp: Long = System.currentTimeMillis())
 
     @Query("DELETE FROM pantry_items WHERE id = :id")
     suspend fun deleteItemById(id: Long)

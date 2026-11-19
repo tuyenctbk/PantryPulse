@@ -114,7 +114,9 @@ fun SupporterHeaderActionChip(
         ) {
             Icon(
                 imageVector = if (engagement.isActiveSupporter) Icons.Default.Verified else Icons.Default.Favorite,
-                contentDescription = if (engagement.isActiveSupporter) "Active Supporter Badge" else "Support Development",
+                contentDescription = stringResource(
+                    id = if (engagement.isActiveSupporter) R.string.cd_active_supporter_badge else R.string.cd_support_development
+                ),
                 tint = if (engagement.isActiveSupporter) Color(0xFFFFD54F) else Color(0xFFD9534F),
                 modifier = Modifier.size(15.dp)
             )
@@ -212,7 +214,7 @@ fun HomeCompactSupportBanner(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Silence banner for 14 days",
+                        contentDescription = stringResource(id = R.string.cd_silence_banner),
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -310,7 +312,7 @@ fun PostOperationValueRealizationCard(
                         Text(
                             text = stringResource(
                                 id = R.string.post_op_completed_fmt,
-                                engagement.lastCompletedTaskTitle.ifBlank { "Zero-Waste Action" }
+                                engagement.lastCompletedTaskTitle.ifBlank { stringResource(id = R.string.post_op_default_task) }
                             ),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
@@ -329,7 +331,7 @@ fun PostOperationValueRealizationCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Dismiss",
+                        contentDescription = stringResource(id = R.string.cd_dismiss),
                         tint = Color(0xFFD2E8DC),
                         modifier = Modifier.size(16.dp)
                     )
@@ -350,7 +352,7 @@ fun PostOperationValueRealizationCard(
                 ) {
                     Icon(Icons.Default.LocalCafe, contentDescription = null, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Buy Dev a Coffee ☕", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(id = R.string.btn_buy_coffee_emoji), style = MaterialTheme.typography.labelSmall)
                 }
 
                 OutlinedButton(
@@ -358,7 +360,7 @@ fun PostOperationValueRealizationCard(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text("Rate App ★", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(id = R.string.btn_rate_app_star), style = MaterialTheme.typography.labelSmall)
                 }
 
                 OutlinedButton(
@@ -366,7 +368,7 @@ fun PostOperationValueRealizationCard(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text("Share", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(id = R.string.btn_share), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -411,12 +413,12 @@ fun SmartAutoSuggestionDialog(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = promptType.title,
+                        text = stringResource(id = promptType.titleRes),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Smart Value-Moment Trigger • Never shown on startup",
+                        text = stringResource(id = R.string.auto_prompt_subtitle),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -440,13 +442,13 @@ fun SmartAutoSuggestionDialog(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = "🎉 Milestone Unlocked: ${engagement.completedCoreOpsCount} Tasks Completed!",
+                                    text = stringResource(id = R.string.milestone_unlocked_fmt, engagement.completedCoreOpsCount),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "You've completed ${engagement.completedCoreOpsCount} zero-waste kitchen actions! Consider supporting independent, 100% ad-free development.",
+                                    text = stringResource(id = R.string.milestone_body_fmt, engagement.completedCoreOpsCount),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
@@ -463,7 +465,7 @@ fun SmartAutoSuggestionDialog(
 
                     SmartAutoPromptType.RATE_APP -> {
                         Text(
-                            text = "You've used PantryPulse for ${engagement.completedCoreOpsCount} successful kitchen tasks! How would you rate your experience?",
+                            text = stringResource(id = R.string.rate_prompt_body_fmt, engagement.completedCoreOpsCount),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         SmartTwoStageRatingContent(
@@ -478,7 +480,7 @@ fun SmartAutoSuggestionDialog(
 
                     SmartAutoPromptType.SHARE_APP -> {
                         Text(
-                            text = "Help friends & family stop throwing away groceries! Share PantryPulse's CameraX Fridge Vision & Smart Shopping List.",
+                            text = stringResource(id = R.string.share_prompt_body),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Button(
@@ -489,7 +491,7 @@ fun SmartAutoSuggestionDialog(
                         ) {
                             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Share PantryPulse Invite Link")
+                            Text(stringResource(id = R.string.btn_share_invite_link))
                         }
                     }
 
@@ -501,15 +503,17 @@ fun SmartAutoSuggestionDialog(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    text = "Update v${engagement.latestAvailableVersionName} Ready (Installed: v${engagement.installedVersionName})",
+                                    text = stringResource(
+                                        id = R.string.update_ready_header_fmt,
+                                        engagement.latestAvailableVersionName,
+                                        engagement.installedVersionName
+                                    ),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "• Smart Shopping List with automatic Low-Stock Threshold sync & Exportable Checklist\n" +
-                                        "• 30-Day Freezer Vault & Shelf-Life Preservation Coach\n" +
-                                        "• Activity-verified 1-Tap Google Play Support & 20+ Language Localization",
+                                    text = stringResource(id = R.string.update_changelog_body),
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
@@ -522,7 +526,7 @@ fun SmartAutoSuggestionDialog(
                         ) {
                             Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Install Update v${engagement.latestAvailableVersionName} Now")
+                            Text(stringResource(id = R.string.btn_install_update_fmt, engagement.latestAvailableVersionName))
                         }
                     }
                 }
@@ -533,7 +537,7 @@ fun SmartAutoSuggestionDialog(
                 onClick = onDismiss,
                 modifier = Modifier.testTag("dismiss_auto_prompt_button")
             ) {
-                Text("Not Now (Snooze)")
+                Text(stringResource(id = R.string.btn_not_now_snooze))
             }
         }
     )
@@ -549,11 +553,11 @@ private fun SmartTwoStageRatingContent(
     submitButtonTag: String
 ) {
     val feedbackTopics = listOf(
-        "Camera Scan Accuracy",
-        "Rescue Recipes",
-        "Shopping List Sync",
-        "Freezer & Shelf-Life Tips",
-        "Voice Dictation"
+        stringResource(id = R.string.feedback_topic_camera),
+        stringResource(id = R.string.feedback_topic_recipes),
+        stringResource(id = R.string.feedback_topic_shopping),
+        stringResource(id = R.string.feedback_topic_freezer),
+        stringResource(id = R.string.feedback_topic_voice)
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -568,7 +572,7 @@ private fun SmartTwoStageRatingContent(
                 ) {
                     Icon(
                         imageVector = if (star <= selectedStars) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = "$star Stars",
+                        contentDescription = stringResource(id = R.string.cd_stars_fmt, star),
                         tint = Color(0xFFFFB300),
                         modifier = Modifier.size(34.dp)
                     )
@@ -623,11 +627,9 @@ private fun SmartTwoStageRatingContent(
             onValueChange = onFeedbackChange,
             label = {
                 Text(
-                    if (selectedStars >= 4) {
-                        "What do you love most? (Optional)"
-                    } else {
-                        "How can we improve this for your kitchen?"
-                    }
+                    stringResource(
+                        id = if (selectedStars >= 4) R.string.rate_feedback_hint_high else R.string.rate_feedback_hint_low
+                    )
                 )
             },
             singleLine = true,
@@ -772,7 +774,11 @@ fun SupportAndEngagementHubDialog(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "1. Rate PantryPulse ${if (engagement.hasRatedApp) "(Rated ✓)" else ""}",
+                                    text = if (engagement.hasRatedApp) {
+                                        "${stringResource(id = R.string.hub_rate_section_title)} ${stringResource(id = R.string.hub_rate_rated_suffix)}"
+                                    } else {
+                                        stringResource(id = R.string.hub_rate_section_title)
+                                    },
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -797,12 +803,12 @@ fun SupportAndEngagementHubDialog(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "2. Share PantryPulse (${engagement.shareCount} shares)",
+                                    text = stringResource(id = R.string.hub_share_section_title_fmt, engagement.shareCount),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Invite friends & family to cut food waste with CameraX Fridge Vision & Smart Shopping List.",
+                                    text = stringResource(id = R.string.hub_share_section_body),
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 OutlinedButton(
@@ -813,7 +819,7 @@ fun SupportAndEngagementHubDialog(
                                 ) {
                                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Share App Link")
+                                    Text(stringResource(id = R.string.hub_btn_share_app_link))
                                 }
                             }
                         }
@@ -828,12 +834,16 @@ fun SupportAndEngagementHubDialog(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "3. App Version & Update Check",
+                                    text = stringResource(id = R.string.hub_update_section_title),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Installed: v${engagement.installedVersionName} • Latest: v${engagement.latestAvailableVersionName}",
+                                    text = stringResource(
+                                        id = R.string.hub_update_versions_fmt,
+                                        engagement.installedVersionName,
+                                        engagement.latestAvailableVersionName
+                                    ),
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 Button(
@@ -847,9 +857,9 @@ fun SupportAndEngagementHubDialog(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         if (engagement.isUpdateAvailable) {
-                                            "Apply Update v${engagement.latestAvailableVersionName}"
+                                            stringResource(id = R.string.btn_update_app_fmt, engagement.latestAvailableVersionName)
                                         } else {
-                                            "Up to Date (v${engagement.installedVersionName} ✓)"
+                                            stringResource(id = R.string.btn_up_to_date_fmt, engagement.installedVersionName)
                                         }
                                     )
                                 }
@@ -877,24 +887,26 @@ fun SupportAndEngagementHubDialog(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "Anti-Annoyance Trigger Telemetry",
+                                        text = stringResource(id = R.string.telemetry_header),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                                 Text(
-                                    text = "• App Launches: ${engagement.appLaunchCount} • Days Installed: ${engagement.daysSinceInstall}d\n" +
-                                        "• Completed Core Operations: ${engagement.completedCoreOpsCount}\n" +
-                                        "• Auto-Popups This Session: ${engagement.autoPopupsShownThisSession} / 1 max\n" +
-                                        "• Cold-Start Popup Guard: ACTIVE (Never pops up on launch)\n" +
-                                        "• Cooldowns: 14d Banner/Rate/Share • 30d Milestone • 48h Global Gap",
+                                    text = stringResource(
+                                        id = R.string.telemetry_details_fmt,
+                                        engagement.appLaunchCount,
+                                        engagement.daysSinceInstall,
+                                        engagement.completedCoreOpsCount,
+                                        engagement.autoPopupsShownThisSession
+                                    ),
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
                         }
 
                         Text(
-                            text = "Preview / Test Smart Prompts:",
+                            text = stringResource(id = R.string.telemetry_preview_title),
                             style = MaterialTheme.typography.labelLarge
                         )
                         Row(
@@ -908,7 +920,7 @@ fun SupportAndEngagementHubDialog(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 modifier = Modifier.testTag("reset_engagement_6_ops_button")
                             ) {
-                                Text("Set 6 Ops (Next Op = Milestone)", style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(id = R.string.telemetry_btn_set_6_ops), style = MaterialTheme.typography.labelSmall)
                             }
                             SmartAutoPromptType.entries.forEach { type ->
                                 OutlinedButton(
@@ -923,7 +935,7 @@ fun SupportAndEngagementHubDialog(
                         HorizontalDivider()
 
                         Text(
-                            text = "Tracked App Events (${engagement.eventLogs.size}):",
+                            text = stringResource(id = R.string.telemetry_tracked_events_fmt, engagement.eventLogs.size),
                             style = MaterialTheme.typography.labelLarge
                         )
 
@@ -956,7 +968,7 @@ fun SupportAndEngagementHubDialog(
                                     )
                                     if (ev.algorithmNote.isNotBlank()) {
                                         Text(
-                                            text = "Algorithm: ${ev.algorithmNote}",
+                                            text = stringResource(id = R.string.telemetry_algorithm_fmt, ev.algorithmNote),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.secondary
                                         )
@@ -970,7 +982,7 @@ fun SupportAndEngagementHubDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done")
+                Text(stringResource(id = R.string.dialog_done))
             }
         }
     )
@@ -1035,13 +1047,17 @@ private fun MultiChannelDonationSelectorContent(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Active Supporter Badge Unlocked ★",
+                            text = stringResource(id = R.string.supporter_badge_unlocked_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1F6E43)
                         )
                         Text(
-                            text = "Method: ${engagement.supporterMethodLabel.ifBlank { "Supporter" }} • Total: $${String.format("%.2f", engagement.totalDonatedDollars)} • All donation banners permanently disabled.",
+                            text = stringResource(
+                                id = R.string.supporter_method_summary_fmt,
+                                engagement.supporterMethodLabel.ifBlank { stringResource(id = R.string.supporter_default_method) },
+                                engagement.totalDonatedDollars
+                            ),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -1058,13 +1074,23 @@ private fun MultiChannelDonationSelectorContent(
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Text(
-                                text = "✓ Verified Google Play Receipt: ${receipt.orderId}",
+                                text = stringResource(id = R.string.receipt_verified_order_fmt, receipt.orderId),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1F6E43)
                             )
+                            val acknowledgedStr = stringResource(
+                                id = if (receipt.isAcknowledged) R.string.word_yes else R.string.word_pending
+                            )
                             Text(
-                                text = "SKU: ${receipt.skuId} (${receipt.formattedPrice}) • Acknowledged: ${if (receipt.isAcknowledged) "YES" else "PENDING"} • Session: ${receipt.activitySessionName} • SHA-256: ${receipt.verificationHash}",
+                                text = stringResource(
+                                    id = R.string.receipt_sku_detail_fmt,
+                                    receipt.skuId,
+                                    receipt.formattedPrice,
+                                    acknowledgedStr,
+                                    receipt.activitySessionName,
+                                    receipt.verificationHash
+                                ),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1108,7 +1134,11 @@ private fun MultiChannelDonationSelectorContent(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${engagement.billingUiState.connectionState.displayLabel} • Activity Session: $resolvedSessionLabel ✓",
+                            text = stringResource(
+                                id = R.string.gplay_session_detail_fmt,
+                                stringResource(id = engagement.billingUiState.connectionState.displayLabelRes),
+                                resolvedSessionLabel
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1146,7 +1176,7 @@ private fun MultiChannelDonationSelectorContent(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = tier.title.substringAfter("• ").trim(),
+                                    text = stringResource(id = tier.titleRes),
                                     style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -1184,19 +1214,22 @@ private fun MultiChannelDonationSelectorContent(
                     Spacer(modifier = Modifier.width(6.dp))
                     Column {
                         Text(
-                            text = "2. PayPal & Live QR Code",
+                            text = stringResource(id = R.string.paypal_channel_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Presets ($3, $5, $10, Any) • Live camera scanner QR",
+                            text = stringResource(id = R.string.paypal_subtitle),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
                 TextButton(onClick = { showPayPalQrCode = !showPayPalQrCode }) {
-                    Text(if (showPayPalQrCode) "Hide QR" else "Show QR", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        stringResource(id = if (showPayPalQrCode) R.string.btn_hide_qr else R.string.btn_show_qr),
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
 
@@ -1213,14 +1246,14 @@ private fun MultiChannelDonationSelectorContent(
                             useCustomPayPalAmount = false
                             selectedPayPalPreset = amt
                         },
-                        label = { Text("$$amt USD", style = MaterialTheme.typography.labelSmall) },
+                        label = { Text(stringResource(id = R.string.paypal_amount_usd_fmt, amt), style = MaterialTheme.typography.labelSmall) },
                         modifier = Modifier.testTag("paypal_preset_$amt")
                     )
                 }
                 FilterChip(
                     selected = useCustomPayPalAmount,
                     onClick = { useCustomPayPalAmount = true },
-                    label = { Text("Any Amount", style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(stringResource(id = R.string.paypal_any_amount), style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.testTag("paypal_preset_custom")
                 )
             }
@@ -1229,7 +1262,7 @@ private fun MultiChannelDonationSelectorContent(
                 OutlinedTextField(
                     value = customPayPalAmountText,
                     onValueChange = { customPayPalAmountText = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("Custom Amount (USD)") },
+                    label = { Text(stringResource(id = R.string.paypal_custom_amount_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1247,7 +1280,7 @@ private fun MultiChannelDonationSelectorContent(
                     ) {
                         Image(
                             bitmap = qrBitmap.asImageBitmap(),
-                            contentDescription = "PayPal Live QR Code for $payPalUrl",
+                            contentDescription = stringResource(id = R.string.paypal_qr_cd_fmt, payPalUrl),
                             modifier = Modifier
                                 .size(148.dp)
                                 .padding(8.dp)
@@ -1262,6 +1295,9 @@ private fun MultiChannelDonationSelectorContent(
                 }
             }
 
+            val payPalShareLabel = stringResource(id = R.string.paypal_share_label)
+            val payPalShareText = stringResource(id = R.string.paypal_share_text_fmt, payPalUrl)
+            val payPalShareChooser = stringResource(id = R.string.paypal_share_chooser)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1274,12 +1310,12 @@ private fun MultiChannelDonationSelectorContent(
                 ) {
                     Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("PayPal ($$activePayPalAmount)", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(id = R.string.paypal_btn_fmt, activePayPalAmount), style = MaterialTheme.typography.labelSmall)
                 }
 
                 OutlinedButton(
                     onClick = {
-                        AppEngagementAndDonationManager.copyToClipboard(context, "PayPal Link", payPalUrl)
+                        AppEngagementAndDonationManager.copyToClipboard(context, payPalShareLabel, payPalUrl)
                     },
                     modifier = Modifier
                         .weight(0.85f)
@@ -1287,7 +1323,7 @@ private fun MultiChannelDonationSelectorContent(
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Copy", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(id = R.string.btn_copy), style = MaterialTheme.typography.labelSmall)
                 }
 
                 OutlinedButton(
@@ -1296,18 +1332,18 @@ private fun MultiChannelDonationSelectorContent(
                         try {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "Support PantryPulse via PayPal: $payPalUrl")
+                                putExtra(Intent.EXTRA_TEXT, payPalShareText)
                             }
-                            (activity ?: context).startActivity(Intent.createChooser(shareIntent, "Share PayPal Link"))
+                            (activity ?: context).startActivity(Intent.createChooser(shareIntent, payPalShareChooser))
                         } catch (_: Exception) {
-                            AppEngagementAndDonationManager.copyToClipboard(context, "PayPal Link", payPalUrl)
+                            AppEngagementAndDonationManager.copyToClipboard(context, payPalShareLabel, payPalUrl)
                         }
                     },
                     modifier = Modifier.weight(0.85f)
                 ) {
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(id = R.string.btn_share), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -1333,18 +1369,19 @@ private fun MultiChannelDonationSelectorContent(
                 Spacer(modifier = Modifier.width(6.dp))
                 Column {
                     Text(
-                        text = "3. Ko-fi Tip Jar (Web Platform)",
+                        text = stringResource(id = R.string.kofi_channel_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Direct browser link with automatic clipboard backup",
+                        text = stringResource(id = R.string.kofi_subtitle),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
+            val kofiLinkLabel = stringResource(id = R.string.kofi_link_label)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1361,14 +1398,14 @@ private fun MultiChannelDonationSelectorContent(
                 ) {
                     Icon(Icons.Default.LocalCafe, contentDescription = null, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Support on Ko-fi ☕", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(id = R.string.btn_support_kofi), style = MaterialTheme.typography.labelSmall)
                 }
 
                 OutlinedButton(
                     onClick = {
                         AppEngagementAndDonationManager.copyToClipboard(
                             context,
-                            "Ko-fi Link",
+                            kofiLinkLabel,
                             AppEngagementAndDonationManager.KOFI_URL
                         )
                     },
@@ -1378,7 +1415,7 @@ private fun MultiChannelDonationSelectorContent(
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Copy Link", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(id = R.string.btn_copy_link), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

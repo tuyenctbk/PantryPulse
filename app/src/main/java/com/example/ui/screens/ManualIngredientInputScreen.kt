@@ -70,6 +70,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -79,6 +80,8 @@ import com.example.ai.AiFeatureType
 import com.example.ai.UsageQuotaSnapshot
 import com.example.data.DetectedIngredient
 import com.example.data.PantryCategory
+import com.example.data.computeExpiryEpochMillis
+import com.example.data.formatExpiryDate
 import com.example.ui.VoiceParseUiState
 import com.example.ui.components.QuotaSoftNudgeBanner
 import com.example.ui.components.SmartQuotaRecoveryCard
@@ -92,188 +95,188 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 private data class QuickIngredientPreset(
-    val name: String,
+    @androidx.annotation.StringRes val nameRes: Int,
     val category: PantryCategory,
-    val defaultQuantity: String,
+    @androidx.annotation.StringRes val defaultQuantityRes: Int,
     val defaultDaysUntilExpiry: Int,
-    val conditionNote: String,
-    val storageTip: String,
+    @androidx.annotation.StringRes val conditionNoteRes: Int,
+    @androidx.annotation.StringRes val storageTipRes: Int,
     val estimatedValueDollars: Double
 )
 
-private val SPOKEN_DICTATION_PRESETS = listOf(
-    "Half bag of baby spinach expiring in 2 days, 2 ripe avocados for tomorrow, and half jar of basil pesto for 3 days",
-    "2 cups shredded rotisserie chicken expiring tomorrow, 6 oz crumbled feta for 4 days, and half loaf sourdough",
-    "8 oz cremini mushrooms expiring in 2 days, half tub Greek yogurt for 4 days, and 2 bell peppers for 5 days"
+private val SPOKEN_DICTATION_PRESET_RES = listOf(
+    R.string.manual_spoken_preset_1,
+    R.string.manual_spoken_preset_2,
+    R.string.manual_spoken_preset_3
 )
 
 private val QUICK_INGREDIENT_PRESETS = listOf(
     // Produce
     QuickIngredientPreset(
-        name = "Baby Spinach",
+        nameRes = R.string.preset_spinach_name,
         category = PantryCategory.PRODUCE,
-        defaultQuantity = "5 oz bag",
+        defaultQuantityRes = R.string.preset_spinach_qty,
         defaultDaysUntilExpiry = 2,
-        conditionNote = "Tender leafy greens — use soon in skillets or smoothies",
-        storageTip = "Place a dry paper towel inside the bag in the crisper drawer.",
+        conditionNoteRes = R.string.preset_spinach_note,
+        storageTipRes = R.string.preset_spinach_tip,
         estimatedValueDollars = 3.49
     ),
     QuickIngredientPreset(
-        name = "Ripe Hass Avocados",
+        nameRes = R.string.preset_avocado_name,
         category = PantryCategory.PRODUCE,
-        defaultQuantity = "2 avocados",
+        defaultQuantityRes = R.string.preset_avocado_qty,
         defaultDaysUntilExpiry = 2,
-        conditionNote = "Yields to gentle pressure — ready to eat today or tomorrow",
-        storageTip = "Keep in refrigerator once ripe to slow down browning.",
+        conditionNoteRes = R.string.preset_avocado_note,
+        storageTipRes = R.string.preset_avocado_tip,
         estimatedValueDollars = 2.99
     ),
     QuickIngredientPreset(
-        name = "Fresh Cilantro Bunch",
+        nameRes = R.string.preset_cilantro_name,
         category = PantryCategory.PRODUCE,
-        defaultQuantity = "1 bunch",
+        defaultQuantityRes = R.string.qty_1_bunch,
         defaultDaysUntilExpiry = 3,
-        conditionNote = "Delicate aromatic herb stems",
-        storageTip = "Store upright in a jar with 1 inch of water, loosely covered.",
+        conditionNoteRes = R.string.preset_cilantro_note,
+        storageTipRes = R.string.preset_cilantro_tip,
         estimatedValueDollars = 1.79
     ),
     QuickIngredientPreset(
-        name = "Cremini Mushrooms",
+        nameRes = R.string.preset_mushrooms_name,
         category = PantryCategory.PRODUCE,
-        defaultQuantity = "8 oz pack",
+        defaultQuantityRes = R.string.preset_mushrooms_qty,
         defaultDaysUntilExpiry = 3,
-        conditionNote = "Whole mushrooms in carton",
-        storageTip = "Transfer to a breathable paper bag on the middle shelf.",
+        conditionNoteRes = R.string.preset_mushrooms_note,
+        storageTipRes = R.string.preset_mushrooms_tip,
         estimatedValueDollars = 3.99
     ),
     QuickIngredientPreset(
-        name = "Bell Peppers",
+        nameRes = R.string.preset_peppers_name,
         category = PantryCategory.PRODUCE,
-        defaultQuantity = "2 peppers",
+        defaultQuantityRes = R.string.preset_peppers_qty,
         defaultDaysUntilExpiry = 5,
-        conditionNote = "Crisp sweet peppers",
-        storageTip = "Store unwashed in the low-humidity crisper drawer.",
+        conditionNoteRes = R.string.preset_peppers_note,
+        storageTipRes = R.string.preset_peppers_tip,
         estimatedValueDollars = 2.80
     ),
     // Dairy & Cheese
     QuickIngredientPreset(
-        name = "Crumbled Feta Cheese",
+        nameRes = R.string.preset_feta_name,
         category = PantryCategory.DAIRY_CHEESE,
-        defaultQuantity = "6 oz tub",
+        defaultQuantityRes = R.string.preset_feta_qty,
         defaultDaysUntilExpiry = 4,
-        conditionNote = "Opened deli tub",
-        storageTip = "Keep lid tightly sealed on the top or middle shelf.",
+        conditionNoteRes = R.string.preset_feta_note,
+        storageTipRes = R.string.preset_feta_tip,
         estimatedValueDollars = 4.79
     ),
     QuickIngredientPreset(
-        name = "Greek Yogurt Tub",
+        nameRes = R.string.preset_yogurt_name,
         category = PantryCategory.DAIRY_CHEESE,
-        defaultQuantity = "1/2 tub (16 oz)",
+        defaultQuantityRes = R.string.preset_yogurt_qty,
         defaultDaysUntilExpiry = 4,
-        conditionNote = "Opened plain Greek yogurt — great for marinades or sauces",
-        storageTip = "Smooth surface and seal tightly; never store in fridge door.",
+        conditionNoteRes = R.string.preset_yogurt_note,
+        storageTipRes = R.string.preset_yogurt_tip,
         estimatedValueDollars = 5.49
     ),
     QuickIngredientPreset(
-        name = "Sharp Cheddar Block",
+        nameRes = R.string.preset_cheddar_name,
         category = PantryCategory.DAIRY_CHEESE,
-        defaultQuantity = "6 oz block",
+        defaultQuantityRes = R.string.preset_cheddar_qty,
         defaultDaysUntilExpiry = 9,
-        conditionNote = "Half-used cheese block",
-        storageTip = "Wrap in parchment paper, then place in a loosely sealed bag.",
+        conditionNoteRes = R.string.preset_cheddar_note,
+        storageTipRes = R.string.preset_cheddar_tip,
         estimatedValueDollars = 4.50
     ),
     // Sauces & Jars
     QuickIngredientPreset(
-        name = "Opened Marinara Sauce",
+        nameRes = R.string.preset_marinara_name,
         category = PantryCategory.SAUCES_JARS,
-        defaultQuantity = "1/2 jar (12 oz)",
+        defaultQuantityRes = R.string.preset_marinara_qty,
         defaultDaysUntilExpiry = 3,
-        conditionNote = "Opened pasta sauce jar — priority rescue",
-        storageTip = "Wipe jar rim clean and refrigerate on middle shelf; freeze if unused by day 4.",
+        conditionNoteRes = R.string.preset_marinara_note,
+        storageTipRes = R.string.preset_marinara_tip,
         estimatedValueDollars = 3.99
     ),
     QuickIngredientPreset(
-        name = "Basil Pesto Jar",
+        nameRes = R.string.preset_pesto_name,
         category = PantryCategory.SAUCES_JARS,
-        defaultQuantity = "1/3 jar",
+        defaultQuantityRes = R.string.preset_pesto_qty,
         defaultDaysUntilExpiry = 3,
-        conditionNote = "Opened basil pesto",
-        storageTip = "Pour a thin film of olive oil on top to prevent oxidation.",
+        conditionNoteRes = R.string.preset_pesto_note,
+        storageTipRes = R.string.preset_pesto_tip,
         estimatedValueDollars = 4.99
     ),
     QuickIngredientPreset(
-        name = "Chipotle Peppers in Adobo",
+        nameRes = R.string.preset_chipotle_name,
         category = PantryCategory.SAUCES_JARS,
-        defaultQuantity = "4 tbsp left",
+        defaultQuantityRes = R.string.preset_chipotle_qty,
         defaultDaysUntilExpiry = 5,
-        conditionNote = "Transferred from opened can",
-        storageTip = "Always move leftover canned items to a glass or plastic container.",
+        conditionNoteRes = R.string.preset_chipotle_note,
+        storageTipRes = R.string.preset_chipotle_tip,
         estimatedValueDollars = 2.49
     ),
     // Proteins
     QuickIngredientPreset(
-        name = "Shredded Rotisserie Chicken",
+        nameRes = R.string.preset_chicken_name,
         category = PantryCategory.PROTEIN,
-        defaultQuantity = "2 cups",
+        defaultQuantityRes = R.string.qty_2_cups,
         defaultDaysUntilExpiry = 2,
-        conditionNote = "Cooked poultry — use within 48 hours",
-        storageTip = "Store in shallow airtight container on the coldest bottom shelf.",
+        conditionNoteRes = R.string.preset_chicken_note,
+        storageTipRes = R.string.preset_chicken_tip,
         estimatedValueDollars = 6.99
     ),
     QuickIngredientPreset(
-        name = "Extra-Firm Tofu",
+        nameRes = R.string.preset_tofu_name,
         category = PantryCategory.PROTEIN,
-        defaultQuantity = "1/2 block (7 oz)",
+        defaultQuantityRes = R.string.preset_tofu_qty,
         defaultDaysUntilExpiry = 3,
-        conditionNote = "Opened tofu block",
-        storageTip = "Submerge in fresh cold water in a sealed container and change water daily.",
+        conditionNoteRes = R.string.preset_tofu_note,
+        storageTipRes = R.string.preset_tofu_tip,
         estimatedValueDollars = 2.79
     ),
     QuickIngredientPreset(
-        name = "Pasture-Raised Eggs",
+        nameRes = R.string.preset_eggs_name,
         category = PantryCategory.PROTEIN,
-        defaultQuantity = "6 eggs",
+        defaultQuantityRes = R.string.preset_eggs_qty,
         defaultDaysUntilExpiry = 12,
-        conditionNote = "Half carton remaining",
-        storageTip = "Keep in original carton on an interior shelf, not the door.",
+        conditionNoteRes = R.string.preset_eggs_note,
+        storageTipRes = R.string.preset_eggs_tip,
         estimatedValueDollars = 4.29
     ),
     // Leftovers
     QuickIngredientPreset(
-        name = "Cooked Jasmine Rice",
+        nameRes = R.string.preset_rice_name,
         category = PantryCategory.LEFTOVERS,
-        defaultQuantity = "2 cups",
+        defaultQuantityRes = R.string.qty_2_cups,
         defaultDaysUntilExpiry = 2,
-        conditionNote = "Chilled cooked rice — ideal for crispy skillet fried rice",
-        storageTip = "Cool rapidly and keep sealed in fridge; use within 2–3 days.",
+        conditionNoteRes = R.string.preset_rice_note,
+        storageTipRes = R.string.preset_rice_tip,
         estimatedValueDollars = 2.25
     ),
     QuickIngredientPreset(
-        name = "Roasted Vegetables",
+        nameRes = R.string.preset_roasted_veg_name,
         category = PantryCategory.LEFTOVERS,
-        defaultQuantity = "1 container",
+        defaultQuantityRes = R.string.qty_1_container,
         defaultDaysUntilExpiry = 2,
-        conditionNote = "Leftover sheet-pan veggies",
-        storageTip = "Crisp up in an Air Fryer or hot skillet for 4 minutes.",
+        conditionNoteRes = R.string.preset_roasted_veg_note,
+        storageTipRes = R.string.preset_roasted_veg_tip,
         estimatedValueDollars = 4.00
     ),
     // Pantry Staples
     QuickIngredientPreset(
-        name = "Artisan Sourdough Half-Loaf",
+        nameRes = R.string.preset_sourdough_name,
         category = PantryCategory.PANTRY_STAPLE,
-        defaultQuantity = "1/2 loaf",
+        defaultQuantityRes = R.string.preset_sourdough_qty,
         defaultDaysUntilExpiry = 3,
-        conditionNote = "Slightly firm crust — great for paninis, melts, or croutons",
-        storageTip = "Keep cut-side down on a board or freeze slices for toast.",
+        conditionNoteRes = R.string.preset_sourdough_note,
+        storageTipRes = R.string.preset_sourdough_tip,
         estimatedValueDollars = 3.50
     ),
     QuickIngredientPreset(
-        name = "Chickpeas (Opened Can)",
+        nameRes = R.string.preset_chickpeas_name,
         category = PantryCategory.PANTRY_STAPLE,
-        defaultQuantity = "1 cup",
+        defaultQuantityRes = R.string.preset_chickpeas_qty,
         defaultDaysUntilExpiry = 3,
-        conditionNote = "Drained garbanzo beans",
-        storageTip = "Store in a sealed glass jar in the fridge.",
+        conditionNoteRes = R.string.preset_chickpeas_note,
+        storageTipRes = R.string.preset_chickpeas_tip,
         estimatedValueDollars = 1.69
     )
 )
@@ -313,17 +316,21 @@ fun ManualIngredientInputScreen(
 ) {
     BackHandler(onBack = onNavigateBack)
 
+    val context = LocalContext.current
+    val defaultManualNote = stringResource(id = R.string.manual_default_note)
+    val defaultQtyPack = stringResource(id = R.string.qty_1_pack)
+    val defaultQtyUnit = stringResource(id = R.string.qty_1_unit)
     var selectedPresetCategoryFilter by rememberSaveable { mutableStateOf<PantryCategory?>(null) }
     var voiceTranscriptText by rememberSaveable { mutableStateOf("") }
 
     // Custom Form State
     var name by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf(PantryCategory.PRODUCE) }
-    var quantity by rememberSaveable { mutableStateOf("1 pack") }
+    var quantity by rememberSaveable { mutableStateOf(defaultQtyPack) }
     var daysSlider by rememberSaveable { mutableFloatStateOf(3f) }
     var conditionNote by rememberSaveable { mutableStateOf("") }
     var storageTip by rememberSaveable {
-        mutableStateOf(defaultStorageTipForCategory(PantryCategory.PRODUCE))
+        mutableStateOf(defaultStorageTipForCategory(context, PantryCategory.PRODUCE))
     }
     var estimatedValue by rememberSaveable { mutableDoubleStateOf(3.75) }
 
@@ -380,7 +387,7 @@ fun ManualIngredientInputScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to Pantry"
+                            contentDescription = stringResource(id = R.string.cd_back_to_pantry)
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
@@ -451,13 +458,13 @@ fun ManualIngredientInputScreen(
                             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
                             putExtra(
                                 RecognizerIntent.EXTRA_PROMPT,
-                                "Speak your groceries & expiry days (e.g., 'Half bag spinach for 2 days, 6 eggs')"
+                                context.getString(R.string.manual_voice_prompt)
                             )
                         }
                         speechRecognizerLauncher.launch(intent)
                     } catch (_: Exception) {
                         // Graceful fallback if the streaming emulator does not have a voice activity installed
-                        val sample = SPOKEN_DICTATION_PRESETS.first()
+                        val sample = context.getString(SPOKEN_DICTATION_PRESET_RES.first())
                         voiceTranscriptText = sample
                         onParseVoiceTranscript(sample) { parsed ->
                             stagedBatch.addAll(parsed)
@@ -559,7 +566,7 @@ fun ManualIngredientInputScreen(
                                 onClick = {
                                     selectedPresetCategoryFilter = if (selectedPresetCategoryFilter == cat) null else cat
                                 },
-                                label = { Text("${cat.emoji} ${cat.displayName}") }
+                                label = { Text("${cat.emoji} ${stringResource(id = cat.displayNameRes)}") }
                             )
                         }
                     }
@@ -572,18 +579,22 @@ fun ManualIngredientInputScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         filteredPresets.forEachIndexed { idx, preset ->
+                            val presetName = stringResource(id = preset.nameRes)
+                            val presetQty = stringResource(id = preset.defaultQuantityRes)
+                            val presetNote = stringResource(id = preset.conditionNoteRes)
+                            val presetTip = stringResource(id = preset.storageTipRes)
                             Surface(
                                 color = MaterialTheme.colorScheme.surface,
                                 shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier
                                     .clickable {
                                         // Populate custom builder form
-                                        name = preset.name
+                                        name = presetName
                                         category = preset.category
-                                        quantity = preset.defaultQuantity
+                                        quantity = presetQty
                                         daysSlider = preset.defaultDaysUntilExpiry.toFloat()
-                                        conditionNote = preset.conditionNote
-                                        storageTip = preset.storageTip
+                                        conditionNote = presetNote
+                                        storageTip = presetTip
                                         estimatedValue = preset.estimatedValueDollars
                                     }
                                     .testTag("quick_preset_chip_$idx")
@@ -594,12 +605,12 @@ fun ManualIngredientInputScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            text = "${preset.category.emoji} ${preset.name}",
+                                            text = "${preset.category.emoji} $presetName",
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Text(
-                                            text = "${preset.defaultQuantity} • ${preset.defaultDaysUntilExpiry}d • $${String.format("%.2f", preset.estimatedValueDollars)}",
+                                            text = "$presetQty • ${stringResource(id = R.string.expiry_short_days_fmt, preset.defaultDaysUntilExpiry)} • $${String.format("%.2f", preset.estimatedValueDollars)}",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -609,12 +620,12 @@ fun ManualIngredientInputScreen(
                                         onClick = {
                                             stagedBatch.add(
                                                 DetectedIngredient(
-                                                    name = preset.name,
+                                                    name = presetName,
                                                     category = preset.category,
-                                                    quantity = preset.defaultQuantity,
+                                                    quantity = presetQty,
                                                     daysUntilExpiry = preset.defaultDaysUntilExpiry,
-                                                    visualConditionNote = preset.conditionNote,
-                                                    storageTip = preset.storageTip,
+                                                    visualConditionNote = presetNote,
+                                                    storageTip = presetTip,
                                                     estimatedValueDollars = preset.estimatedValueDollars,
                                                     isSelected = true
                                                 )
@@ -626,7 +637,7 @@ fun ManualIngredientInputScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.AddCircleOutline,
-                                            contentDescription = "Add ${preset.name} to batch queue",
+                                            contentDescription = stringResource(id = R.string.cd_add_to_batch_fmt, presetName),
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )
@@ -693,9 +704,9 @@ fun ManualIngredientInputScreen(
                                 selected = selected,
                                 onClick = {
                                     category = cat
-                                    storageTip = defaultStorageTipForCategory(cat)
+                                    storageTip = defaultStorageTipForCategory(context, cat)
                                 },
-                                label = { Text("${cat.emoji} ${cat.displayName}") },
+                                label = { Text("${cat.emoji} ${stringResource(id = cat.displayNameRes)}") },
                                 leadingIcon = if (selected) {
                                     {
                                         Icon(
@@ -730,7 +741,16 @@ fun ManualIngredientInputScreen(
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf("1 bunch", "1 pack", "1/2 jar", "8 oz", "2 cups", "3 pieces", "1 container").forEach { unitPreset ->
+                        listOf(
+                            R.string.qty_1_bunch,
+                            R.string.qty_1_pack,
+                            R.string.qty_half_jar,
+                            R.string.qty_8_oz,
+                            R.string.qty_2_cups,
+                            R.string.qty_3_pieces,
+                            R.string.qty_1_container
+                        ).forEach { unitRes ->
+                            val unitPreset = stringResource(id = unitRes)
                             FilterChip(
                                 selected = quantity == unitPreset,
                                 onClick = { quantity = unitPreset },
@@ -743,26 +763,36 @@ fun ManualIngredientInputScreen(
 
                     // Spoilage Countdown / Days Until Expiry Section
                     val (urgencyBg, urgencyFg, urgencyLabel) = when {
-                        daysInt <= 1 -> Triple(CriticalCrimsonContainer, CriticalCrimson, "CRITICAL • USE TODAY")
-                        daysInt <= 3 -> Triple(ExpiringAmberContainer, ExpiringAmber, "EXPIRING SOON • PRIORITY RESCUE")
-                        else -> Triple(FreshEmeraldContainer, FreshEmerald, "FRESH")
+                        daysInt <= 1 -> Triple(CriticalCrimsonContainer, CriticalCrimson, stringResource(id = R.string.manual_urgency_critical))
+                        daysInt <= 3 -> Triple(ExpiringAmberContainer, ExpiringAmber, stringResource(id = R.string.manual_urgency_soon))
+                        else -> Triple(FreshEmeraldContainer, FreshEmerald, stringResource(id = R.string.manual_urgency_fresh))
                     }
 
+                    val computedDateText = remember(daysInt) {
+                        formatExpiryDate(computeExpiryEpochMillis(daysInt))
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = stringResource(id = R.string.custom_spoilage_label),
-                            style = MaterialTheme.typography.labelLarge
-                        )
+                        Column {
+                            Text(
+                                text = stringResource(id = R.string.custom_spoilage_label),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                            Text(
+                                text = computedDateText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Surface(
                             color = urgencyBg,
                             shape = RoundedCornerShape(50)
                         ) {
                             Text(
-                                text = "$daysInt d • $urgencyLabel",
+                                text = stringResource(id = R.string.manual_days_urgency_fmt, daysInt, urgencyLabel),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = urgencyFg,
                                 fontWeight = FontWeight.Bold,
@@ -779,17 +809,17 @@ fun ManualIngredientInputScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         listOf(
-                            1 to "Use Today (1d)",
-                            2 to "Expiring Soon (2d)",
-                            3 to "3 Days",
-                            5 to "5 Days",
-                            7 to "1 Week (7d)",
-                            14 to "2 Weeks (14d)"
-                        ).forEach { (d, label) ->
+                            1 to R.string.manual_expiry_1d,
+                            2 to R.string.manual_expiry_2d,
+                            3 to R.string.manual_expiry_3d,
+                            5 to R.string.manual_expiry_5d,
+                            7 to R.string.manual_expiry_7d,
+                            14 to R.string.manual_expiry_14d
+                        ).forEach { (d, labelRes) ->
                             FilterChip(
                                 selected = daysInt == d,
                                 onClick = { daysSlider = d.toFloat() },
-                                label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                                label = { Text(stringResource(id = labelRes), style = MaterialTheme.typography.labelSmall) },
                                 modifier = Modifier.testTag("manual_expiry_preset_$d")
                             )
                         }
@@ -884,9 +914,9 @@ fun ManualIngredientInputScreen(
                                         DetectedIngredient(
                                             name = name.trim(),
                                             category = category,
-                                            quantity = quantity.ifBlank { "1 unit" }.trim(),
+                                            quantity = quantity.ifBlank { defaultQtyUnit }.trim(),
                                             daysUntilExpiry = daysInt,
-                                            visualConditionNote = conditionNote.ifBlank { "Added via Manual Input" }.trim(),
+                                            visualConditionNote = conditionNote.ifBlank { defaultManualNote }.trim(),
                                             storageTip = storageTip,
                                             estimatedValueDollars = estimatedValue,
                                             isSelected = true
@@ -915,9 +945,9 @@ fun ManualIngredientInputScreen(
                                     onSaveSingleItem(
                                         name.trim(),
                                         category,
-                                        quantity.ifBlank { "1 unit" }.trim(),
+                                        quantity.ifBlank { defaultQtyUnit }.trim(),
                                         daysInt,
-                                        conditionNote.ifBlank { "Added via Manual Input" }.trim(),
+                                        conditionNote.ifBlank { defaultManualNote }.trim(),
                                         storageTip,
                                         estimatedValue,
                                         stagedBatch.isEmpty()
@@ -987,7 +1017,7 @@ private fun StagedManualBatchCard(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "Est. $${String.format("%.2f", totalValue)}",
+                            text = stringResource(id = R.string.manual_est_value_fmt, totalValue),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -1029,10 +1059,10 @@ private fun StagedManualBatchCard(
                                 onClick = { onAdjustStagedDays(idx, -1) },
                                 modifier = Modifier.size(30.dp)
                             ) {
-                                Icon(Icons.Default.Remove, contentDescription = "Decrease days", modifier = Modifier.size(15.dp))
+                                Icon(Icons.Default.Remove, contentDescription = stringResource(id = R.string.cd_decrease_days), modifier = Modifier.size(15.dp))
                             }
                             Text(
-                                text = "${item.daysUntilExpiry}d",
+                                text = stringResource(id = R.string.expiry_short_days_fmt, item.daysUntilExpiry),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 6.dp)
@@ -1041,13 +1071,13 @@ private fun StagedManualBatchCard(
                                 onClick = { onAdjustStagedDays(idx, 1) },
                                 modifier = Modifier.size(30.dp)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = "Increase days", modifier = Modifier.size(15.dp))
+                                Icon(Icons.Default.Add, contentDescription = stringResource(id = R.string.cd_increase_days), modifier = Modifier.size(15.dp))
                             }
                             IconButton(
                                 onClick = { onRemoveStagedItem(idx) },
                                 modifier = Modifier.size(30.dp)
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = "Remove item", modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Close, contentDescription = stringResource(id = R.string.cd_remove_item_short), modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -1073,15 +1103,19 @@ private fun StagedManualBatchCard(
     }
 }
 
-private fun defaultStorageTipForCategory(category: PantryCategory): String {
-    return when (category) {
-        PantryCategory.PRODUCE -> "Wrap leafy greens in a dry paper towel inside the crisper drawer to prevent excess moisture."
-        PantryCategory.DAIRY_CHEESE -> "Store on an interior top or middle shelf (not the warm door) in parchment or a sealed tub."
-        PantryCategory.SAUCES_JARS -> "Wipe the jar rim clean before closing tightly; swirl with 2 tbsp water when nearly empty to deglaze pans."
-        PantryCategory.PROTEIN -> "Keep on the coldest bottom shelf in a sealed container and cook or freeze promptly."
-        PantryCategory.LEFTOVERS -> "Store in shallow airtight containers so air circulates; crisp up in a skillet or Air Fryer."
-        PantryCategory.PANTRY_STAPLE -> "Keep in a cool, dry cupboard or sealed jar away from stove steam."
+private fun defaultStorageTipForCategory(
+    context: android.content.Context,
+    category: PantryCategory
+): String {
+    val resId = when (category) {
+        PantryCategory.PRODUCE -> R.string.manual_default_tip_produce
+        PantryCategory.DAIRY_CHEESE -> R.string.manual_default_tip_dairy
+        PantryCategory.SAUCES_JARS -> R.string.manual_default_tip_sauces
+        PantryCategory.PROTEIN -> R.string.manual_default_tip_protein
+        PantryCategory.LEFTOVERS -> R.string.manual_default_tip_leftovers
+        PantryCategory.PANTRY_STAPLE -> R.string.manual_default_tip_dry_pantry
     }
+    return context.getString(resId)
 }
 
 @Composable
@@ -1160,13 +1194,18 @@ private fun VoiceToInventoryDictationCard(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SPOKEN_DICTATION_PRESETS.forEachIndexed { idx, presetPhrase ->
+                SPOKEN_DICTATION_PRESET_RES.forEachIndexed { idx, presetRes ->
+                    val presetPhrase = stringResource(id = presetRes)
                     FilterChip(
                         selected = transcript == presetPhrase,
                         onClick = { onTranscriptChange(presetPhrase) },
                         label = {
                             Text(
-                                text = "🎙️ #${idx + 1}: \"${presetPhrase.take(36)}...\"",
+                                text = stringResource(
+                                    id = R.string.manual_voice_chip_fmt,
+                                    idx + 1,
+                                    presetPhrase.take(36)
+                                ),
                                 style = MaterialTheme.typography.labelSmall
                             )
                         },
@@ -1204,7 +1243,12 @@ private fun VoiceToInventoryDictationCard(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Parsing (${quotaState.activeCapabilityTier.badgeLabel})...")
+                        Text(
+                            stringResource(
+                                id = R.string.manual_parsing_progress_fmt,
+                                stringResource(id = quotaState.activeCapabilityTier.badgeLabelRes)
+                            )
+                        )
                     } else {
                         Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))

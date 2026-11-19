@@ -62,7 +62,7 @@ class PantryPulseWidgetProvider : AppWidgetProvider() {
             appWidgetIds: IntArray
         ) {
             val items = PantryDatabase.getInstance(context).pantryDao().getActiveItemsSnapshot()
-            val expiringItems = items.filter { it.daysUntilExpiry <= 3 }
+            val expiringItems = items.filter { it.effectiveDaysUntilExpiry <= 3 }
             val topItems = (expiringItems.ifEmpty { items }).take(3)
 
             val launchIntent = Intent(context, MainActivity::class.java).apply {
@@ -80,16 +80,16 @@ class PantryPulseWidgetProvider : AppWidgetProvider() {
                 views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
 
                 val badgeLabel = if (expiringItems.isEmpty()) {
-                    "All Fresh"
+                    context.getString(R.string.hero_all_fresh_badge)
                 } else {
-                    "${expiringItems.size} Expiring"
+                    context.getString(R.string.hero_expiring_soon_badge, expiringItems.size)
                 }
                 views.setTextViewText(R.id.widget_urgent_badge, badgeLabel)
 
                 val subtitle = if (expiringItems.isEmpty()) {
                     context.getString(R.string.widget_empty)
                 } else {
-                    "Cook soon before it spoils:"
+                    context.getString(R.string.widget_card_expiring_count, expiringItems.size)
                 }
                 views.setTextViewText(R.id.widget_subtitle, subtitle)
 
@@ -97,13 +97,17 @@ class PantryPulseWidgetProvider : AppWidgetProvider() {
                 itemViewIds.forEachIndexed { index, viewId ->
                     val item = topItems.getOrNull(index)
                     if (item != null) {
+                        val daysLeft = item.effectiveDaysUntilExpiry
                         val dayText = when {
-                            item.daysUntilExpiry <= 0 -> "Use today!"
-                            item.daysUntilExpiry == 1 -> "1d left"
-                            else -> "${item.daysUntilExpiry}d left"
+                            daysLeft <= 0 -> context.getString(R.string.expiry_use_today)
+                            daysLeft == 1 -> context.getString(R.string.expiry_one_day)
+                            else -> context.getString(R.string.expiry_many_days, daysLeft)
                         }
                         views.setViewVisibility(viewId, View.VISIBLE)
-                        views.setTextViewText(viewId, "• ${item.name} (${item.quantity}) — $dayText")
+                        views.setTextViewText(
+                            viewId,
+                            "• ${item.name} (${item.quantity}) — $dayText · ${item.formattedExpiryDate}"
+                        )
                     } else {
                         views.setViewVisibility(viewId, View.GONE)
                     }

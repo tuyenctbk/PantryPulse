@@ -1,8 +1,10 @@
 package com.example.ai
 
 import android.graphics.Bitmap
-import java.io.ByteArrayOutputStream
 import android.graphics.BitmapFactory
+import androidx.annotation.StringRes
+import com.example.R
+import java.io.ByteArrayOutputStream
 
 /**
  * Centralized Model-Agnostic Capability Tiers.
@@ -11,22 +13,26 @@ import android.graphics.BitmapFactory
 enum class AiCapabilityTier(
     val badgeLabel: String,
     val modelDisplayName: String,
-    val description: String
+    val description: String,
+    @StringRes val badgeLabelRes: Int
 ) {
     TIER_1_PRIMARY(
         badgeLabel = "Tier 1 • Standard AI",
         modelDisplayName = "Gemini 3.8 Flash",
-        description = "Full multimodal reasoning & deep culinary context"
+        description = "Full multimodal reasoning & deep culinary context",
+        badgeLabelRes = R.string.tier_badge_1
     ),
     TIER_2_ECO_LITE(
         badgeLabel = "Tier 2 • Eco Lite ⚡",
         modelDisplayName = "Gemini 3.5 Flash-Lite",
-        description = "High-efficiency lite model (stretches quota 3× further)"
+        description = "High-efficiency lite model (stretches quota 3× further)",
+        badgeLabelRes = R.string.tier_badge_2
     ),
     TIER_3_LOCAL_FALLBACK(
         badgeLabel = "Tier 3 • Local Zero-Cost 🛡️",
         modelDisplayName = "On-Device Culinary Engine",
-        description = "Deterministic offline synthesis & local reflex (0 cloud credits)"
+        description = "Deterministic offline synthesis & local reflex (0 cloud credits)",
+        badgeLabelRes = R.string.tier_badge_3
     )
 }
 
