@@ -2,9 +2,19 @@ package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -105,6 +115,8 @@ import com.example.ui.PantrySortOrder
 import com.example.ui.PreservationCoachUiState
 import com.example.ui.components.HomeCompactSupportBanner
 import com.example.ui.components.PostOperationValueRealizationCard
+import com.example.ui.components.rememberIsAndroidTv
+import com.example.ui.components.tvFocusHighlight
 import com.example.ui.engagement.EngagementSnapshot
 import com.example.ui.theme.CriticalCrimson
 import com.example.ui.theme.CriticalCrimsonContainer
@@ -237,7 +249,7 @@ fun PantryDashboardScreen(
                     val preservedFreezerItems = remember(items) {
                         items.filter {
                             it.effectiveDaysUntilExpiry >= 14 ||
-                                it.visualConditionNote.contains("Preserved:", ignoreCase = true) ||
+                                it.visualConditionNote.contains("Preserved", ignoreCase = true) ||
                                 it.visualConditionNote.contains("Freeze", ignoreCase = true)
                         }
                     }
@@ -344,22 +356,26 @@ fun PantryDashboardScreen(
             }
         }
 
+        val isTv = rememberIsAndroidTv()
         FloatingActionButton(
             onClick = onNavigateToManualInput,
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(20.dp)
+                .padding(end = if (isTv) 12.dp else 18.dp, bottom = if (isTv) 8.dp else 18.dp)
+                .tvFocusHighlight(shape = RoundedCornerShape(16.dp))
                 .testTag("add_ingredient_fab")
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = if (isTv) 12.dp else 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(id = R.string.fab_manual_add))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(stringResource(id = R.string.fab_manual_add), style = MaterialTheme.typography.labelLarge)
+                if (!isTv) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(id = R.string.fab_manual_add), style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }
@@ -422,16 +438,18 @@ private fun ShelfLifePreservationCoachCard(
     onThawAndCookItem: (PantryItemEntity) -> Unit,
     onInspectGuide: (PreservationGuide) -> Unit
 ) {
-    var expandedGuides by rememberSaveable { mutableStateOf(true) }
+    var expandedGuides by rememberSaveable { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
+            .animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+            .tvFocusHighlight(shape = RoundedCornerShape(22.dp))
             .testTag("shelf_life_preservation_coach_card"),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -500,8 +518,9 @@ private fun ShelfLifePreservationCoachCard(
                     enabled = preservationState !is PreservationCoachUiState.Analyzing,
                     modifier = Modifier
                         .weight(1f)
+                        .height(44.dp)
                         .testTag("analyze_shelf_life_button"),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     if (preservationState is PreservationCoachUiState.Analyzing) {
                         CircularProgressIndicator(
@@ -510,15 +529,25 @@ private fun ShelfLifePreservationCoachCard(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(id = R.string.preservation_coach_analyzing), style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                        Text(
+                            stringResource(id = R.string.preservation_coach_analyzing),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     } else {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(id = R.string.preservation_btn_ai_analyze), style = MaterialTheme.typography.labelMedium)
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            stringResource(id = R.string.preservation_btn_ai_analyze),
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
 
@@ -526,16 +555,22 @@ private fun ShelfLifePreservationCoachCard(
                     onClick = onRunLocalPreservation,
                     modifier = Modifier
                         .weight(1f)
+                        .height(44.dp)
                         .testTag("local_preservation_guide_button"),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Shield,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(id = R.string.preservation_btn_local_coach), style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        stringResource(id = R.string.preservation_btn_local_coach),
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
@@ -597,7 +632,11 @@ private fun ShelfLifePreservationCoachCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    AnimatedVisibility(visible = expandedGuides && preservationState.guides.isNotEmpty()) {
+                    AnimatedVisibility(
+                        visible = expandedGuides && preservationState.guides.isNotEmpty(),
+                        enter = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(tween(220)),
+                        exit = shrinkVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut(tween(160))
+                    ) {
                         Column(
                             modifier = Modifier.padding(top = 10.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -1366,7 +1405,13 @@ private fun SearchAndSortSection(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
-            placeholder = { Text(stringResource(id = R.string.search_pantry_placeholder)) },
+            placeholder = {
+                Text(
+                    text = stringResource(id = R.string.search_pantry_placeholder),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = stringResource(id = R.string.cd_search_pantry))
             },
@@ -1533,17 +1578,24 @@ private fun HeroPantryBanner(
                             containerColor = Color(0xFFE05A36),
                             contentColor = Color.White
                         ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                         modifier = Modifier
                             .weight(1f)
+                            .tvFocusHighlight(shape = RoundedCornerShape(50))
                             .testTag("hero_snap_fridge_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
                             contentDescription = stringResource(id = R.string.hero_btn_fridge_vision),
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(id = R.string.hero_btn_fridge_vision), maxLines = 1)
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = stringResource(id = R.string.hero_btn_fridge_vision),
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     OutlinedButton(
@@ -1551,17 +1603,25 @@ private fun HeroPantryBanner(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = Color.White
                         ),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                         modifier = Modifier
                             .weight(1f)
+                            .tvFocusHighlight(shape = RoundedCornerShape(50))
                             .testTag("hero_plan_meals_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.RestaurantMenu,
                             contentDescription = stringResource(id = R.string.hero_btn_rescue_meals),
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(id = R.string.hero_btn_rescue_meals), maxLines = 1)
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = stringResource(id = R.string.hero_btn_rescue_meals),
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -1589,7 +1649,10 @@ private fun ExpiringWidgetPreviewCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Surface(
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         shape = CircleShape,
@@ -1609,7 +1672,9 @@ private fun ExpiringWidgetPreviewCard(
                         Text(
                             text = stringResource(id = R.string.widget_card_title),
                             style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = if (expiringItems.isEmpty()) {
@@ -1618,7 +1683,9 @@ private fun ExpiringWidgetPreviewCard(
                                 stringResource(id = R.string.widget_card_expiring_count, expiringItems.size)
                             },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -1627,7 +1694,11 @@ private fun ExpiringWidgetPreviewCard(
                     onClick = onPinOrRefreshWidget,
                     modifier = Modifier.testTag("pin_widget_button")
                 ) {
-                    Text(stringResource(id = R.string.widget_card_pin_sync))
+                    Text(
+                        text = stringResource(id = R.string.widget_card_pin_sync),
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
 
@@ -1743,12 +1814,29 @@ private fun PantryIngredientCard(
         label = "stock_progress_fill"
     )
 
+    val criticalPulseAlpha = if (status == FreshnessStatus.CRITICAL) {
+        val pulse = rememberInfiniteTransition(label = "critical_badge_pulse")
+        pulse.animateFloat(
+            initialValue = 1f,
+            targetValue = 0.72f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 950),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "critical_pulse_alpha"
+        ).value
+    } else {
+        1f
+    }
+
     var expandedTip by rememberSaveable(item.id) { mutableStateOf(false) }
 
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
+            .animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+            .tvFocusHighlight(shape = RoundedCornerShape(22.dp))
             .clickable { expandedTip = !expandedTip }
             .testTag("pantry_item_card_${item.id}"),
         shape = RoundedCornerShape(22.dp),
@@ -1803,7 +1891,7 @@ private fun PantryIngredientCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Surface(
-                        color = badgeBg,
+                        color = badgeBg.copy(alpha = criticalPulseAlpha),
                         shape = RoundedCornerShape(50)
                     ) {
                         Row(
@@ -1969,13 +2057,13 @@ private fun PantryIngredientCard(
                         IconButton(
                             onClick = { onAdjustDays(-1) },
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(38.dp)
                                 .testTag("decrease_days_${item.id}")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Remove,
                                 contentDescription = stringResource(id = R.string.cd_decrease_expiry),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                         Text(
@@ -1987,13 +2075,13 @@ private fun PantryIngredientCard(
                         IconButton(
                             onClick = { onAdjustDays(1) },
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(38.dp)
                                 .testTag("increase_days_${item.id}")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = stringResource(id = R.string.cd_increase_expiry),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
@@ -2001,42 +2089,51 @@ private fun PantryIngredientCard(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     IconButton(
                         onClick = onOpenPreservationGuide,
-                        modifier = Modifier.testTag("preserve_item_${item.id}")
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("preserve_item_${item.id}")
                     ) {
                         Icon(
                             imageVector = Icons.Default.AcUnit,
                             contentDescription = stringResource(id = R.string.cd_preserve_tip),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
                     IconButton(
                         onClick = onEdit,
-                        modifier = Modifier.testTag("edit_item_${item.id}")
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("edit_item_${item.id}")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = stringResource(id = R.string.cd_edit_item),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
                     IconButton(
                         onClick = onDelete,
-                        modifier = Modifier.testTag("delete_item_${item.id}")
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("delete_item_${item.id}")
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = stringResource(id = R.string.cd_remove_item),
-                            tint = MaterialTheme.colorScheme.outline
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(19.dp)
                         )
                     }
+
+                    Spacer(modifier = Modifier.width(4.dp))
 
                     Button(
                         onClick = onMarkUsedUp,
@@ -2049,9 +2146,9 @@ private fun PantryIngredientCard(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = stringResource(id = R.string.btn_used_up),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = stringResource(id = R.string.btn_used_up),
                             style = MaterialTheme.typography.labelMedium,

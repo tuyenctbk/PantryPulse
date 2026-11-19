@@ -18,9 +18,9 @@ private val Context.quotaDataStore by preferencesDataStore(name = "usage_quota_l
 
 data class UsageQuotaSnapshot(
     val dateIso: String = UsageQuotaManager.currentDateIso(),
-    val visionUsed: Int = 1,
-    val recipeUsed: Int = 1,
-    val chatUsed: Int = 1,
+    val visionUsed: Int = 0,
+    val recipeUsed: Int = 0,
+    val chatUsed: Int = 0,
     val audioUsed: Int = 0,
     val baseDailyAllowance: Int = 10,
     val bonusGraceCredits: Int = 0,
@@ -84,9 +84,9 @@ class UsageQuotaManager(private val appContext: Context) {
 
         UsageQuotaSnapshot(
             dateIso = today,
-            visionUsed = if (isNewDay) 0 else (prefs[visionUsedKey] ?: 1),
-            recipeUsed = if (isNewDay) 0 else (prefs[recipeUsedKey] ?: 1),
-            chatUsed = if (isNewDay) 0 else (prefs[chatUsedKey] ?: 1),
+            visionUsed = if (isNewDay) 0 else (prefs[visionUsedKey] ?: 0),
+            recipeUsed = if (isNewDay) 0 else (prefs[recipeUsedKey] ?: 0),
+            chatUsed = if (isNewDay) 0 else (prefs[chatUsedKey] ?: 0),
             audioUsed = if (isNewDay) 0 else (prefs[audioUsedKey] ?: 0),
             baseDailyAllowance = 10,
             bonusGraceCredits = if (isNewDay) 0 else (prefs[bonusGraceKey] ?: 0),
@@ -104,9 +104,9 @@ class UsageQuotaManager(private val appContext: Context) {
             val existingDate = prefs[dateIsoKey]
             if (existingDate == null) {
                 prefs[dateIsoKey] = today
-                prefs[visionUsedKey] = 1
-                prefs[recipeUsedKey] = 1
-                prefs[chatUsedKey] = 1
+                prefs[visionUsedKey] = 0
+                prefs[recipeUsedKey] = 0
+                prefs[chatUsedKey] = 0
                 prefs[audioUsedKey] = 0
             } else if (existingDate != today) {
                 // Automatic Rollover Reset: reset usage counters & graceClaimed while preserving ecoLiteMode
@@ -175,9 +175,11 @@ class UsageQuotaManager(private val appContext: Context) {
         }
     }
 
-    suspend fun recordAutoCascade() {
+    suspend fun recordAutoCascade(incrementCount: Boolean = false) {
         appContext.quotaDataStore.edit { prefs ->
-            prefs[cascadeCountKey] = (prefs[cascadeCountKey] ?: 0) + 1
+            if (incrementCount) {
+                prefs[cascadeCountKey] = (prefs[cascadeCountKey] ?: 0) + 1
+            }
             prefs[ecoLiteModeKey] = true
         }
     }

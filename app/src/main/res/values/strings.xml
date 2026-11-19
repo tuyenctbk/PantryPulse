@@ -4,8 +4,8 @@
 
     <!-- Navigation -->
     <string name="nav_pantry">Pantry</string>
-    <string name="nav_scan">Fridge Scan</string>
-    <string name="nav_recipes">Rescue Meals</string>
+    <string name="nav_scan">Scan</string>
+    <string name="nav_recipes">Recipes</string>
     <string name="nav_shopping_list">Shopping</string>
     <string name="nav_chef_chat">Sous-Chef</string>
 
@@ -75,11 +75,9 @@
     <string name="scanner_inspection_complete">Inspection Complete</string>
     <string name="scanner_save_selected_btn">Save %1$d Items to Offline Pantry &amp; Widget</string>
     <string name="scanner_permission_title">CameraX Fridge Viewfinder</string>
-    <string name="scanner_permission_subtitle">Grant Camera permission for live low-light EV boost &amp; tap-to-focus, or use Photo Picker / Instant Demo.</string>
+    <string name="scanner_permission_subtitle">Grant Camera permission for live low-light EV boost &amp; tap-to-focus, or pick photos from your library.</string>
     <string name="scanner_enable_camerax_btn">Enable CameraX</string>
     <string name="scanner_photo_picker_btn">Photo Picker</string>
-    <string name="scanner_demo_fridge_btn">Instant Demo: Capture &amp; Ingest Stocked Fridge Shelf</string>
-    <string name="scanner_demo_receipt_btn">Instant Demo: Capture &amp; Ingest Grocery Receipt</string>
     <string name="scanner_context_hint_label">Context Hint for Gemini (e.g., Back drawer has opened marinara &amp; feta)</string>
 
     <!-- Manual & Voice Input Screen -->
@@ -88,12 +86,9 @@
     <string name="voice_card_title">Hands-Free Voice-to-Inventory AI</string>
     <string name="voice_card_subtitle">Speak a multi-item grocery phrase • Auto-falls back to 0-Credit Local Parser if offline/quota full</string>
     <string name="voice_btn_speak">Speak</string>
-    <string name="voice_sample_dictations_label">1-Tap Sample Spoken Dictations:</string>
     <string name="voice_transcript_label">Spoken Grocery Transcript (e.g., Half bag spinach 2 days, 6 eggs, half jar pesto)</string>
     <string name="voice_btn_ai_parse">AI Parse to Basket</string>
     <string name="voice_btn_local_parse">Local Parse (0 Credits)</string>
-    <string name="quick_presets_title">1-Tap Quick-Add Staples</string>
-    <string name="quick_presets_subtitle">Tap any item to pre-fill form, or tap + to queue into your batch basket</string>
     <string name="custom_builder_title">Custom Ingredient Details</string>
     <string name="custom_name_label">Ingredient Name (e.g., Wilted Kale, Half-Jar Salsa, Brie)</string>
     <string name="custom_category_label">Shelf / Fridge Category:</string>
@@ -121,6 +116,11 @@
     <string name="recipes_craving_label">Craving or Custom Chef Note (e.g., 15-min pasta, extra crispy, spicy)</string>
     <string name="recipes_empty_filtered_title">No Cached Recipes Match Active Filters</string>
     <string name="recipes_empty_filtered_body">Generate 3 new rescue recipes tailored to your selected dietary preferences and available fridge ingredients, or reset filters to view all.</string>
+    <string name="recipes_empty_no_recipes_title">No Rescue Recipes Yet</string>
+    <string name="recipes_empty_no_recipes_body">Tap Generate Recipes to create 3 ranked zero-waste recipes tailored to your fridge inventory, appliances, and spices.</string>
+    <string name="recipes_empty_no_pantry_body">Add ingredients to your Pantry first by scanning your fridge or entering them manually, then generate rescue recipes.</string>
+    <string name="voice_unavailable_toast">Voice input is unavailable on this device. Type your list in the text field below.</string>
+    <string name="vm_vision_local_empty_hint">Offline scan needs a brief focus note (e.g. \"spinach, eggs, milk\") or use Manual / Voice Input to log your ingredients.</string>
     <string name="recipes_btn_generate_matching">Generate Matching Recipes</string>
     <string name="recipes_why_it_rescues">Why It Rescues:</string>
     <string name="recipes_ingredients_used">Expiring &amp; Available Ingredients Used:</string>
@@ -154,7 +154,7 @@
     <string name="shopping_in_cart">In Cart</string>
     <string name="shopping_est_cost">Est. Cost</string>
     <string name="shopping_restock_checked_fmt">Restock %1$d Checked ($%2$.2f)</string>
-    <string name="shopping_check_to_restock">Check Items to Restock (100%)</string>
+    <string name="shopping_check_to_restock">Check to Restock</string>
     <string name="shopping_btn_add_item">Add Item</string>
     <string name="shopping_btn_close">Close</string>
     <string name="shopping_threshold_rule_fmt">Auto Low-Stock Threshold Rule: ≤ %1$d%%</string>
@@ -172,7 +172,7 @@
     <string name="preservation_coach_analyzing">Analyzing Shelf-Life &amp; Freezing Methods…</string>
     <string name="preservation_coach_subtitle">Personalized Freezing, Blanching &amp; Storage Tips</string>
     <string name="preservation_btn_ai_analyze">AI Analyze Shelf-Life</string>
-    <string name="preservation_btn_local_coach">Local Coach (0 Credits)</string>
+    <string name="preservation_btn_local_coach">Local Coach</string>
     <string name="preservation_steps_header">Step-by-Step Preservation Method:</string>
     <string name="preservation_best_use_fmt">🍳 Best Culinary Use After Preserving: %1$s</string>
     <string name="preservation_btn_apply_fmt">Apply (+%1$dd Shelf Life)</string>
@@ -432,7 +432,6 @@
     <string name="shopping_tab_low_supply_fmt">Low Supply (%1$d)</string>
     <string name="shopping_btn_add_missing">Add Missing Ingredient</string>
     <string name="shopping_add_missing_desc">Manually add grocery items or missing ingredients to your list</string>
-    <string name="shopping_quick_staples_label">Quick Kitchen Staples:</string>
     <string name="shopping_low_supply_title">Low-Supply Fridge Inventory</string>
     <string name="shopping_low_supply_desc">Items in your fridge at or below %1$d%% stock. Move them to your shopping list with one tap.</string>
     <string name="shopping_btn_move_all_low_supply">Move All Low Supply (%1$d)</string>
@@ -511,7 +510,6 @@
     <!-- Refactored UI Strings: Manual & Voice Input -->
     <string name="cd_back_to_pantry">Back to Pantry</string>
     <string name="manual_voice_prompt">Speak your groceries &amp; expiry days (e.g., \'Half bag spinach for 2 days, 6 eggs\')</string>
-    <string name="cd_add_to_batch_fmt">Add %1$s to batch queue</string>
     <string name="manual_urgency_critical">CRITICAL • USE TODAY</string>
     <string name="manual_urgency_soon">EXPIRING SOON • PRIORITY RESCUE</string>
     <string name="manual_urgency_fresh">FRESH</string>
@@ -583,18 +581,6 @@
     <string name="ingredient_err_clear">Failed to clear ingredients.</string>
 
     <!-- Kitchen Staples, Quantities, Checklist & TTS -->
-    <string name="staple_whole_milk">Whole Milk</string>
-    <string name="staple_organic_eggs">Organic Eggs</string>
-    <string name="staple_sourdough_bread">Sourdough Bread</string>
-    <string name="staple_butter">Butter</string>
-    <string name="staple_olive_oil">Olive Oil</string>
-    <string name="staple_fresh_garlic">Fresh Garlic</string>
-    <string name="staple_yellow_onions">Yellow Onions</string>
-    <string name="staple_roma_tomatoes">Roma Tomatoes</string>
-    <string name="staple_cheddar_cheese">Cheddar Cheese</string>
-    <string name="staple_coffee_beans">Coffee Beans</string>
-    <string name="staple_jasmine_rice">Jasmine Rice</string>
-    <string name="staple_chicken_breast">Chicken Breast</string>
     <string name="qty_1_pack">1 pack</string>
     <string name="qty_1_unit">1 unit</string>
     <string name="qty_1_gal">1 gal</string>
@@ -627,7 +613,6 @@
     <string name="vm_local_mode_off">Cloud AI capabilities re-enabled.</string>
     <string name="vm_grace_claimed">Claimed +3 Free Grace Credits! You can continue your task immediately.</string>
     <string name="vm_grace_already_claimed">Daily +3 Grace Credits already claimed today. Use Eco Lite ⚡ or Local Tier 3 🛡️!</string>
-    <string name="vm_vision_sample_error">Could not prepare sample scan image.</string>
     <string name="vm_vision_local_done">Tier 3 Local Shelf Check-In complete (0 cloud credits used)!</string>
     <string name="vm_vision_pick_first">Please snap or pick 1–2 photos first.</string>
     <string name="vm_vision_quota_reached">Daily cloud quota reached — choose Grace Credits, Eco Lite ⚡, or 0-Credit Local Check-In!</string>
@@ -737,10 +722,6 @@
     <string name="vm_tier_suffix_eco"> [Eco Lite ⚡]</string>
 
     <!-- Manual Input Spoken Presets, Unit Chips, Default Tips & Quick Presets -->
-    <string name="manual_spoken_preset_1">Half bag of baby spinach expiring in 2 days, 2 ripe avocados for tomorrow, and half jar of basil pesto for 3 days</string>
-    <string name="manual_spoken_preset_2">2 cups shredded rotisserie chicken expiring tomorrow, 6 oz crumbled feta for 4 days, and half loaf sourdough</string>
-    <string name="manual_spoken_preset_3">8 oz cremini mushrooms expiring in 2 days, half tub Greek yogurt for 4 days, and 2 bell peppers for 5 days</string>
-    <string name="manual_voice_chip_fmt">🎙️ #%1$d: \"%2$s…\"</string>
     <string name="manual_default_tip_produce">Wrap leafy greens in a dry paper towel inside the crisper drawer to prevent excess moisture.</string>
     <string name="manual_default_tip_dairy">Store on an interior top or middle shelf (not the warm door) in parchment or a sealed tub.</string>
     <string name="manual_default_tip_sauces">Wipe the jar rim clean before closing tightly; swirl with 2 tbsp water when nearly empty to deglaze pans.</string>
@@ -753,74 +734,6 @@
     <string name="qty_3_pieces">3 pieces</string>
     <string name="qty_1_container">1 container</string>
 
-    <string name="preset_spinach_name">Baby Spinach</string>
-    <string name="preset_spinach_qty">5 oz bag</string>
-    <string name="preset_spinach_note">Tender leafy greens — use soon in skillets or smoothies</string>
-    <string name="preset_spinach_tip">Place a dry paper towel inside the bag in the crisper drawer.</string>
-    <string name="preset_avocado_name">Ripe Hass Avocados</string>
-    <string name="preset_avocado_qty">2 avocados</string>
-    <string name="preset_avocado_note">Yields to gentle pressure — ready to eat today or tomorrow</string>
-    <string name="preset_avocado_tip">Keep in refrigerator once ripe to slow down browning.</string>
-    <string name="preset_cilantro_name">Fresh Cilantro Bunch</string>
-    <string name="preset_cilantro_note">Delicate aromatic herb stems</string>
-    <string name="preset_cilantro_tip">Store upright in a jar with 1 inch of water, loosely covered.</string>
-    <string name="preset_mushrooms_name">Cremini Mushrooms</string>
-    <string name="preset_mushrooms_qty">8 oz pack</string>
-    <string name="preset_mushrooms_note">Whole mushrooms in carton</string>
-    <string name="preset_mushrooms_tip">Transfer to a breathable paper bag on the middle shelf.</string>
-    <string name="preset_peppers_name">Bell Peppers</string>
-    <string name="preset_peppers_qty">2 peppers</string>
-    <string name="preset_peppers_note">Crisp sweet peppers</string>
-    <string name="preset_peppers_tip">Store unwashed in the low-humidity crisper drawer.</string>
-    <string name="preset_feta_name">Crumbled Feta Cheese</string>
-    <string name="preset_feta_qty">6 oz tub</string>
-    <string name="preset_feta_note">Opened deli tub</string>
-    <string name="preset_feta_tip">Keep lid tightly sealed on the top or middle shelf.</string>
-    <string name="preset_yogurt_name">Greek Yogurt Tub</string>
-    <string name="preset_yogurt_qty">1/2 tub (16 oz)</string>
-    <string name="preset_yogurt_note">Opened plain Greek yogurt — great for marinades or sauces</string>
-    <string name="preset_yogurt_tip">Smooth surface and seal tightly; never store in fridge door.</string>
-    <string name="preset_cheddar_name">Sharp Cheddar Block</string>
-    <string name="preset_cheddar_qty">6 oz block</string>
-    <string name="preset_cheddar_note">Half-used cheese block</string>
-    <string name="preset_cheddar_tip">Wrap in parchment paper, then place in a loosely sealed bag.</string>
-    <string name="preset_marinara_name">Opened Marinara Sauce</string>
-    <string name="preset_marinara_qty">1/2 jar (12 oz)</string>
-    <string name="preset_marinara_note">Opened pasta sauce jar — priority rescue</string>
-    <string name="preset_marinara_tip">Wipe jar rim clean and refrigerate on middle shelf; freeze if unused by day 4.</string>
-    <string name="preset_pesto_name">Basil Pesto Jar</string>
-    <string name="preset_pesto_qty">1/3 jar</string>
-    <string name="preset_pesto_note">Opened basil pesto</string>
-    <string name="preset_pesto_tip">Pour a thin film of olive oil on top to prevent oxidation.</string>
-    <string name="preset_chipotle_name">Chipotle Peppers in Adobo</string>
-    <string name="preset_chipotle_qty">4 tbsp left</string>
-    <string name="preset_chipotle_note">Transferred from opened can</string>
-    <string name="preset_chipotle_tip">Always move leftover canned items to a glass or plastic container.</string>
-    <string name="preset_chicken_name">Shredded Rotisserie Chicken</string>
-    <string name="preset_chicken_note">Cooked poultry — use within 48 hours</string>
-    <string name="preset_chicken_tip">Store in shallow airtight container on the coldest bottom shelf.</string>
-    <string name="preset_tofu_name">Extra-Firm Tofu</string>
-    <string name="preset_tofu_qty">1/2 block (7 oz)</string>
-    <string name="preset_tofu_note">Opened tofu block</string>
-    <string name="preset_tofu_tip">Submerge in fresh cold water in a sealed container and change water daily.</string>
-    <string name="preset_eggs_name">Pasture-Raised Eggs</string>
-    <string name="preset_eggs_qty">6 eggs</string>
-    <string name="preset_eggs_note">Half carton remaining</string>
-    <string name="preset_eggs_tip">Keep in original carton on an interior shelf, not the door.</string>
-    <string name="preset_rice_name">Cooked Jasmine Rice</string>
-    <string name="preset_rice_note">Chilled cooked rice — ideal for crispy skillet fried rice</string>
-    <string name="preset_rice_tip">Cool rapidly and keep sealed in fridge; use within 2–3 days.</string>
-    <string name="preset_roasted_veg_name">Roasted Vegetables</string>
-    <string name="preset_roasted_veg_note">Leftover sheet-pan veggies</string>
-    <string name="preset_roasted_veg_tip">Crisp up in an Air Fryer or hot skillet for 4 minutes.</string>
-    <string name="preset_sourdough_name">Artisan Sourdough Half-Loaf</string>
-    <string name="preset_sourdough_qty">1/2 loaf</string>
-    <string name="preset_sourdough_note">Slightly firm crust — great for paninis, melts, or croutons</string>
-    <string name="preset_sourdough_tip">Keep cut-side down on a board or freeze slices for toast.</string>
-    <string name="preset_chickpeas_name">Chickpeas (Opened Can)</string>
-    <string name="preset_chickpeas_qty">1 cup</string>
-    <string name="preset_chickpeas_note">Drained garbanzo beans</string>
-    <string name="preset_chickpeas_tip">Store in a sealed glass jar in the fridge.</string>
 
     <!-- Repository Persisted Notes -->
     <string name="repo_preserved_note_fmt">Preserved via %1$s %2$s (+%3$dd shelf life)</string>

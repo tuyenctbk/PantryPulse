@@ -95,7 +95,6 @@ fun CameraXFridgeViewfinder(
     onRemovePhoto: (Int) -> Unit,
     onClearPhotos: () -> Unit,
     onOpenPhotoPicker: () -> Unit,
-    onRunSampleScan: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val previewController = rememberCameraXPreviewController()
@@ -470,7 +469,7 @@ fun CameraXFridgeViewfinder(
                                         onPhotoCapturedOnly(bmp)
                                     }
                                 },
-                                onFallbackSample = { onRunSampleScan(focusNote) }
+                                onCaptureFailed = onOpenPhotoPicker
                             )
                         },
                         enabled = !isIngesting,
@@ -504,7 +503,7 @@ fun CameraXFridgeViewfinder(
                                 previewController.captureFridgeFrame(
                                     onShutter = { showShutterFlash = true },
                                     onBitmapReady = { bmp -> onPhotoCapturedOnly(bmp) },
-                                    onFallbackSample = { onRunSampleScan(focusNote) }
+                                    onCaptureFailed = onOpenPhotoPicker
                                 )
                             },
                             enabled = !isIngesting,
@@ -534,26 +533,6 @@ fun CameraXFridgeViewfinder(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(stringResource(id = R.string.viewfinder_btn_gallery))
                     }
-                }
-
-                // Instant Demo Trigger Button
-                OutlinedButton(
-                    onClick = { onRunSampleScan(focusNote) },
-                    enabled = !isIngesting,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("sample_scan_button"),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        if (captureMode == ScanCaptureMode.FRIDGE_SHELF) {
-                            stringResource(id = R.string.scanner_demo_fridge_btn)
-                        } else {
-                            stringResource(id = R.string.scanner_demo_receipt_btn)
-                        }
-                    )
                 }
 
                 HorizontalDivider()

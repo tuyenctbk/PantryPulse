@@ -201,4 +201,16 @@ class PantryOfflineDatabaseTest {
         assertEquals(initialSaved + 4.00, afterSetup.savedDollarsTotal, 0.001)
         assertTrue(dao.getItemById(insertedId)!!.isConsumed)
     }
+
+    @Test
+    fun `fresh startup inserts zero sample items recipes or restock entries`() = runTest {
+        repository.syncOnStartup()
+
+        assertEquals(0, dao.getActiveItemsFlow().first().size)
+        assertEquals(0, dao.getSavedRecipesFlow().first().size)
+        assertEquals(0, dao.getRestockItemsFlow().first().size)
+        val defaultSetup = com.example.data.KitchenSetupState()
+        assertEquals(0, defaultSetup.rescuedMealsCount)
+        assertEquals(0.0, defaultSetup.savedDollarsTotal, 0.001)
+    }
 }

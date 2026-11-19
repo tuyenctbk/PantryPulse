@@ -8,7 +8,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -84,6 +86,7 @@ import com.example.data.KitchenSetupState
 import com.example.data.PantryCategory
 import com.example.data.PantryItemEntity
 import com.example.data.RestockItemEntity
+import com.example.ui.components.tvFocusHighlight
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -108,30 +111,6 @@ enum class ShoppingManagerTab {
     SHOPPING_LIST,
     LOW_SUPPLY_INVENTORY
 }
-
-private data class KitchenStapleSuggestion(
-    @androidx.annotation.StringRes val nameRes: Int,
-    val tagKey: String,
-    val emoji: String,
-    val category: PantryCategory,
-    @androidx.annotation.StringRes val defaultQtyRes: Int,
-    val defaultPrice: Double
-)
-
-private val KITCHEN_STAPLE_SUGGESTIONS = listOf(
-    KitchenStapleSuggestion(R.string.staple_whole_milk, "whole_milk", "🥛", PantryCategory.DAIRY_CHEESE, R.string.qty_1_gal, 3.79),
-    KitchenStapleSuggestion(R.string.staple_organic_eggs, "organic_eggs", "🥚", PantryCategory.PROTEIN, R.string.qty_1_dozen, 3.99),
-    KitchenStapleSuggestion(R.string.staple_sourdough_bread, "sourdough_bread", "🍞", PantryCategory.PANTRY_STAPLE, R.string.qty_1_loaf, 4.29),
-    KitchenStapleSuggestion(R.string.staple_butter, "butter", "🧈", PantryCategory.DAIRY_CHEESE, R.string.qty_1_lb, 3.99),
-    KitchenStapleSuggestion(R.string.staple_olive_oil, "olive_oil", "🫒", PantryCategory.SAUCES_JARS, R.string.qty_500ml, 8.49),
-    KitchenStapleSuggestion(R.string.staple_fresh_garlic, "fresh_garlic", "🧄", PantryCategory.PRODUCE, R.string.qty_1_head, 0.99),
-    KitchenStapleSuggestion(R.string.staple_yellow_onions, "yellow_onions", "🧅", PantryCategory.PRODUCE, R.string.qty_3_lbs, 2.99),
-    KitchenStapleSuggestion(R.string.staple_roma_tomatoes, "roma_tomatoes", "🍅", PantryCategory.PRODUCE, R.string.qty_1_lb, 1.99),
-    KitchenStapleSuggestion(R.string.staple_cheddar_cheese, "cheddar_cheese", "🧀", PantryCategory.DAIRY_CHEESE, R.string.qty_8_oz, 3.49),
-    KitchenStapleSuggestion(R.string.staple_coffee_beans, "coffee_beans", "☕", PantryCategory.PANTRY_STAPLE, R.string.qty_12_oz, 7.99),
-    KitchenStapleSuggestion(R.string.staple_jasmine_rice, "jasmine_rice", "🍚", PantryCategory.PANTRY_STAPLE, R.string.qty_2_lbs, 3.29),
-    KitchenStapleSuggestion(R.string.staple_chicken_breast, "chicken_breast", "🍗", PantryCategory.PROTEIN, R.string.qty_1_lb, 4.99)
-)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -166,7 +145,7 @@ fun SmartShoppingListScreen(
     val defaultQtyUnit = stringResource(id = R.string.qty_1_unit)
     var newItemName by rememberSaveable { mutableStateOf("") }
     var newItemQuantity by rememberSaveable { mutableStateOf(defaultQtyPack) }
-    var newItemPrice by rememberSaveable { mutableStateOf("3.49") }
+    var newItemPrice by rememberSaveable { mutableStateOf("") }
     var newItemTip by rememberSaveable { mutableStateOf(defaultShoppingTip) }
     var newItemCategory by rememberSaveable { mutableStateOf(PantryCategory.PRODUCE) }
 
@@ -339,8 +318,9 @@ fun SmartShoppingListScreen(
                         Button(
                             onClick = onRestockAllCheckedToPantry,
                             enabled = checkedCount > 0,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                             modifier = Modifier
-                                .weight(1.3f)
+                                .weight(1.25f)
                                 .testTag("restock_checked_button"),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary
@@ -349,15 +329,16 @@ fun SmartShoppingListScreen(
                             Icon(
                                 imageVector = Icons.Default.ShoppingCartCheckout,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = if (checkedCount > 0) {
                                     stringResource(id = R.string.shopping_restock_checked_fmt, checkedCount, checkedEstimatedCost)
                                 } else {
                                     stringResource(id = R.string.shopping_check_to_restock)
                                 },
+                                style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -366,22 +347,24 @@ fun SmartShoppingListScreen(
 
                         FilledTonalButton(
                             onClick = { showAddForm = !showAddForm },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(0.95f)
                                 .testTag("toggle_add_shopping_item_button")
                         ) {
                             Icon(
                                 imageVector = if (showAddForm) Icons.Default.Close else Icons.Default.Add,
                                 contentDescription = stringResource(id = R.string.cd_add_missing_ingredient),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = if (showAddForm) {
                                     stringResource(id = R.string.shopping_btn_close)
                                 } else {
-                                    stringResource(id = R.string.shopping_btn_add_missing)
+                                    stringResource(id = R.string.shopping_btn_add_item)
                                 },
+                                style = MaterialTheme.typography.labelLarge,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -551,33 +534,6 @@ fun SmartShoppingListScreen(
                             }
                         }
 
-                        // Quick Staples suggestion chips
-                        Text(
-                            text = stringResource(id = R.string.shopping_quick_staples_label),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            KITCHEN_STAPLE_SUGGESTIONS.forEach { staple ->
-                                val localizedName = stringResource(id = staple.nameRes)
-                                val localizedQty = stringResource(id = staple.defaultQtyRes)
-                                AssistChip(
-                                    onClick = {
-                                        newItemName = localizedName
-                                        newItemCategory = staple.category
-                                        newItemQuantity = localizedQty
-                                        newItemPrice = String.format(Locale.US, "%.2f", staple.defaultPrice)
-                                    },
-                                    label = { Text("${staple.emoji} $localizedName") },
-                                    modifier = Modifier.testTag("staple_chip_${staple.tagKey}")
-                                )
-                            }
-                        }
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -637,7 +593,7 @@ fun SmartShoppingListScreen(
                                 onClick = {
                                     val trimmed = newItemName.trim()
                                     if (trimmed.isNotEmpty()) {
-                                        val price = newItemPrice.toDoubleOrNull()?.coerceAtLeast(0.5) ?: 3.49
+                                        val price = newItemPrice.toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
                                         onAddManualShoppingItem(
                                             trimmed,
                                             newItemCategory,
@@ -646,6 +602,7 @@ fun SmartShoppingListScreen(
                                             newItemTip
                                         )
                                         newItemName = ""
+                                        newItemPrice = ""
                                         showAddForm = false
                                     }
                                 },
@@ -666,12 +623,13 @@ fun SmartShoppingListScreen(
         // TAB 1: SHOPPING LIST VIEW
         // ==========================================
         if (selectedManagerTab == ShoppingManagerTab.SHOPPING_LIST) {
-            // Filter Chips
+            // Single-row horizontal Filter Chips so shopping items appear right away
             item {
-                FlowRow(
+                Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
                 ) {
                     ShoppingListFilter.entries.forEach { filter ->
                         val count = when (filter) {
@@ -1115,6 +1073,7 @@ private fun LowSupplyInventoryCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SmartShoppingItemCard(
     item: RestockItemEntity,
@@ -1136,6 +1095,7 @@ private fun SmartShoppingItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = if (item.isChecked) 0.dp else 2.dp),
         modifier = modifier
             .fillMaxWidth()
+            .tvFocusHighlight(shape = RoundedCornerShape(18.dp))
             .testTag("shopping_item_card_${item.id}")
     ) {
         Column(
@@ -1144,7 +1104,7 @@ private fun SmartShoppingItemCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Checkbox(
@@ -1154,16 +1114,21 @@ private fun SmartShoppingItemCard(
                 )
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    Text(
+                        text = "${item.parsedCategory.emoji} ${item.name}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None
+                    )
+
+                    Spacer(modifier = Modifier.height(5.dp))
+
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text(
-                            text = "${item.parsedCategory.emoji} ${item.name}",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None
-                        )
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.secondaryContainer
@@ -1173,32 +1138,34 @@ private fun SmartShoppingItemCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (item.isAutoAdded) {
-                            MaterialTheme.colorScheme.tertiaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        }
-                    ) {
-                        Text(
-                            text = if (item.isAutoAdded) "⚡ ${item.triggerReason}" else item.triggerReason,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
                             color = if (item.isAutoAdded) {
-                                MaterialTheme.colorScheme.onTertiaryContainer
+                                MaterialTheme.colorScheme.tertiaryContainer
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        ) {
+                            Text(
+                                text = if (item.isAutoAdded) "⚡ ${item.triggerReason}" else item.triggerReason,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = if (item.isAutoAdded) {
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
                     }
                 }
 

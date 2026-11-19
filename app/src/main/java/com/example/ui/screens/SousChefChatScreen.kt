@@ -61,7 +61,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.ai.AiFeatureType
@@ -102,7 +108,10 @@ fun SousChefChatScreen(
         var instance: TextToSpeech? = null
         instance = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                instance?.language = Locale.US
+                val res = instance?.setLanguage(Locale.getDefault())
+                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    instance?.language = Locale.US
+                }
             }
         }
         ttsEngine = instance
@@ -140,7 +149,7 @@ fun SousChefChatScreen(
         }
     }
 
-    val topExpiring = pantryItems.firstOrNull { it.daysUntilExpiry <= 2 }?.name
+    val topExpiring = pantryItems.firstOrNull { it.effectiveDaysUntilExpiry <= 2 }?.name
         ?: stringResource(id = R.string.sous_chef_default_greens)
     val topAppliance = kitchenSetup.ownedAppliances.firstOrNull()
         ?: stringResource(id = R.string.sous_chef_default_skillet)
@@ -203,16 +212,17 @@ fun SousChefChatScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = stringResource(
-                                    id = R.string.chat_title,
-                                    stringResource(id = quotaState.activeCapabilityTier.badgeLabelRes)
-                                ),
-                                style = MaterialTheme.typography.titleMedium
+                                text = stringResource(id = R.string.chat_sender_name),
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = stringResource(id = R.string.chat_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = stringResource(id = quotaState.activeCapabilityTier.badgeLabelRes),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -389,8 +399,11 @@ fun SousChefChatScreen(
                             }
                             voicePromptLauncher.launch(intent)
                         } catch (_: Exception) {
-                            // Emulator fallback when no hardware mic / voice activity is present
-                            inputText = quickPrompts.first()
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.voice_unavailable_toast),
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
                         }
                     },
                     enabled = chatUiState !is ChatUiState.Streaming,
@@ -408,7 +421,13 @@ fun SousChefChatScreen(
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = { Text(stringResource(R.string.chat_input_placeholder)) },
+                    placeholder = {
+                        Text(
+                            text = stringResource(R.string.chat_input_placeholder),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
                     singleLine = true,
                     shape = RoundedCornerShape(24.dp),
                     modifier = Modifier
@@ -506,8 +525,11 @@ private fun ChatBubbleRow(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                 }
+                val formattedBody = remember(message.text) {
+                    parseChatMarkdown(message.text.ifBlank { "..." })
+                }
                 Text(
-                    text = message.text.ifBlank { "..." },
+                    text = formattedBody,
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (message.isUser) {
                         MaterialTheme.colorScheme.onPrimary
@@ -517,5 +539,31 @@ private fun ChatBubbleRow(
                 )
             }
         }
+    }
+}
+
+private fun parseChatMarkdown(raw: String): AnnotatedString = buildAnnotatedString {
+    val tokenRegex = Regex("""(\*\*[^*]+\*\*|\*[^*\n]+\*)""")
+    var lastIndex = 0
+    for (match in tokenRegex.findAll(raw)) {
+        if (match.range.first > lastIndex) {
+            append(raw.substring(lastIndex, match.range.first))
+        }
+        val token = match.value
+        if (token.startsWith("**") && token.endsWith("**") && token.length > 4) {
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                append(token.substring(2, token.length - 2))
+            }
+        } else if (token.startsWith("*") && token.endsWith("*") && token.length > 2) {
+            withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                append(token.substring(1, token.length - 1))
+            }
+        } else {
+            append(token)
+        }
+        lastIndex = match.range.last + 1
+    }
+    if (lastIndex < raw.length) {
+        append(raw.substring(lastIndex))
     }
 }

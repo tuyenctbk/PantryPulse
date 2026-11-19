@@ -10,6 +10,7 @@ import com.example.data.PreservationMethodType
 import com.example.data.RecipeCategoryFilter
 import com.example.data.RecipeSuggestion
 import com.example.data.ScanCaptureMode
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -19,8 +20,8 @@ import java.util.UUID
 object LocalCulinaryFallbackEngine {
 
     /**
-     * Tier 3 Vision Fallback: Inspects image color/brightness heuristics + user focus notes
-     * to create a structured Honor-Pledge / Local Shelf Check-In & queues the photo for later cloud verification.
+     * Tier 3 Vision Fallback: Parses any user-provided focus notes into structured items
+     * without fabricating placeholder groceries when offline or at 0 cloud quota.
      */
     fun analyzeShelfLocally(
         bitmaps: List<Bitmap>,
@@ -28,91 +29,13 @@ object LocalCulinaryFallbackEngine {
         customFocusNote: String
     ): Pair<String, List<DetectedIngredient>> {
         val noteItems = parseCustomNoteIngredients(customFocusNote)
-        return when (captureMode) {
-            ScanCaptureMode.FRIDGE_SHELF -> {
-                val summary = "Tier 3 Local Shelf Check-In (0 cloud credits used • Photo queued for cloud verification)."
-                val baseList = if (noteItems.isNotEmpty()) {
-                    noteItems
-                } else {
-                    listOf(
-                        DetectedIngredient(
-                            name = "Leafy Greens / Crisp Produce",
-                            category = PantryCategory.PRODUCE,
-                            quantity = "1 bunch / bag",
-                            daysUntilExpiry = 2,
-                            visualConditionNote = "Logged via On-Device Shelf Check-In (verify expiry days below)",
-                            storageTip = "Wrap in dry paper towel inside crisper drawer.",
-                            estimatedValueDollars = 3.75
-                        ),
-                        DetectedIngredient(
-                            name = "Opened Jarred Sauce / Pesto",
-                            category = PantryCategory.SAUCES_JARS,
-                            quantity = "1/2 jar",
-                            daysUntilExpiry = 3,
-                            visualConditionNote = "Half-used condiment jar flagged for priority rescue",
-                            storageTip = "Keep rim clean and tightly sealed on middle shelf.",
-                            estimatedValueDollars = 4.25
-                        ),
-                        DetectedIngredient(
-                            name = "Deli / Aged Cheese Block",
-                            category = PantryCategory.DAIRY_CHEESE,
-                            quantity = "4 oz",
-                            daysUntilExpiry = 4,
-                            visualConditionNote = "Logged via On-Device Shelf Check-In",
-                            storageTip = "Wrap in parchment paper to prevent drying.",
-                            estimatedValueDollars = 4.99
-                        )
-                    )
-                }
-                summary to baseList
-            }
-            ScanCaptureMode.GROCERY_RECEIPT -> {
-                val summary = "Tier 3 On-Device Receipt Check-In (0 cloud credits • Auto shelf-life rules applied)."
-                val baseList = if (noteItems.isNotEmpty()) {
-                    noteItems
-                } else {
-                    listOf(
-                        DetectedIngredient(
-                            name = "Organic Baby Arugula",
-                            category = PantryCategory.PRODUCE,
-                            quantity = "5 oz box",
-                            daysUntilExpiry = 2,
-                            visualConditionNote = "Receipt rule: Delicate leafy greens (2–3d urgent window)",
-                            storageTip = "Add a paper towel to absorb condensation.",
-                            estimatedValueDollars = 3.99
-                        ),
-                        DetectedIngredient(
-                            name = "Ripe Hass Avocado",
-                            category = PantryCategory.PRODUCE,
-                            quantity = "1 avocado",
-                            daysUntilExpiry = 2,
-                            visualConditionNote = "Receipt rule: Ripe stone fruit (use within 48h)",
-                            storageTip = "Move to refrigerator crisper once ripe to pause softening.",
-                            estimatedValueDollars = 2.49
-                        ),
-                        DetectedIngredient(
-                            name = "Crumbled Feta Cheese",
-                            category = PantryCategory.DAIRY_CHEESE,
-                            quantity = "6 oz tub",
-                            daysUntilExpiry = 5,
-                            visualConditionNote = "Receipt rule: Opened deli cheese tub",
-                            storageTip = "Keep submerged in brine or tightly lidded.",
-                            estimatedValueDollars = 4.79
-                        ),
-                        DetectedIngredient(
-                            name = "Wild Mushroom Medley",
-                            category = PantryCategory.PRODUCE,
-                            quantity = "8 oz pack",
-                            daysUntilExpiry = 2,
-                            visualConditionNote = "Receipt rule: Fresh mushrooms (use within 2–3 days)",
-                            storageTip = "Store in a breathable paper bag, never plastic wrap.",
-                            estimatedValueDollars = 4.99
-                        )
-                    )
-                }
-                summary to baseList
-            }
+        val summary = when (captureMode) {
+            ScanCaptureMode.FRIDGE_SHELF ->
+                "Tier 3 Local Shelf Check-In (0 cloud credits used • Parsed from your focus note)."
+            ScanCaptureMode.GROCERY_RECEIPT ->
+                "Tier 3 On-Device Receipt Check-In (0 cloud credits • Parsed from your note)."
         }
+        return summary to noteItems
     }
 
     /**
@@ -125,13 +48,15 @@ object LocalCulinaryFallbackEngine {
         selectedCategories: Set<RecipeCategoryFilter>,
         cravingNote: String
     ): List<RecipeSuggestion> {
-        val sortedByUrgency = items.sortedBy { it.daysUntilExpiry }
-        val urgent = sortedByUrgency.filter { it.daysUntilExpiry <= 3 }.ifEmpty { sortedByUrgency.take(3) }
+        if (items.isEmpty()) return emptyList()
+
+        val sortedByUrgency = items.sortedBy { it.effectiveDaysUntilExpiry }
+        val urgent = sortedByUrgency.filter { it.effectiveDaysUntilExpiry <= 3 }.ifEmpty { sortedByUrgency.take(3) }
         val supporting = sortedByUrgency.drop(urgent.size).take(3)
 
-        val leadIng = urgent.getOrNull(0)?.name ?: "Seasonal Fridge Greens"
-        val secondIng = urgent.getOrNull(1)?.name ?: (supporting.firstOrNull()?.name ?: "Artisanal Cheese")
-        val thirdIng = urgent.getOrNull(2)?.name ?: "Savory Pantry Sauce"
+        val leadIng = urgent.first().name
+        val secondIng = urgent.getOrNull(1)?.name ?: supporting.firstOrNull()?.name ?: leadIng
+        val thirdIng = urgent.getOrNull(2)?.name ?: supporting.getOrNull(1)?.name ?: secondIng
 
         val primaryAppliance = kitchenSetup.ownedAppliances.firstOrNull() ?: "Stovetop Skillet"
         val secondaryAppliance = kitchenSetup.ownedAppliances.drop(1).firstOrNull() ?: primaryAppliance
@@ -229,7 +154,7 @@ object LocalCulinaryFallbackEngine {
         items: List<PantryItemEntity>,
         kitchenSetup: KitchenSetupState
     ): String {
-        val urgentItems = items.filter { it.daysUntilExpiry <= 3 }
+        val urgentItems = items.filter { it.effectiveDaysUntilExpiry <= 3 }
         val topUrgent = urgentItems.firstOrNull() ?: items.firstOrNull()
         val appliance = kitchenSetup.ownedAppliances.firstOrNull() ?: "Stovetop Skillet"
         val spices = kitchenSetup.ownedSpices.take(3).joinToString(", ")
@@ -248,7 +173,7 @@ object LocalCulinaryFallbackEngine {
                     append("To **revive & rescue aging produce** right now:\n")
                     append("• **Ice Bath Shock (10 mins)**: Submerge wilted leafy greens or herbs in ice-cold water with a squeeze of lemon to restore cell turgor.\n")
                     if (topUrgent != null) {
-                        append("• **Priority Item (${topUrgent.name} — ${topUrgent.daysUntilExpiry}d left)**: ${topUrgent.storageTip}\n")
+                        append("• **Priority Item (${topUrgent.name} — ${topUrgent.effectiveDaysUntilExpiry}d left)**: ${topUrgent.storageTip}\n")
                     }
                     append("• **Blister & Freeze**: Sauté with **$spices** in your **$appliance** for 2 minutes and freeze in portion cubes.")
                 }
@@ -259,17 +184,21 @@ object LocalCulinaryFallbackEngine {
                     append("3. **High-Heat Finish**: Cook in a single uncrowded layer for 5–7 minutes until golden brown.")
                 }
                 lower.contains("substitute") || lower.contains("swap") || lower.contains("replace") || lower.contains("instead of") -> {
-                    val dairyItem = items.firstOrNull { it.parsedCategory == PantryCategory.DAIRY_CHEESE }
+                    val creamyDairy = items.firstOrNull { item ->
+                        val n = item.name.lowercase()
+                        item.parsedCategory == PantryCategory.DAIRY_CHEESE &&
+                            (n.contains("yogurt") || n.contains("milk") || n.contains("cream") || n.contains("kefir"))
+                    }
                     val sauceItem = items.firstOrNull { it.parsedCategory == PantryCategory.SAUCES_JARS }
                     append("Here are **1:1 Chef Substitutions** using what's already in your fridge:\n")
-                    append("• **Missing Heavy Cream / Buttermilk?** Whisk **${dairyItem?.name ?: "Greek yogurt or sour cream"}** with 2 tbsp warm water or milk (1:1 swap).\n")
+                    append("• **Missing Heavy Cream / Buttermilk?** Whisk **${creamyDairy?.name ?: "Greek yogurt or sour cream"}** with 2 tbsp warm water or milk (1:1 swap).\n")
                     append("• **Missing Fresh Herbs or Acid?** Swirl **1 tbsp of ${sauceItem?.name ?: "jarred pesto, salsa, or pickle brine"}** into the pan at the final minute.\n")
                     append("• **Missing Eggs for Binding?** Use **1 tbsp olive oil + 2 tbsp starchy pasta water or mashed avocado**.")
                 }
                 lower.contains("safe") || lower.contains("spoil") || lower.contains("bad") || lower.contains("smell") || lower.contains("mold") || lower.contains("fact") -> {
                     append("🔬 **Zero-Waste Food Safety & Spoilage Fact-Check (USDA Guidelines)**:\n")
                     if (topUrgent != null) {
-                        append("• **Inspecting ${topUrgent.name} (${topUrgent.daysUntilExpiry}d left)**: ")
+                        append("• **Inspecting ${topUrgent.name} (${topUrgent.effectiveDaysUntilExpiry}d left)**: ")
                     } else {
                         append("• **General Shelf Inspection**: ")
                     }
@@ -280,7 +209,7 @@ object LocalCulinaryFallbackEngine {
                 else -> {
                     append("Based on your offline fridge inventory (**${items.size} items**, **${urgentItems.size} expiring within 72h**):\n")
                     urgentItems.take(3).forEach { item ->
-                        append("• **${item.name}** (${item.quantity}, ${item.daysUntilExpiry}d left): *${item.visualConditionNote}*\n")
+                        append("• **${item.name}** (${item.quantity}, ${item.effectiveDaysUntilExpiry}d left): *${item.visualConditionNote}*\n")
                     }
                     append("\n**Fastest Tonight Plan ($appliance)**:\n")
                     append("1. Sear **${urgentItems.getOrNull(0)?.name ?: "your top produce"}** and **${urgentItems.getOrNull(1)?.name ?: "proteins/cheese"}** in your **$appliance**.\n")
@@ -378,10 +307,10 @@ object LocalCulinaryFallbackEngine {
         }
 
         val sortedByUrgency = items.sortedWith(
-            compareBy<PantryItemEntity> { it.daysUntilExpiry }
+            compareBy<PantryItemEntity> { it.effectiveDaysUntilExpiry }
                 .thenByDescending { it.estimatedValueDollars }
         )
-        val expiringCandidates = sortedByUrgency.filter { it.daysUntilExpiry <= 4 }
+        val expiringCandidates = sortedByUrgency.filter { it.effectiveDaysUntilExpiry <= 4 }
             .ifEmpty { sortedByUrgency.take(4) }
 
         val guides = expiringCandidates.map { item ->
@@ -396,7 +325,7 @@ object LocalCulinaryFallbackEngine {
             if (criticalCount > 0) {
                 append("($criticalCount critical ≤24h) ")
             }
-            append("can be preserved right now to protect ~$${String.format("%.2f", totalExtendableValue)} in groceries and extend shelf life up to +60 days.")
+            append("can be preserved right now to protect ~$${String.format(Locale.US, "%.2f", totalExtendableValue)} in groceries and extend shelf life up to +60 days.")
         }
 
         return summary to guides
@@ -405,7 +334,8 @@ object LocalCulinaryFallbackEngine {
     fun buildPreservationGuideForItem(item: PantryItemEntity): PreservationGuide {
         val lower = (item.name + " " + item.visualConditionNote).lowercase()
         val category = item.parsedCategory
-        val alreadyPreserved = item.visualConditionNote.contains("Preserved via", ignoreCase = true)
+        val daysLeft = item.effectiveDaysUntilExpiry.coerceAtLeast(0)
+        val alreadyPreserved = item.visualConditionNote.contains("Preserved", ignoreCase = true)
 
         return when {
             // Specific Leafy Greens (Spinach, Kale, Arugula, Chard, Collards, Herbs)
@@ -424,13 +354,13 @@ object LocalCulinaryFallbackEngine {
                     itemId = item.id,
                     ingredientName = item.name,
                     category = category,
-                    currentDaysLeft = item.daysUntilExpiry,
+                    currentDaysLeft = daysLeft,
                     extendedShelfLifeDays = bonusDays,
                     methodType = method,
-                    urgencyHeadline = if (item.daysUntilExpiry <= 1) {
-                        "Wilting Alert (${item.daysUntilExpiry}d left) — Lock in Chlorophyll & Nutrients Today"
+                    urgencyHeadline = if (daysLeft <= 1) {
+                        "Wilting Alert (${daysLeft}d left) — Lock in Chlorophyll & Nutrients Today"
                     } else {
-                        "Preserve Leafy Greens Before Moisture Breakdown (${item.daysUntilExpiry}d left)"
+                        "Preserve Leafy Greens Before Moisture Breakdown (${daysLeft}d left)"
                     },
                     personalizedStorageTip = "Immediate Fridge Tip: Line the clamshell or bag with 2 dry paper towels to wick condensation and store in the high-humidity crisper drawer away from ethylene-producing fruit.",
                     preservationSteps = if (isTenderGreen) {
@@ -459,10 +389,10 @@ object LocalCulinaryFallbackEngine {
                     itemId = item.id,
                     ingredientName = item.name,
                     category = category,
-                    currentDaysLeft = item.daysUntilExpiry,
+                    currentDaysLeft = daysLeft,
                     extendedShelfLifeDays = 45,
                     methodType = PreservationMethodType.FREEZE_LOCK,
-                    urgencyHeadline = "Wrinkling Skins = Peak Sugar Concentration (${item.daysUntilExpiry}d left)",
+                    urgencyHeadline = "Wrinkling Skins = Peak Sugar Concentration (${daysLeft}d left)",
                     personalizedStorageTip = "Immediate Storage Tip: Store stem-side down in a single layer on the front middle shelf; stem-scar sealing slows moisture loss by 40%.",
                     preservationSteps = listOf(
                         "1. Wash & Dry Thoroughly: Wipe ${item.name} completely dry so ice crystals don't puncture skins prematurely.",
@@ -482,10 +412,10 @@ object LocalCulinaryFallbackEngine {
                     itemId = item.id,
                     ingredientName = item.name,
                     category = category,
-                    currentDaysLeft = item.daysUntilExpiry,
+                    currentDaysLeft = daysLeft,
                     extendedShelfLifeDays = 35,
                     methodType = PreservationMethodType.HERB_OIL_CUBE,
-                    urgencyHeadline = "Opened Jar Oxidation Risk (${item.daysUntilExpiry}d left) — Freeze in 1-Tbsp Cubes",
+                    urgencyHeadline = "Opened Jar Oxidation Risk (${daysLeft}d left) — Freeze in 1-Tbsp Cubes",
                     personalizedStorageTip = "Immediate Fridge Tip: Scrape down the inside glass walls with a clean rubber spatula and pour a 2mm layer of Extra Virgin Olive Oil over the surface to create an anaerobic oxygen barrier.",
                     preservationSteps = listOf(
                         "1. Portion by Tablespoon: Spoon remaining ${item.name} (${item.quantity}) into silicone ice cube compartments (1 tbsp per slot).",
@@ -508,10 +438,10 @@ object LocalCulinaryFallbackEngine {
                     itemId = item.id,
                     ingredientName = item.name,
                     category = category,
-                    currentDaysLeft = item.daysUntilExpiry,
+                    currentDaysLeft = daysLeft,
                     extendedShelfLifeDays = bonusDays,
                     methodType = method,
-                    urgencyHeadline = "Cut Produce Edge Softening (${item.daysUntilExpiry}d left) — Quick-Pickle or Flash-Freeze",
+                    urgencyHeadline = "Cut Produce Edge Softening (${daysLeft}d left) — Quick-Pickle or Flash-Freeze",
                     personalizedStorageTip = "Immediate Fridge Tip: Store cut produce cut-side down in a tight glass container lined with a dry paper towel in the crisper drawer.",
                     preservationSteps = if (useQuickPickle) {
                         listOf(
@@ -543,10 +473,10 @@ object LocalCulinaryFallbackEngine {
                     itemId = item.id,
                     ingredientName = item.name,
                     category = category,
-                    currentDaysLeft = item.daysUntilExpiry,
+                    currentDaysLeft = daysLeft,
                     extendedShelfLifeDays = 30,
                     methodType = PreservationMethodType.AIRTIGHT_OIL_SEAL,
-                    urgencyHeadline = "Prevent Mold & Rind Drying (${item.daysUntilExpiry}d left) — Breathable Parchment + Pre-Grate Freeze",
+                    urgencyHeadline = "Prevent Mold & Rind Drying (${daysLeft}d left) — Breathable Parchment + Pre-Grate Freeze",
                     personalizedStorageTip = "Immediate Fridge Tip: Ditch tight plastic wrap (which traps sweating moisture and accelerates mold). Wrap cheese in wax or parchment paper first, then place loosely inside an unsealed zip bag in the cheese drawer.",
                     preservationSteps = listOf(
                         "1. Breathable Re-Wrap for Fridge (+14d): Wrap ${item.name} in fresh parchment/wax paper so the cheese can breathe without drying out.",
@@ -566,10 +496,10 @@ object LocalCulinaryFallbackEngine {
                     itemId = item.id,
                     ingredientName = item.name,
                     category = category,
-                    currentDaysLeft = item.daysUntilExpiry,
+                    currentDaysLeft = daysLeft,
                     extendedShelfLifeDays = 30,
                     methodType = PreservationMethodType.FREEZE_LOCK,
-                    urgencyHeadline = "Extend Protein / Staple Shelf-Life (${item.daysUntilExpiry}d left)",
+                    urgencyHeadline = "Extend Protein / Staple Shelf-Life (${daysLeft}d left)",
                     personalizedStorageTip = "Immediate Fridge Tip: Keep ${item.name} on the coldest interior middle/bottom shelf (34–37°F), never in the warm refrigerator door.",
                     preservationSteps = listOf(
                         "1. Portion for Single Meals: If ${item.name} is eggs, whisk whole eggs with a pinch of salt (prevents yolk gelation in freezer) and pour into a muffin tin or ice tray; for proteins/leftovers, divide into flat single servings.",

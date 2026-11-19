@@ -216,12 +216,12 @@ class CameraXPreviewController internal constructor(
     fun captureFridgeFrame(
         onShutter: () -> Unit,
         onBitmapReady: (Bitmap) -> Unit,
-        onFallbackSample: () -> Unit
+        onCaptureFailed: () -> Unit
     ) {
         onShutter()
         if (boundCamera == null) {
-            Log.w(TAG, "No bound camera instance available; falling back to sample workflow")
-            onFallbackSample()
+            Log.w(TAG, "No bound camera instance available; opening photo picker")
+            onCaptureFailed()
             return
         }
         try {
@@ -240,19 +240,19 @@ class CameraXPreviewController internal constructor(
                         if (bmp != null) {
                             onBitmapReady(bmp)
                         } else {
-                            onFallbackSample()
+                            onCaptureFailed()
                         }
                     }
 
                     override fun onError(exception: ImageCaptureException) {
-                        Log.w(TAG, "CameraX capture error; using fallback sample frame", exception)
-                        onFallbackSample()
+                        Log.w(TAG, "CameraX capture error", exception)
+                        onCaptureFailed()
                     }
                 }
             )
         } catch (e: Exception) {
-            Log.w(TAG, "CameraX takePicture threw; running fallback sample workflow", e)
-            onFallbackSample()
+            Log.w(TAG, "CameraX takePicture threw", e)
+            onCaptureFailed()
         }
     }
 }

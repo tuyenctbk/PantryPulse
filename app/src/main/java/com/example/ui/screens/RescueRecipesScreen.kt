@@ -80,6 +80,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.ai.AiFeatureType
@@ -92,6 +93,7 @@ import com.example.data.RecipeSuggestion
 import com.example.ui.RecipeGenerationUiState
 import com.example.ui.components.QuotaSoftNudgeBanner
 import com.example.ui.components.SmartQuotaRecoveryCard
+import com.example.ui.components.tvFocusHighlight
 import com.example.ui.theme.CriticalCrimson
 import com.example.ui.theme.CriticalCrimsonContainer
 import com.example.ui.theme.ExpiringAmber
@@ -146,7 +148,7 @@ fun RescueRecipesScreen(
     var cravingNote by rememberSaveable { mutableStateOf("") }
     var showKitchenCustomizer by rememberSaveable { mutableStateOf(false) }
 
-    val expiringCount = remember(pantryItems) { pantryItems.count { it.daysUntilExpiry <= 3 } }
+    val expiringCount = remember(pantryItems) { pantryItems.count { it.effectiveDaysUntilExpiry <= 3 } }
 
     // Filter recipes by Search Query + Category Style + Dietary Preference + Available Ingredients
     val filteredRecipes = remember(
@@ -249,7 +251,13 @@ fun RescueRecipesScreen(
                     OutlinedTextField(
                         value = cravingNote,
                         onValueChange = { cravingNote = it },
-                        label = { Text(stringResource(id = R.string.recipes_craving_label)) },
+                        label = {
+                            Text(
+                                text = stringResource(id = R.string.recipes_craving_label),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -363,13 +371,25 @@ fun RescueRecipesScreen(
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val noSavedRecipes = recipes.isEmpty()
                         Text(
-                            text = stringResource(id = R.string.recipes_empty_filtered_title),
+                            text = if (noSavedRecipes) {
+                                stringResource(id = R.string.recipes_empty_no_recipes_title)
+                            } else {
+                                stringResource(id = R.string.recipes_empty_filtered_title)
+                            },
                             style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = stringResource(id = R.string.recipes_empty_filtered_body),
+                            text = when {
+                                noSavedRecipes && pantryItems.isEmpty() ->
+                                    stringResource(id = R.string.recipes_empty_no_pantry_body)
+                                noSavedRecipes ->
+                                    stringResource(id = R.string.recipes_empty_no_recipes_body)
+                                else ->
+                                    stringResource(id = R.string.recipes_empty_filtered_body)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -377,6 +397,7 @@ fun RescueRecipesScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Button(
                                 onClick = { onGenerateRecipes(cravingNote) },
+                                enabled = pantryItems.isNotEmpty() && recipeGenState !is RecipeGenerationUiState.Generating,
                                 modifier = Modifier.testTag("generate_filtered_recipes_button")
                             ) {
                                 Text(stringResource(id = R.string.recipes_btn_generate_matching))
@@ -428,7 +449,7 @@ private fun RecipeSearchAndFilterCard(
         selectedIngredientFilters.isNotEmpty()
 
     val sortedPantryItems = remember(pantryItems) {
-        pantryItems.sortedBy { it.daysUntilExpiry }
+        pantryItems.sortedBy { it.effectiveDaysUntilExpiry }
     }
 
     Card(
@@ -489,7 +510,13 @@ private fun RecipeSearchAndFilterCard(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
-                placeholder = { Text(stringResource(id = R.string.recipes_search_placeholder)) },
+                placeholder = {
+                    Text(
+                        text = stringResource(id = R.string.recipes_search_placeholder),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 leadingIcon = {
                     Icon(Icons.Default.Search, contentDescription = stringResource(id = R.string.cd_search_recipes))
                 },
@@ -601,13 +628,14 @@ private fun RecipeSearchAndFilterCard(
                 ) {
                     sortedPantryItems.forEachIndexed { idx, item ->
                         val isSelected = selectedIngredientFilters.contains(item.name)
-                        val isUrgent = item.daysUntilExpiry <= 2
+                        val daysLeft = item.effectiveDaysUntilExpiry.coerceAtLeast(0)
+                        val isUrgent = daysLeft <= 2
                         FilterChip(
                             selected = isSelected,
                             onClick = { onToggleIngredientFilter(item.name) },
                             label = {
                                 Text(
-                                    text = "${item.parsedCategory.emoji} ${item.name} (${item.daysUntilExpiry}d)",
+                                    text = "${item.parsedCategory.emoji} ${item.name} (${daysLeft}d)",
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             },
@@ -749,6 +777,7 @@ private fun RankedRecipeCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .tvFocusHighlight(shape = RoundedCornerShape(22.dp))
             .testTag("recipe_card_rank_${recipe.rank}"),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -1196,7 +1225,10 @@ private fun InteractiveCookingScreen(
         var instance: TextToSpeech? = null
         instance = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                instance?.language = Locale.US
+                val res = instance?.setLanguage(Locale.getDefault())
+                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    instance?.language = Locale.US
+                }
             }
         }
         ttsEngine = instance
@@ -1380,7 +1412,7 @@ private fun InteractiveCookingScreen(
                                 val mins = timerSecondsRemaining / 60
                                 val secs = timerSecondsRemaining % 60
                                 Text(
-                                    text = String.format("%02d:%02d", mins, secs),
+                                    text = String.format(Locale.US, "%02d:%02d", mins, secs),
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer

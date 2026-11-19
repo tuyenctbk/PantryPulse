@@ -71,6 +71,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.BuildConfig
 import com.example.R
 import com.example.ui.engagement.AppEngagementAndDonationManager
 import com.example.ui.engagement.EngagementSnapshot
@@ -87,7 +88,8 @@ import com.example.ui.engagement.findActivity
 fun SupporterHeaderActionChip(
     engagement: EngagementSnapshot,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
     val bgColor = if (engagement.isActiveSupporter) {
         Color(0xFF1F6E43)
@@ -109,7 +111,7 @@ fun SupporterHeaderActionChip(
             .testTag(if (engagement.isActiveSupporter) "active_supporter_badge" else "header_support_action_button")
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = if (compact) 8.dp else 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -118,19 +120,22 @@ fun SupporterHeaderActionChip(
                     id = if (engagement.isActiveSupporter) R.string.cd_active_supporter_badge else R.string.cd_support_development
                 ),
                 tint = if (engagement.isActiveSupporter) Color(0xFFFFD54F) else Color(0xFFD9534F),
-                modifier = Modifier.size(15.dp)
+                modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(5.dp))
-            Text(
-                text = if (engagement.isActiveSupporter) {
-                    stringResource(id = R.string.support_chip_active)
-                } else {
-                    stringResource(id = R.string.support_chip_default)
-                },
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = fgColor
-            )
+            if (!compact) {
+                Spacer(modifier = Modifier.width(5.dp))
+                Text(
+                    text = if (engagement.isActiveSupporter) {
+                        stringResource(id = R.string.support_chip_active)
+                    } else {
+                        stringResource(id = R.string.support_chip_default)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = fgColor,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -905,29 +910,31 @@ fun SupportAndEngagementHubDialog(
                             }
                         }
 
-                        Text(
-                            text = stringResource(id = R.string.telemetry_preview_title),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = onResetCooldownsForTesting,
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.testTag("reset_engagement_6_ops_button")
+                        if (BuildConfig.DEBUG) {
+                            Text(
+                                text = stringResource(id = R.string.telemetry_preview_title),
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text(stringResource(id = R.string.telemetry_btn_set_6_ops), style = MaterialTheme.typography.labelSmall)
-                            }
-                            SmartAutoPromptType.entries.forEach { type ->
                                 OutlinedButton(
-                                    onClick = { onTriggerPreviewPrompt(type) },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    onClick = onResetCooldownsForTesting,
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.testTag("reset_engagement_6_ops_button")
                                 ) {
-                                    Text(type.name, style = MaterialTheme.typography.labelSmall)
+                                    Text(stringResource(id = R.string.telemetry_btn_set_6_ops), style = MaterialTheme.typography.labelSmall)
+                                }
+                                SmartAutoPromptType.entries.forEach { type ->
+                                    OutlinedButton(
+                                        onClick = { onTriggerPreviewPrompt(type) },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(type.name, style = MaterialTheme.typography.labelSmall)
+                                    }
                                 }
                             }
                         }

@@ -94,200 +94,12 @@ import com.example.ui.theme.FreshEmeraldContainer
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private data class QuickIngredientPreset(
-    @androidx.annotation.StringRes val nameRes: Int,
-    val category: PantryCategory,
-    @androidx.annotation.StringRes val defaultQuantityRes: Int,
-    val defaultDaysUntilExpiry: Int,
-    @androidx.annotation.StringRes val conditionNoteRes: Int,
-    @androidx.annotation.StringRes val storageTipRes: Int,
-    val estimatedValueDollars: Double
-)
-
-private val SPOKEN_DICTATION_PRESET_RES = listOf(
-    R.string.manual_spoken_preset_1,
-    R.string.manual_spoken_preset_2,
-    R.string.manual_spoken_preset_3
-)
-
-private val QUICK_INGREDIENT_PRESETS = listOf(
-    // Produce
-    QuickIngredientPreset(
-        nameRes = R.string.preset_spinach_name,
-        category = PantryCategory.PRODUCE,
-        defaultQuantityRes = R.string.preset_spinach_qty,
-        defaultDaysUntilExpiry = 2,
-        conditionNoteRes = R.string.preset_spinach_note,
-        storageTipRes = R.string.preset_spinach_tip,
-        estimatedValueDollars = 3.49
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_avocado_name,
-        category = PantryCategory.PRODUCE,
-        defaultQuantityRes = R.string.preset_avocado_qty,
-        defaultDaysUntilExpiry = 2,
-        conditionNoteRes = R.string.preset_avocado_note,
-        storageTipRes = R.string.preset_avocado_tip,
-        estimatedValueDollars = 2.99
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_cilantro_name,
-        category = PantryCategory.PRODUCE,
-        defaultQuantityRes = R.string.qty_1_bunch,
-        defaultDaysUntilExpiry = 3,
-        conditionNoteRes = R.string.preset_cilantro_note,
-        storageTipRes = R.string.preset_cilantro_tip,
-        estimatedValueDollars = 1.79
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_mushrooms_name,
-        category = PantryCategory.PRODUCE,
-        defaultQuantityRes = R.string.preset_mushrooms_qty,
-        defaultDaysUntilExpiry = 3,
-        conditionNoteRes = R.string.preset_mushrooms_note,
-        storageTipRes = R.string.preset_mushrooms_tip,
-        estimatedValueDollars = 3.99
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_peppers_name,
-        category = PantryCategory.PRODUCE,
-        defaultQuantityRes = R.string.preset_peppers_qty,
-        defaultDaysUntilExpiry = 5,
-        conditionNoteRes = R.string.preset_peppers_note,
-        storageTipRes = R.string.preset_peppers_tip,
-        estimatedValueDollars = 2.80
-    ),
-    // Dairy & Cheese
-    QuickIngredientPreset(
-        nameRes = R.string.preset_feta_name,
-        category = PantryCategory.DAIRY_CHEESE,
-        defaultQuantityRes = R.string.preset_feta_qty,
-        defaultDaysUntilExpiry = 4,
-        conditionNoteRes = R.string.preset_feta_note,
-        storageTipRes = R.string.preset_feta_tip,
-        estimatedValueDollars = 4.79
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_yogurt_name,
-        category = PantryCategory.DAIRY_CHEESE,
-        defaultQuantityRes = R.string.preset_yogurt_qty,
-        defaultDaysUntilExpiry = 4,
-        conditionNoteRes = R.string.preset_yogurt_note,
-        storageTipRes = R.string.preset_yogurt_tip,
-        estimatedValueDollars = 5.49
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_cheddar_name,
-        category = PantryCategory.DAIRY_CHEESE,
-        defaultQuantityRes = R.string.preset_cheddar_qty,
-        defaultDaysUntilExpiry = 9,
-        conditionNoteRes = R.string.preset_cheddar_note,
-        storageTipRes = R.string.preset_cheddar_tip,
-        estimatedValueDollars = 4.50
-    ),
-    // Sauces & Jars
-    QuickIngredientPreset(
-        nameRes = R.string.preset_marinara_name,
-        category = PantryCategory.SAUCES_JARS,
-        defaultQuantityRes = R.string.preset_marinara_qty,
-        defaultDaysUntilExpiry = 3,
-        conditionNoteRes = R.string.preset_marinara_note,
-        storageTipRes = R.string.preset_marinara_tip,
-        estimatedValueDollars = 3.99
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_pesto_name,
-        category = PantryCategory.SAUCES_JARS,
-        defaultQuantityRes = R.string.preset_pesto_qty,
-        defaultDaysUntilExpiry = 3,
-        conditionNoteRes = R.string.preset_pesto_note,
-        storageTipRes = R.string.preset_pesto_tip,
-        estimatedValueDollars = 4.99
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_chipotle_name,
-        category = PantryCategory.SAUCES_JARS,
-        defaultQuantityRes = R.string.preset_chipotle_qty,
-        defaultDaysUntilExpiry = 5,
-        conditionNoteRes = R.string.preset_chipotle_note,
-        storageTipRes = R.string.preset_chipotle_tip,
-        estimatedValueDollars = 2.49
-    ),
-    // Proteins
-    QuickIngredientPreset(
-        nameRes = R.string.preset_chicken_name,
-        category = PantryCategory.PROTEIN,
-        defaultQuantityRes = R.string.qty_2_cups,
-        defaultDaysUntilExpiry = 2,
-        conditionNoteRes = R.string.preset_chicken_note,
-        storageTipRes = R.string.preset_chicken_tip,
-        estimatedValueDollars = 6.99
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_tofu_name,
-        category = PantryCategory.PROTEIN,
-        defaultQuantityRes = R.string.preset_tofu_qty,
-        defaultDaysUntilExpiry = 3,
-        conditionNoteRes = R.string.preset_tofu_note,
-        storageTipRes = R.string.preset_tofu_tip,
-        estimatedValueDollars = 2.79
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_eggs_name,
-        category = PantryCategory.PROTEIN,
-        defaultQuantityRes = R.string.preset_eggs_qty,
-        defaultDaysUntilExpiry = 12,
-        conditionNoteRes = R.string.preset_eggs_note,
-        storageTipRes = R.string.preset_eggs_tip,
-        estimatedValueDollars = 4.29
-    ),
-    // Leftovers
-    QuickIngredientPreset(
-        nameRes = R.string.preset_rice_name,
-        category = PantryCategory.LEFTOVERS,
-        defaultQuantityRes = R.string.qty_2_cups,
-        defaultDaysUntilExpiry = 2,
-        conditionNoteRes = R.string.preset_rice_note,
-        storageTipRes = R.string.preset_rice_tip,
-        estimatedValueDollars = 2.25
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_roasted_veg_name,
-        category = PantryCategory.LEFTOVERS,
-        defaultQuantityRes = R.string.qty_1_container,
-        defaultDaysUntilExpiry = 2,
-        conditionNoteRes = R.string.preset_roasted_veg_note,
-        storageTipRes = R.string.preset_roasted_veg_tip,
-        estimatedValueDollars = 4.00
-    ),
-    // Pantry Staples
-    QuickIngredientPreset(
-        nameRes = R.string.preset_sourdough_name,
-        category = PantryCategory.PANTRY_STAPLE,
-        defaultQuantityRes = R.string.preset_sourdough_qty,
-        defaultDaysUntilExpiry = 3,
-        conditionNoteRes = R.string.preset_sourdough_note,
-        storageTipRes = R.string.preset_sourdough_tip,
-        estimatedValueDollars = 3.50
-    ),
-    QuickIngredientPreset(
-        nameRes = R.string.preset_chickpeas_name,
-        category = PantryCategory.PANTRY_STAPLE,
-        defaultQuantityRes = R.string.preset_chickpeas_qty,
-        defaultDaysUntilExpiry = 3,
-        conditionNoteRes = R.string.preset_chickpeas_note,
-        storageTipRes = R.string.preset_chickpeas_tip,
-        estimatedValueDollars = 1.69
-    )
-)
-
 /**
  * Dedicated Manual & Voice Ingredient Input Screen for users who prefer not to use the camera.
  * Supports:
  * 0. Hands-Free Voice-to-Inventory AI Dictation (with Tier 1 -> Tier 2 -> Tier 3 0-Credit Local Transcript Parser).
- * 1. 1-Tap Quick-Add Presets across all 6 fridge/pantry categories.
- * 2. Custom Ingredient Builder with unit chips, spoilage countdown presets, value estimate, and smart storage tips.
- * 3. Multi-Item Batch Queue ("Manual Haul Basket") so users can add a full grocery haul in one sitting.
+ * 1. Custom Ingredient Builder with unit chips, spoilage countdown presets, value estimate, and smart storage tips.
+ * 2. Multi-Item Batch Queue ("Manual Haul Basket") so users can add a full grocery haul in one sitting.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -320,7 +132,6 @@ fun ManualIngredientInputScreen(
     val defaultManualNote = stringResource(id = R.string.manual_default_note)
     val defaultQtyPack = stringResource(id = R.string.qty_1_pack)
     val defaultQtyUnit = stringResource(id = R.string.qty_1_unit)
-    var selectedPresetCategoryFilter by rememberSaveable { mutableStateOf<PantryCategory?>(null) }
     var voiceTranscriptText by rememberSaveable { mutableStateOf("") }
 
     // Custom Form State
@@ -350,14 +161,6 @@ fun ManualIngredientInputScreen(
                     stagedBatch.addAll(parsedList)
                 }
             }
-        }
-    }
-
-    val filteredPresets = remember(selectedPresetCategoryFilter) {
-        if (selectedPresetCategoryFilter == null) {
-            QUICK_INGREDIENT_PRESETS
-        } else {
-            QUICK_INGREDIENT_PRESETS.filter { it.category == selectedPresetCategoryFilter }
         }
     }
 
@@ -463,12 +266,11 @@ fun ManualIngredientInputScreen(
                         }
                         speechRecognizerLauncher.launch(intent)
                     } catch (_: Exception) {
-                        // Graceful fallback if the streaming emulator does not have a voice activity installed
-                        val sample = context.getString(SPOKEN_DICTATION_PRESET_RES.first())
-                        voiceTranscriptText = sample
-                        onParseVoiceTranscript(sample) { parsed ->
-                            stagedBatch.addAll(parsed)
-                        }
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.voice_unavailable_toast),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     }
                 },
                 onParseWithAi = {
@@ -503,150 +305,6 @@ fun ManualIngredientInputScreen(
                     },
                     onOpenValueReceipt = onOpenValueReceipt
                 )
-            }
-        }
-
-        // 3. 1-Tap Quick-Add Common Fridge & Pantry Staples Card
-        item {
-            ElevatedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("quick_presets_card"),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.ShoppingBag,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(
-                                    text = stringResource(id = R.string.quick_presets_title),
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = stringResource(id = R.string.quick_presets_subtitle),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    // Category Filter Row for Presets
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        FilterChip(
-                            selected = selectedPresetCategoryFilter == null,
-                            onClick = { selectedPresetCategoryFilter = null },
-                            label = { Text(stringResource(id = R.string.filter_all_count, QUICK_INGREDIENT_PRESETS.size)) }
-                        )
-                        PantryCategory.entries.forEach { cat ->
-                            FilterChip(
-                                selected = selectedPresetCategoryFilter == cat,
-                                onClick = {
-                                    selectedPresetCategoryFilter = if (selectedPresetCategoryFilter == cat) null else cat
-                                },
-                                label = { Text("${cat.emoji} ${stringResource(id = cat.displayNameRes)}") }
-                            )
-                        }
-                    }
-
-                    // Horizontal / Flow Quick-Add Preset Chips
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        filteredPresets.forEachIndexed { idx, preset ->
-                            val presetName = stringResource(id = preset.nameRes)
-                            val presetQty = stringResource(id = preset.defaultQuantityRes)
-                            val presetNote = stringResource(id = preset.conditionNoteRes)
-                            val presetTip = stringResource(id = preset.storageTipRes)
-                            Surface(
-                                color = MaterialTheme.colorScheme.surface,
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier
-                                    .clickable {
-                                        // Populate custom builder form
-                                        name = presetName
-                                        category = preset.category
-                                        quantity = presetQty
-                                        daysSlider = preset.defaultDaysUntilExpiry.toFloat()
-                                        conditionNote = presetNote
-                                        storageTip = presetTip
-                                        estimatedValue = preset.estimatedValueDollars
-                                    }
-                                    .testTag("quick_preset_chip_$idx")
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text(
-                                            text = "${preset.category.emoji} $presetName",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        Text(
-                                            text = "$presetQty • ${stringResource(id = R.string.expiry_short_days_fmt, preset.defaultDaysUntilExpiry)} • $${String.format("%.2f", preset.estimatedValueDollars)}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    IconButton(
-                                        onClick = {
-                                            stagedBatch.add(
-                                                DetectedIngredient(
-                                                    name = presetName,
-                                                    category = preset.category,
-                                                    quantity = presetQty,
-                                                    daysUntilExpiry = preset.defaultDaysUntilExpiry,
-                                                    visualConditionNote = presetNote,
-                                                    storageTip = presetTip,
-                                                    estimatedValueDollars = preset.estimatedValueDollars,
-                                                    isSelected = true
-                                                )
-                                            )
-                                        },
-                                        modifier = Modifier
-                                            .size(34.dp)
-                                            .testTag("quick_preset_stage_button_$idx")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.AddCircleOutline,
-                                            contentDescription = stringResource(id = R.string.cd_add_to_batch_fmt, presetName),
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -1179,38 +837,6 @@ private fun VoiceToInventoryDictationCard(
                     Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(stringResource(id = R.string.voice_btn_speak), style = MaterialTheme.typography.labelMedium)
-                }
-            }
-
-            // 1-Tap Spoken Dictation Presets (for instant testing or emulator use)
-            Text(
-                text = stringResource(id = R.string.voice_sample_dictations_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SPOKEN_DICTATION_PRESET_RES.forEachIndexed { idx, presetRes ->
-                    val presetPhrase = stringResource(id = presetRes)
-                    FilterChip(
-                        selected = transcript == presetPhrase,
-                        onClick = { onTranscriptChange(presetPhrase) },
-                        label = {
-                            Text(
-                                text = stringResource(
-                                    id = R.string.manual_voice_chip_fmt,
-                                    idx + 1,
-                                    presetPhrase.take(36)
-                                ),
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        },
-                        modifier = Modifier.testTag("voice_preset_chip_$idx")
-                    )
                 }
             }
 

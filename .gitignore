@@ -1,18 +1,65 @@
-*.iml
-.gradle
-.kotlin
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+*.dex
+
+# Files for the ART/Dalvik VM
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+release/
+
+# Gradle files
+.gradle/
+build/
+**/build/
+.kotlin/
+
+# Local configuration & secrets (NEVER commit)
 local.properties
 .env
-debug.keystore
+.env.*
+!.env.example
+google-services.json
+
+# Keystores & signing certificates (NEVER commit)
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.mobileprovision
+
+# IntelliJ / Android Studio
+*.iml
+.idea/
+!.idea/codeStyles/
+*.ipr
+*.iws
+
+# External native build & captures
+.externalNativeBuild/
+.cxx/
+captures/
+
+# Profiling, logs & temp files
+*.hprof
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# macOS / Windows / Linux OS artifacts
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+Desktop.ini

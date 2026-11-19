@@ -1,10 +1,6 @@
 package com.example.ai
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Typeface
 import android.util.Log
 import com.example.data.DetectedIngredient
 import com.example.data.KitchenSetupState
@@ -24,6 +20,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
+import java.util.Locale
 import java.util.UUID
 
 data class AiInferenceResult<T>(
@@ -330,12 +327,12 @@ class PantryAiService {
         dietaryOrCravingNote: String,
         preferredTier: AiCapabilityTier = AiCapabilityTier.TIER_1_PRIMARY
     ): AiInferenceResult<List<RecipeSuggestion>> {
-        val expiringList = items.filter { it.daysUntilExpiry <= 3 }
-            .joinToString("; ") { "${it.name} (${it.quantity}, expires in ${it.daysUntilExpiry}d, note: ${it.visualConditionNote})" }
+        val expiringList = items.filter { it.effectiveDaysUntilExpiry <= 3 }
+            .joinToString("; ") { "${it.name} (${it.quantity}, expires in ${it.effectiveDaysUntilExpiry}d, note: ${it.visualConditionNote})" }
             .ifBlank { "None critically expiring, use freshest items first" }
 
-        val freshList = items.filter { it.daysUntilExpiry > 3 }
-            .joinToString("; ") { "${it.name} (${it.quantity}, ${it.daysUntilExpiry}d left)" }
+        val freshList = items.filter { it.effectiveDaysUntilExpiry > 3 }
+            .joinToString("; ") { "${it.name} (${it.quantity}, ${it.effectiveDaysUntilExpiry}d left)" }
             .ifBlank { "Standard fridge items" }
 
         val appliances = kitchenSetup.ownedAppliances.joinToString(", ")
@@ -445,7 +442,7 @@ class PantryAiService {
     ): Flow<String> {
         // Sliding Context Window: compact inventory state + last 6 turns
         val inventorySummary = items.take(8).joinToString(", ") {
-            "${it.name} (${it.quantity}, ${it.daysUntilExpiry}d left)"
+            "${it.name} (${it.quantity}, ${it.effectiveDaysUntilExpiry}d left)"
         }
         val appliances = kitchenSetup.ownedAppliances.joinToString(", ")
         val spices = kitchenSetup.ownedSpices.joinToString(", ")
@@ -566,15 +563,15 @@ class PantryAiService {
         preferredTier: AiCapabilityTier = AiCapabilityTier.TIER_1_PRIMARY
     ): AiInferenceResult<Pair<String, List<PreservationGuide>>> {
         val sortedByUrgency = items.sortedWith(
-            compareBy<PantryItemEntity> { it.daysUntilExpiry }
+            compareBy<PantryItemEntity> { it.effectiveDaysUntilExpiry }
                 .thenByDescending { it.estimatedValueDollars }
         )
-        val targetItems = sortedByUrgency.filter { it.daysUntilExpiry <= 4 }
+        val targetItems = sortedByUrgency.filter { it.effectiveDaysUntilExpiry <= 4 }
             .ifEmpty { sortedByUrgency.take(5) }
 
         val inventoryBlock = targetItems.joinToString("\n") { item ->
             "- ID=${item.id} | ${item.name} (${item.quantity}, Category: ${item.parsedCategory.displayName}): " +
-                "${item.daysUntilExpiry} day(s) left, Est. Value $${String.format("%.2f", item.estimatedValueDollars)} — " +
+                "${item.effectiveDaysUntilExpiry} day(s) left, Est. Value $${String.format(Locale.US, "%.2f", item.estimatedValueDollars)} — " +
                 "Condition: ${item.visualConditionNote}"
         }
 
@@ -652,7 +649,7 @@ class PantryAiService {
                 itemId = matchedEntity.id,
                 ingredientName = matchedEntity.name,
                 category = matchedEntity.parsedCategory,
-                currentDaysLeft = matchedEntity.daysUntilExpiry,
+                currentDaysLeft = matchedEntity.effectiveDaysUntilExpiry,
                 extendedShelfLifeDays = obj.optInt("extendedShelfLifeDays", method.defaultBonusDays).coerceIn(5, 90),
                 methodType = method,
                 urgencyHeadline = obj.optString(
@@ -691,60 +688,6 @@ class PantryAiService {
                 lower.contains("quota") ||
                 lower.contains("rate limit") ||
                 lower.contains("too many requests")
-        }
-
-        fun createSampleGroceryReceiptBitmap(): Bitmap {
-            val width = 720
-            val height = 920
-            val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bmp)
-            canvas.drawColor(Color.rgb(250, 248, 242))
-
-            val headerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.rgb(25, 45, 32)
-                textSize = 36f
-                typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-            }
-            val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.rgb(60, 75, 65)
-                textSize = 24f
-                typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
-            }
-            val itemPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.rgb(20, 25, 22)
-                textSize = 27f
-                typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-            }
-
-            canvas.drawText("GREEN LEAF MARKET RECEIPT", 80f, 80f, headerPaint)
-            canvas.drawText("FRESH PRODUCE & DAIRY DEPT", 130f, 125f, subPaint)
-            canvas.drawLine(50f, 155f, 670f, 155f, subPaint)
-
-            val receiptLines = listOf(
-                "1x ORGANIC BABY ARUGULA 5OZ     $3.99",
-                "   (Delicate Leafy Green - Use in 2d)",
-                "1x FRESH AVOCADO HASS (RIPE)    $2.49",
-                "   (Softening - Use in 1-2d)",
-                "1x CRUMBLED FETA CHEESE 6OZ     $4.79",
-                "   (Opened Deli Tub - Use in 4d)",
-                "1x ROASTED GARLIC HUMMUS 8OZ    $3.89",
-                "   (Fresh Dip - Use in 5d)",
-                "1x WILD MUSHROOM MEDLEY 8OZ     $4.99",
-                "   (Paper Bag Produce - Use in 2d)",
-                "1x SOURDOUGH BOULE HALF LOAF    $3.29",
-                "   (Artisan Bakery - Use in 3d)"
-            )
-
-            var y = 215f
-            receiptLines.forEachIndexed { idx, line ->
-                val paint = if (idx % 2 == 0) itemPaint else subPaint
-                canvas.drawText(line, 55f, y, paint)
-                y += if (idx % 2 == 0) 40f else 52f
-            }
-
-            canvas.drawLine(50f, y + 10f, 670f, y + 10f, subPaint)
-            canvas.drawText("TOTAL: 6 ITEMS                 $23.44", 55f, y + 65f, headerPaint)
-            return bmp
         }
     }
 }

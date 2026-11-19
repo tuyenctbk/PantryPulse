@@ -11,6 +11,7 @@ import android.graphics.Color as AndroidColor
 import android.net.Uri
 import android.widget.Toast
 import androidx.annotation.StringRes
+import com.example.BuildConfig
 import com.example.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -106,17 +107,17 @@ data class AppTrackedEvent(
 
 data class EngagementSnapshot(
     val appLaunchCount: Int = 1,
-    val daysSinceInstall: Int = 3,
-    val completedCoreOpsCount: Int = 3,
+    val daysSinceInstall: Int = 0,
+    val completedCoreOpsCount: Int = 0,
     val isActiveSupporter: Boolean = false,
     val supporterMethodLabel: String = "",
     val totalDonatedDollars: Double = 0.0,
     val hasRatedApp: Boolean = false,
     val shareCount: Int = 0,
-    val installedVersionName: String = "1.0.0",
-    val latestAvailableVersionName: String = "1.2.0",
-    val isUpdateAvailable: Boolean = true,
-    val isHomeCompactBannerVisible: Boolean = true,
+    val installedVersionName: String = BuildConfig.VERSION_NAME,
+    val latestAvailableVersionName: String = BuildConfig.VERSION_NAME,
+    val isUpdateAvailable: Boolean = false,
+    val isHomeCompactBannerVisible: Boolean = false,
     val activeAutoPrompt: SmartAutoPromptType? = null,
     val activeMilestoneCount: Int = 0,
     val showPostOperationValueCard: Boolean = false,
@@ -183,17 +184,18 @@ class AppEngagementAndDonationManager(context: Context) {
     private fun ensureInitializedAndRecordLaunch() {
         val now = System.currentTimeMillis()
         if (!prefs.contains(KEY_FIRST_INSTALL_MS)) {
-            // Seed install timestamp to 3 days ago with 3 prior launches and 3 completed operations
-            // so the non-intrusive Home Compact Banner can be inspected while zero auto-popups fire at startup.
             prefs.edit()
-                .putLong(KEY_FIRST_INSTALL_MS, now - 3L * DAY_MS)
-                .putInt(KEY_APP_LAUNCH_COUNT, 3)
-                .putInt(KEY_COMPLETED_OPS_COUNT, 3)
-                .putString(KEY_INSTALLED_VERSION, "1.0.0")
+                .putLong(KEY_FIRST_INSTALL_MS, now)
+                .putInt(KEY_APP_LAUNCH_COUNT, 1)
+                .putInt(KEY_COMPLETED_OPS_COUNT, 0)
+                .putString(KEY_INSTALLED_VERSION, BuildConfig.VERSION_NAME)
                 .apply()
         } else {
             val launches = prefs.getInt(KEY_APP_LAUNCH_COUNT, 1) + 1
-            prefs.edit().putInt(KEY_APP_LAUNCH_COUNT, launches).apply()
+            prefs.edit()
+                .putInt(KEY_APP_LAUNCH_COUNT, launches)
+                .putString(KEY_INSTALLED_VERSION, BuildConfig.VERSION_NAME)
+                .apply()
         }
 
         // CRITICAL SAFEGUARD: Never show auto-popup at app start!
@@ -655,19 +657,31 @@ class AppEngagementAndDonationManager(context: Context) {
         uiContext: Context,
         onStatusMessage: (String) -> Unit
     ) {
+        val activity = uiContext.findActivity()
+        try {
+            val playIntent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://play.google.com/store/apps/details?id=${uiContext.packageName}")
+            ).apply {
+                if (activity == null) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            (activity ?: uiContext).startActivity(playIntent)
+        } catch (_: Exception) {
+            // Play Store not available
+        }
         prefs.edit()
-            .putString(KEY_INSTALLED_VERSION, LATEST_VERSION)
+            .putString(KEY_INSTALLED_VERSION, BuildConfig.VERSION_NAME)
             .putLong(KEY_UPDATE_COOLDOWN_UNTIL_MS, System.currentTimeMillis() + 30L * DAY_MS)
             .apply()
         activeAutoPrompt = null
 
         logEventInternal(
-            eventType = "APP_UPDATE_APPLIED",
-            detail = "Updated PantryPulse metadata to v$LATEST_VERSION",
-            algorithmNote = "Update suggestion satisfied; version now matches latest v$LATEST_VERSION."
+            eventType = "APP_UPDATE_CHECKED",
+            detail = "Checked Google Play updates (v${BuildConfig.VERSION_NAME})",
+            algorithmNote = "Routed to Google Play Store listing."
         )
         refreshState()
-        onStatusMessage(uiContext.getString(R.string.engagement_update_applied_fmt, LATEST_VERSION))
+        onStatusMessage(uiContext.getString(R.string.btn_up_to_date_fmt, BuildConfig.VERSION_NAME))
     }
 
     fun resetSupporterAndCooldownsForTesting(onStatusMessage: (String) -> Unit) {
@@ -700,7 +714,7 @@ class AppEngagementAndDonationManager(context: Context) {
     }
 
     private fun getDaysSinceInstall(now: Long): Int {
-        val firstInstall = prefs.getLong(KEY_FIRST_INSTALL_MS, now - 3L * DAY_MS)
+        val firstInstall = prefs.getLong(KEY_FIRST_INSTALL_MS, now)
         return ((now - firstInstall) / DAY_MS).toInt().coerceAtLeast(0)
     }
 
@@ -724,15 +738,15 @@ class AppEngagementAndDonationManager(context: Context) {
 
     private fun buildSnapshot(): EngagementSnapshot {
         val now = System.currentTimeMillis()
-        val launches = prefs.getInt(KEY_APP_LAUNCH_COUNT, 3)
+        val launches = prefs.getInt(KEY_APP_LAUNCH_COUNT, 1)
         val days = getDaysSinceInstall(now)
-        val ops = prefs.getInt(KEY_COMPLETED_OPS_COUNT, 3)
+        val ops = prefs.getInt(KEY_COMPLETED_OPS_COUNT, 0)
         val isSupporter = prefs.getBoolean(KEY_IS_ACTIVE_SUPPORTER, false)
         val supporterMethod = prefs.getString(KEY_SUPPORTER_METHOD, "") ?: ""
         val totalDonated = prefs.getFloat(KEY_TOTAL_DONATED_DOLLARS, 0f).toDouble()
         val hasRated = prefs.getBoolean(KEY_HAS_RATED_APP, false)
         val shares = prefs.getInt(KEY_SHARE_COUNT, 0)
-        val installedVer = prefs.getString(KEY_INSTALLED_VERSION, "1.0.0") ?: "1.0.0"
+        val installedVer = prefs.getString(KEY_INSTALLED_VERSION, BuildConfig.VERSION_NAME) ?: BuildConfig.VERSION_NAME
         val bannerDismissedUntil = prefs.getLong(KEY_HOME_BANNER_DISMISSED_UNTIL_MS, 0L)
 
         // Home Screen Compact Banner Criteria:
@@ -791,7 +805,7 @@ class AppEngagementAndDonationManager(context: Context) {
 
         private const val DAY_MS = 24L * 60L * 60L * 1000L
         private const val GLOBAL_POPUP_GAP_MS = 48L * 60L * 60L * 1000L // 48 hours minimum between any auto-popups
-        const val LATEST_VERSION = "1.2.0"
+        val LATEST_VERSION: String = BuildConfig.VERSION_NAME
         const val KOFI_URL = "https://ko-fi.com/pantrypulse"
 
         fun buildPayPalUrl(amountDollars: Int): String {

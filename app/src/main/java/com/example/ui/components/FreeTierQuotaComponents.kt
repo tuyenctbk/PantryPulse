@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.BuildConfig
 import com.example.R
 import com.example.ai.AiCapabilityTier
 import com.example.ai.AiFeatureType
@@ -72,7 +73,8 @@ import com.example.ui.theme.FreshEmeraldContainer
 fun AiQuotaStatusPill(
     quota: UsageQuotaSnapshot,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
     val tier = quota.activeCapabilityTier
     val (bgColor, fgColor) = when (tier) {
@@ -85,11 +87,12 @@ fun AiQuotaStatusPill(
         color = bgColor,
         shape = RoundedCornerShape(50),
         modifier = modifier
+            .clip(RoundedCornerShape(50))
             .clickable { onClick() }
             .testTag("ai_quota_status_pill")
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = if (compact) 10.dp else 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -102,16 +105,25 @@ fun AiQuotaStatusPill(
                 tint = fgColor,
                 modifier = Modifier.size(15.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(5.dp))
             Text(
-                text = when (tier) {
-                    AiCapabilityTier.TIER_1_PRIMARY -> stringResource(id = R.string.quota_pill_standard, quota.remainingCredits)
-                    AiCapabilityTier.TIER_2_ECO_LITE -> stringResource(id = R.string.quota_pill_eco_lite, quota.remainingCredits)
-                    AiCapabilityTier.TIER_3_LOCAL_FALLBACK -> stringResource(id = R.string.quota_pill_local)
+                text = if (compact) {
+                    when (tier) {
+                        AiCapabilityTier.TIER_1_PRIMARY -> "${quota.remainingCredits} left"
+                        AiCapabilityTier.TIER_2_ECO_LITE -> "Eco ${quota.remainingCredits}"
+                        AiCapabilityTier.TIER_3_LOCAL_FALLBACK -> "Local"
+                    }
+                } else {
+                    when (tier) {
+                        AiCapabilityTier.TIER_1_PRIMARY -> stringResource(id = R.string.quota_pill_standard, quota.remainingCredits)
+                        AiCapabilityTier.TIER_2_ECO_LITE -> stringResource(id = R.string.quota_pill_eco_lite, quota.remainingCredits)
+                        AiCapabilityTier.TIER_3_LOCAL_FALLBACK -> stringResource(id = R.string.quota_pill_local)
+                    }
                 },
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = fgColor
+                color = fgColor,
+                maxLines = 1
             )
         }
     }
@@ -623,38 +635,40 @@ fun AiValueReceiptDialog(
                     )
                 }
 
-                HorizontalDivider()
+                if (BuildConfig.DEBUG) {
+                    HorizontalDivider()
 
-                // 4. Interactive Playbook Simulator (Test Stage 1 80% & Stage 2 100% Recovery)
-                Text(
-                    text = stringResource(id = R.string.receipt_preview_stages_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FilterChip(
-                        selected = !quota.isSoftNudgeThreshold && !quota.isExhausted,
-                        onClick = { onSimulatePreset("HEALTHY") },
-                        label = { Text(stringResource(id = R.string.receipt_stage_healthy)) },
-                        modifier = Modifier.testTag("simulate_healthy_chip")
+                    // 4. Interactive Playbook Simulator (Debug builds only)
+                    Text(
+                        text = stringResource(id = R.string.receipt_preview_stages_title),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
                     )
-                    FilterChip(
-                        selected = quota.isSoftNudgeThreshold,
-                        onClick = { onSimulatePreset("SOFT_NUDGE_80") },
-                        label = { Text(stringResource(id = R.string.receipt_stage_soft_nudge)) },
-                        modifier = Modifier.testTag("simulate_soft_nudge_chip")
-                    )
-                    FilterChip(
-                        selected = quota.isExhausted,
-                        onClick = { onSimulatePreset("EXHAUSTED_100") },
-                        label = { Text(stringResource(id = R.string.receipt_stage_exhausted)) },
-                        modifier = Modifier.testTag("simulate_exhausted_chip")
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = !quota.isSoftNudgeThreshold && !quota.isExhausted,
+                            onClick = { onSimulatePreset("HEALTHY") },
+                            label = { Text(stringResource(id = R.string.receipt_stage_healthy)) },
+                            modifier = Modifier.testTag("simulate_healthy_chip")
+                        )
+                        FilterChip(
+                            selected = quota.isSoftNudgeThreshold,
+                            onClick = { onSimulatePreset("SOFT_NUDGE_80") },
+                            label = { Text(stringResource(id = R.string.receipt_stage_soft_nudge)) },
+                            modifier = Modifier.testTag("simulate_soft_nudge_chip")
+                        )
+                        FilterChip(
+                            selected = quota.isExhausted,
+                            onClick = { onSimulatePreset("EXHAUSTED_100") },
+                            label = { Text(stringResource(id = R.string.receipt_stage_exhausted)) },
+                            modifier = Modifier.testTag("simulate_exhausted_chip")
+                        )
+                    }
                 }
             }
         },

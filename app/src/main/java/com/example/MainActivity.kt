@@ -88,6 +88,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -107,6 +110,8 @@ import com.example.ui.components.AiValueReceiptDialog
 import com.example.ui.components.SmartAutoSuggestionDialog
 import com.example.ui.components.SupportAndEngagementHubDialog
 import com.example.ui.components.SupporterHeaderActionChip
+import com.example.ui.components.rememberIsAndroidTv
+import com.example.ui.components.tvFocusHighlight
 import com.example.ui.engagement.SmartAutoPromptType
 import com.example.ui.screens.FridgeScannerScreen
 import com.example.ui.screens.ManualIngredientInputScreen
@@ -304,9 +309,22 @@ fun PantryPulseApp(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val isAndroidTv = rememberIsAndroidTv()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (isAndroidTv) {
+                    Modifier.padding(horizontal = 24.dp, vertical = 14.dp)
+                } else {
+                    Modifier
+                }
+            )
+    ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val isWideScreen = maxWidth >= 600.dp
+            val isWideScreen = maxWidth >= 600.dp || isAndroidTv
+            val isCompactPhone = !isWideScreen
 
             Scaffold(
                 contentWindowInsets = WindowInsets.safeDrawing,
@@ -315,7 +333,7 @@ fun PantryPulseApp(
                         title = {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Image(
                                     painter = painterResource(id = R.drawable.pantrypulse_app_icon_1795047726134),
@@ -326,7 +344,11 @@ fun PantryPulseApp(
                                 )
                                 Text(
                                     text = stringResource(id = R.string.app_name),
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    style = if (isCompactPhone) {
+                                        MaterialTheme.typography.titleLarge
+                                    } else {
+                                        MaterialTheme.typography.headlineSmall
+                                    },
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -336,12 +358,18 @@ fun PantryPulseApp(
                             SupporterHeaderActionChip(
                                 engagement = engagementState,
                                 onClick = { showSupportHubDialog = true },
-                                modifier = Modifier.padding(end = 6.dp)
+                                compact = isCompactPhone,
+                                modifier = Modifier
+                                    .padding(end = 6.dp)
+                                    .tvFocusHighlight(shape = RoundedCornerShape(50))
                             )
                             AiQuotaStatusPill(
                                 quota = quotaState,
                                 onClick = { showValueReceiptDialog = true },
-                                modifier = Modifier.padding(end = 10.dp)
+                                compact = isCompactPhone,
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .tvFocusHighlight(shape = RoundedCornerShape(50))
                             )
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
@@ -424,7 +452,9 @@ fun PantryPulseApp(
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     },
-                                    modifier = Modifier.testTag(dest.testTag)
+                                    modifier = Modifier
+                                        .tvFocusHighlight(shape = RoundedCornerShape(14.dp))
+                                        .testTag(dest.testTag)
                                 )
                             }
                         }
@@ -452,7 +482,7 @@ fun PantryPulseApp(
                             label = "pantry_tab_transition",
                             modifier = Modifier
                                 .fillMaxSize()
-                                .widthIn(max = 920.dp)
+                                .widthIn(max = if (isAndroidTv) 1280.dp else 960.dp)
                         ) { activeTab ->
                             when (activeTab) {
                                 PantryTab.PANTRY -> PantryDashboardScreen(
@@ -504,7 +534,6 @@ fun PantryPulseApp(
                                     onRemovePhoto = viewModel::removeCapturedPhoto,
                                     onClearPhotos = viewModel::clearCapturedPhotos,
                                     onAnalyzePhotos = { note -> viewModel.analyzeCapturedPhotos(note) },
-                                    onRunSampleScan = viewModel::loadSamplePhotoAndAnalyze,
                                     onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
                                     onClaimGraceCredits = viewModel::claimBonusGraceCredits,
                                     onRetryEcoLite = viewModel::retryVisionWithEcoLite,
@@ -611,7 +640,7 @@ fun PantryPulseApp(
                                     onEnableEcoLite = { viewModel.setEcoLiteMode(true) },
                                     onClaimGraceCredits = viewModel::claimBonusGraceCredits,
                                     onRetryEcoLite = viewModel::retryChatWithEcoLite,
-                                    onUseLocalFallback = viewModel::sendLocalReflexChatMessage,
+                                    onUseLocalFallback = { prompt -> viewModel.sendLocalReflexChatMessage(prompt) },
                                     onOpenValueReceipt = { showValueReceiptDialog = true },
                                     onClearChat = viewModel::clearChatHistory,
                                     onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
@@ -701,12 +730,20 @@ private fun BrandedSplashOverlay(onDismiss: () -> Unit) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF18422C),
-                        Color(0xFF123221),
-                        Color(0xFF0C2216)
+                        Color(0xFF15472C),
+                        Color(0xFF113C25),
+                        Color(0xFF0B2718)
                     )
                 )
             )
+            .onPreviewKeyEvent { keyEvent ->
+                if (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter) {
+                    onDismiss()
+                    true
+                } else {
+                    false
+                }
+            }
             .clickable { onDismiss() }
             .testTag("splash_overlay"),
         contentAlignment = Alignment.Center

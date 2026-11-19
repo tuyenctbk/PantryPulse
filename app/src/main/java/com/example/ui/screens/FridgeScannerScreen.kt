@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -103,7 +104,6 @@ fun FridgeScannerScreen(
     onRemovePhoto: (Int) -> Unit,
     onClearPhotos: () -> Unit,
     onAnalyzePhotos: (String) -> Unit,
-    onRunSampleScan: (String) -> Unit,
     onEnableEcoLite: () -> Unit,
     onClaimGraceCredits: () -> Unit,
     onRetryEcoLite: (String) -> Unit,
@@ -218,7 +218,13 @@ fun FridgeScannerScreen(
                     FilterChip(
                         selected = selected,
                         onClick = { onSelectCaptureMode(mode) },
-                        label = { Text(stringResource(id = mode.titleRes)) },
+                        label = {
+                            Text(
+                                text = stringResource(id = mode.titleRes),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
                         leadingIcon = {
                             Icon(
                                 imageVector = if (mode == ScanCaptureMode.FRIDGE_SHELF) {
@@ -260,13 +266,11 @@ fun FridgeScannerScreen(
                         photoPickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
-                    },
-                    onRunSampleScan = { onRunSampleScan(focusNote) }
+                    }
                 )
             } else {
                 CameraPermissionGateWithIngestionDock(
                     capturedBitmaps = capturedBitmaps,
-                    captureMode = captureMode,
                     focusNote = focusNote,
                     isAnalyzing = isIngesting,
                     onFocusNoteChange = { focusNote = it },
@@ -277,8 +281,7 @@ fun FridgeScannerScreen(
                         )
                     },
                     onRemovePhoto = onRemovePhoto,
-                    onAnalyze = { onAnalyzePhotos(focusNote) },
-                    onRunSampleScan = { onRunSampleScan(focusNote) }
+                    onAnalyze = { onAnalyzePhotos(focusNote) }
                 )
             }
         }
@@ -385,7 +388,10 @@ fun FridgeScannerScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
                                     Icon(
                                         imageVector = Icons.Default.AutoAwesome,
                                         contentDescription = stringResource(id = R.string.scanner_inspection_complete),
@@ -395,9 +401,12 @@ fun FridgeScannerScreen(
                                     Text(
                                         text = stringResource(id = R.string.scanner_inspection_complete),
                                         style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Surface(
                                     color = MaterialTheme.colorScheme.surface,
                                     shape = RoundedCornerShape(50)
@@ -407,6 +416,8 @@ fun FridgeScannerScreen(
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                     )
                                 }
@@ -455,15 +466,13 @@ fun FridgeScannerScreen(
 @Composable
 private fun CameraPermissionGateWithIngestionDock(
     capturedBitmaps: List<Bitmap>,
-    captureMode: ScanCaptureMode,
     focusNote: String,
     isAnalyzing: Boolean,
     onFocusNoteChange: (String) -> Unit,
     onRequestCamera: () -> Unit,
     onPickFromGallery: () -> Unit,
     onRemovePhoto: (Int) -> Unit,
-    onAnalyze: () -> Unit,
-    onRunSampleScan: () -> Unit
+    onAnalyze: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -503,43 +512,37 @@ private fun CameraPermissionGateWithIngestionDock(
             ) {
                 Button(
                     onClick = onRequestCamera,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
                     modifier = Modifier
                         .weight(1f)
+                        .height(46.dp)
                         .testTag("grant_camera_permission_button")
                 ) {
-                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(17.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(id = R.string.scanner_enable_camerax_btn))
+                    Text(
+                        text = stringResource(id = R.string.scanner_enable_camerax_btn),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
                 OutlinedButton(
                     onClick = onPickFromGallery,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
                     modifier = Modifier
                         .weight(1f)
+                        .height(46.dp)
                         .testTag("gallery_picker_button")
                 ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(17.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(id = R.string.scanner_photo_picker_btn))
+                    Text(
+                        text = stringResource(id = R.string.scanner_photo_picker_btn),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-            }
-
-            OutlinedButton(
-                onClick = onRunSampleScan,
-                enabled = !isAnalyzing,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("sample_scan_button")
-            ) {
-                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    if (captureMode == ScanCaptureMode.FRIDGE_SHELF) {
-                        stringResource(id = R.string.scanner_demo_fridge_btn)
-                    } else {
-                        stringResource(id = R.string.scanner_demo_receipt_btn)
-                    }
-                )
             }
 
             if (capturedBitmaps.isNotEmpty()) {
@@ -594,7 +597,13 @@ private fun CameraPermissionGateWithIngestionDock(
             OutlinedTextField(
                 value = focusNote,
                 onValueChange = onFocusNoteChange,
-                label = { Text(stringResource(id = R.string.scanner_context_hint_label)) },
+                label = {
+                    Text(
+                        text = stringResource(id = R.string.scanner_context_hint_label),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()

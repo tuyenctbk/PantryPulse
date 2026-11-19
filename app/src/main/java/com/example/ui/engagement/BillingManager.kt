@@ -9,6 +9,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.annotation.StringRes
 import com.android.billingclient.api.AcknowledgePurchaseParams
+import com.example.BuildConfig
 import com.example.R
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClient.BillingResponseCode
@@ -789,6 +790,24 @@ class BillingManager(
         activityName: String,
         callback: BillingPurchaseCallback?
     ) {
+        if (!BuildConfig.DEBUG) {
+            val unavailableMsg = "Google Play Billing is currently unavailable on this device. Please support via PayPal or Ko-fi below."
+            _billingUiState.update {
+                it.copy(
+                    transactionState = BillingTransactionState.Failed(
+                        skuId = tier.skuId,
+                        responseCode = BillingResponseCode.BILLING_UNAVAILABLE,
+                        message = unavailableMsg
+                    ),
+                    statusDiagnosticMessage = unavailableMsg
+                )
+            }
+            mainHandler.post {
+                callback?.onPurchaseError(tier, BillingResponseCode.BILLING_UNAVAILABLE, unavailableMsg)
+            }
+            return
+        }
+
         val now = System.currentTimeMillis()
         val syntheticToken = "sandbox_tok_${tier.skuId}_${UUID.randomUUID().toString().take(8)}"
         val orderId = "GPA.${now.toString().takeLast(4)}-${(1000..9999).random()}-${tier.ordinal + 1}"

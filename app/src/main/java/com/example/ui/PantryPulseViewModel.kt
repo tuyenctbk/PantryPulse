@@ -2,7 +2,6 @@ package com.example.ui
 
 import android.app.Application
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
@@ -210,16 +209,19 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
 
     init {
         viewModelScope.launch {
-            repository.ensureSeeded()
+            repository.syncOnStartup()
             quotaManager.ensureDailyRollover()
         }
         viewModelScope.launch {
             repository.activeItemsFlow.collect { currentItems ->
                 val currentPreservation = _preservationState.value
-                if (currentItems.isNotEmpty() &&
-                    (currentPreservation is PreservationCoachUiState.Idle ||
-                        (currentPreservation is PreservationCoachUiState.Success &&
-                            currentPreservation.tierUsed == AiCapabilityTier.TIER_3_LOCAL_FALLBACK))
+                if (currentItems.isEmpty()) {
+                    if (currentPreservation !is PreservationCoachUiState.Idle) {
+                        _preservationState.value = PreservationCoachUiState.Idle
+                    }
+                } else if (currentPreservation is PreservationCoachUiState.Idle ||
+                    (currentPreservation is PreservationCoachUiState.Success &&
+                        currentPreservation.tierUsed == AiCapabilityTier.TIER_3_LOCAL_FALLBACK)
                 ) {
                     val (summary, localGuides) = LocalCulinaryFallbackEngine.synthesizePreservationGuidesLocally(currentItems)
                     _preservationState.value = PreservationCoachUiState.Success(
@@ -407,21 +409,6 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         _visionScanState.value = VisionScanUiState.Idle
     }
 
-    fun loadSamplePhotoAndAnalyze(customNote: String = "") {
-        val context = getApplication<Application>()
-        val mode = _scanCaptureMode.value
-        val sampleBmp = when (mode) {
-            ScanCaptureMode.FRIDGE_SHELF -> BitmapFactory.decodeResource(context.resources, R.drawable.img_hero_pantry)
-            ScanCaptureMode.GROCERY_RECEIPT -> PantryAiService.createSampleGroceryReceiptBitmap()
-        }
-        if (sampleBmp != null) {
-            _capturedBitmaps.value = listOf(sampleBmp)
-            analyzeCapturedPhotos(customNote)
-        } else {
-            _visionScanState.value = VisionScanUiState.Error(str(R.string.vm_vision_sample_error))
-        }
-    }
-
     fun runLocalVisionFallback(customFocusNote: String = "") {
         viewModelScope.launch {
             val photos = _capturedBitmaps.value
@@ -430,13 +417,19 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 captureMode = _scanCaptureMode.value,
                 customFocusNote = customFocusNote
             )
-            quotaManager.incrementQueuedScans()
-            _visionScanState.value = VisionScanUiState.Success(
-                summaryNote = summary,
-                detectedItems = detected,
-                tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
-            )
-            _snackbarMessage.value = str(R.string.vm_vision_local_done)
+            if (detected.isEmpty()) {
+                _visionScanState.value = VisionScanUiState.Error(
+                    str(R.string.vm_vision_local_empty_hint)
+                )
+            } else {
+                quotaManager.incrementQueuedScans()
+                _visionScanState.value = VisionScanUiState.Success(
+                    summaryNote = summary,
+                    detectedItems = detected,
+                    tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
+                )
+                _snackbarMessage.value = str(R.string.vm_vision_local_done)
+            }
         }
     }
 
@@ -508,10 +501,8 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     )
                 }
             } catch (e: TimeoutCancellationException) {
-                Log.e(TAG, "Gemini Vision scan timed out", e)
-                _visionScanState.value = VisionScanUiState.Error(
-                    str(R.string.vm_vision_timeout)
-                )
+                Log.e(TAG, "Gemini Vision scan timed out; falling back to local engine", e)
+                runLocalVisionFallback(customFocusNote)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -519,9 +510,8 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 if (PantryAiService.isQuotaOrRateLimitException(e)) {
                     _visionScanState.value = VisionScanUiState.QuotaRecoveryNeeded
                 } else {
-                    _visionScanState.value = VisionScanUiState.Error(
-                        e.localizedMessage ?: str(R.string.vm_vision_failed)
-                    )
+                    // Graceful Tier 3 on-device fallback when offline or cloud backend unavailable
+                    runLocalVisionFallback(customFocusNote)
                 }
             }
         }
@@ -1229,10 +1219,8 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     _recipeGenState.value = RecipeGenerationUiState.Error(str(R.string.vm_recipes_none_returned))
                 }
             } catch (e: TimeoutCancellationException) {
-                Log.e(TAG, "Recipe ranking timed out", e)
-                _recipeGenState.value = RecipeGenerationUiState.Error(
-                    str(R.string.vm_recipes_timeout)
-                )
+                Log.e(TAG, "Recipe ranking timed out; falling back to local synthesis", e)
+                runLocalRecipeFallback(cravingOrNote)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1240,9 +1228,8 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 if (PantryAiService.isQuotaOrRateLimitException(e)) {
                     _recipeGenState.value = RecipeGenerationUiState.QuotaRecoveryNeeded
                 } else {
-                    _recipeGenState.value = RecipeGenerationUiState.Error(
-                        e.localizedMessage ?: str(R.string.vm_recipes_failed)
-                    )
+                    // Graceful Tier 3 on-device fallback when offline or cloud backend unavailable
+                    runLocalRecipeFallback(cravingOrNote)
                 }
             }
         }
@@ -1279,11 +1266,13 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         _chatUiState.value = ChatUiState.Idle
     }
 
-    fun sendLocalReflexChatMessage(customPrompt: String = "") {
+    fun sendLocalReflexChatMessage(
+        customPrompt: String = "",
+        appendUserBubble: Boolean = customPrompt.isNotBlank()
+    ) {
         val promptToUse = customPrompt.ifBlank { lastPendingChatPrompt }
             .ifBlank { str(R.string.vm_chat_default_tonight) }
 
-        val needsUserBubble = customPrompt.isNotBlank()
         val reflexReply = LocalCulinaryFallbackEngine.generateLocalReflexReply(
             userMessage = promptToUse,
             items = pantryItems.value,
@@ -1291,7 +1280,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         )
 
         _chatMessages.update { current ->
-            val withUser = if (needsUserBubble) {
+            val withUser = if (appendUserBubble) {
                 current + ChatMessage(isUser = true, text = promptToUse)
             } else {
                 current
@@ -1394,13 +1383,11 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     _chatUiState.value = ChatUiState.Error(str(R.string.vm_chat_empty_resp))
                 }
             } catch (e: TimeoutCancellationException) {
-                Log.e(TAG, "Sous-Chef streaming timed out", e)
+                Log.e(TAG, "Sous-Chef streaming timed out; falling back to local reflex", e)
                 _chatMessages.update { list ->
-                    list.map { msg ->
-                        if (msg.id == streamingId) msg.copy(isStreaming = false) else msg
-                    }.filter { it.text.isNotBlank() || it.isUser }
+                    list.filterNot { it.id == streamingId && it.text.isBlank() }
                 }
-                _chatUiState.value = ChatUiState.Error(str(R.string.vm_chat_timeout))
+                sendLocalReflexChatMessage(customPrompt = trimmed, appendUserBubble = false)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1409,7 +1396,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 if (PantryAiService.isQuotaOrRateLimitException(e)) {
                     _chatUiState.value = ChatUiState.QuotaRecoveryNeeded
                 } else {
-                    _chatUiState.value = ChatUiState.Error(e.localizedMessage ?: str(R.string.vm_chat_failed))
+                    sendLocalReflexChatMessage(customPrompt = trimmed, appendUserBubble = false)
                 }
             }
         }
