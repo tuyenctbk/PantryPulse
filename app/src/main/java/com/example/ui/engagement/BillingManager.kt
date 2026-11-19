@@ -177,6 +177,7 @@ class BillingManager(
                 .enableOneTimeProducts()
                 .build()
         )
+        .enableAutoServiceReconnection()
         .build()
 
     init {
@@ -308,7 +309,7 @@ class BillingManager(
                         _billingUiState.update {
                             it.copy(
                                 connectionState = BillingConnectionState.CONNECTED,
-                                statusDiagnosticMessage = "Connected to Google Play Billing (v7.1.1)."
+                                statusDiagnosticMessage = "Connected to Google Play Billing (v8.3.0)."
                             )
                         }
                         onDiagnosticEventLogged?.invoke(
@@ -385,12 +386,14 @@ class BillingManager(
             .setProductList(productList)
             .build()
 
-        billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+        billingClient.queryProductDetailsAsync(params) { billingResult, queryProductDetailsResult ->
+            val productDetailsList = queryProductDetailsResult.productDetailsList
             val updatedOffers = buildDefaultProductOffers().toMutableMap()
             if (billingResult.responseCode == BillingResponseCode.OK && productDetailsList.isNotEmpty()) {
                 for (details in productDetailsList) {
                     productDetailsMap[details.productId] = details
-                    val oneTimeOffer = details.oneTimePurchaseOfferDetails
+                    val oneTimeOffer = details.oneTimePurchaseOfferDetailsList?.firstOrNull()
+                        ?: details.oneTimePurchaseOfferDetails
                     if (oneTimeOffer != null) {
                         updatedOffers[details.productId] = FormattedProductOffer(
                             skuId = details.productId,
