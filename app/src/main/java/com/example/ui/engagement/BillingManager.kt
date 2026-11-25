@@ -162,6 +162,7 @@ class BillingManager(
     private var pendingActivityNameForFlow: String = "MainActivity"
 
     private val completionListeners = mutableListOf<(VerifiedPurchaseReceipt) -> Unit>()
+    private var activityLifecycleCallbacks: Application.ActivityLifecycleCallbacks? = null
 
     private val _billingUiState = MutableStateFlow(
         BillingUiState(
@@ -191,7 +192,7 @@ class BillingManager(
      */
     private fun registerActivityLifecycleTracker(context: Context) {
         val application = context as? Application ?: return
-        application.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
+        val callbacks = object : Application.ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
                 updateHostActivity(activity)
             }
@@ -214,7 +215,9 @@ class BillingManager(
                     refreshActivitySessionState()
                 }
             }
-        })
+        }
+        activityLifecycleCallbacks = callbacks
+        application.registerActivityLifecycleCallbacks(callbacks)
     }
 
     /**
@@ -884,6 +887,10 @@ class BillingManager(
 
     fun endConnection() {
         try {
+            activityLifecycleCallbacks?.let { cb ->
+                (appContext as? Application)?.unregisterActivityLifecycleCallbacks(cb)
+                activityLifecycleCallbacks = null
+            }
             if (billingClient.isReady) {
                 billingClient.endConnection()
             }

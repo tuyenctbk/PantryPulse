@@ -26,7 +26,9 @@ class PantryPulseWidgetProvider : AppWidgetProvider() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                updateWidgetsInternal(context, appWidgetManager, appWidgetIds)
+                runCatching {
+                    updateWidgetsInternal(context, appWidgetManager, appWidgetIds)
+                }
             } finally {
                 pendingResult.finish()
             }
@@ -37,11 +39,13 @@ class PantryPulseWidgetProvider : AppWidgetProvider() {
         fun updateAllWidgets(context: Context) {
             val appContext = context.applicationContext
             CoroutineScope(Dispatchers.IO).launch {
-                val manager = AppWidgetManager.getInstance(appContext)
-                val componentName = ComponentName(appContext, PantryPulseWidgetProvider::class.java)
-                val ids = manager.getAppWidgetIds(componentName)
-                if (ids.isNotEmpty()) {
-                    updateWidgetsInternal(appContext, manager, ids)
+                runCatching {
+                    val manager = AppWidgetManager.getInstance(appContext)
+                    val componentName = ComponentName(appContext, PantryPulseWidgetProvider::class.java)
+                    val ids = manager.getAppWidgetIds(componentName)
+                    if (ids.isNotEmpty()) {
+                        updateWidgetsInternal(appContext, manager, ids)
+                    }
                 }
             }
         }

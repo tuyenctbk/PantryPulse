@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -49,9 +50,13 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.R
+import com.example.ai.BarcodeScanDebouncer
+import com.example.ai.BarcodeScanningUtility
+import com.google.mlkit.vision.barcode.BarcodeScanner
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -108,7 +113,7 @@ class CameraXPreviewController internal constructor(
         .build()
 
     internal var previewView: PreviewView? = null
-    internal var boundCamera: Camera? = null
+    internal var boundCamera by mutableStateOf<Camera?>(null)
     internal var activeIsFrontCamera: Boolean = false
 
     var streamState by mutableStateOf<CameraPreviewStreamState>(CameraPreviewStreamState.Initializing)
@@ -284,12 +289,18 @@ fun CameraXPreviewElement(
     onLuminanceMeasured: (Int) -> Unit,
     onTapFocus: (Offset) -> Unit,
     modifier: Modifier = Modifier,
+    liveBarcodeScanEnabled: Boolean = false,
+    onLiveBarcodeDetected: ((String) -> Unit)? = null,
     overlayContent: @Composable BoxScope.() -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
     val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
+    val barcodeScanner = remember { BarcodeScanningUtility.createDefaultScanner() }
+    val barcodeDebouncer = remember { BarcodeScanDebouncer(cooldownMs = 3_500L) }
+    val latestBarcodeEnabled = rememberUpdatedState(liveBarcodeScanEnabled)
+    val latestBarcodeCallback = rememberUpdatedState(onLiveBarcodeDetected)
 
     // TextureView-backed COMPATIBLE mode guarantees proper rounded-corner clipping & Compose overlay layering
     val previewView = remember(context) {
@@ -394,15 +405,30 @@ fun CameraXPreviewElement(
                     .also { analysis ->
                         analysis.setAnalyzer(
                             analysisExecutor,
-                            FridgeLuminanceAnalyzer { luma ->
-                                if (!isDisposed) {
-                                    mainHandler.post {
-                                        if (!isDisposed) {
-                                            onLuminanceMeasured(luma)
+                            FridgeLuminanceAndBarcodeAnalyzer(
+                                onLuminanceMeasured = { luma ->
+                                    if (!isDisposed) {
+                                        mainHandler.post {
+                                            if (!isDisposed) {
+                                                onLuminanceMeasured(luma)
+                                            }
+                                        }
+                                    }
+                                },
+                                scanner = barcodeScanner,
+                                isBarcodeEnabled = {
+                                    !isDisposed && latestBarcodeEnabled.value && latestBarcodeCallback.value != null
+                                },
+                                onBarcodeDetected = { rawCode ->
+                                    if (!isDisposed && barcodeDebouncer.shouldAccept(rawCode)) {
+                                        mainHandler.post {
+                                            if (!isDisposed) {
+                                                latestBarcodeCallback.value?.invoke(rawCode)
+                                            }
                                         }
                                     }
                                 }
-                            }
+                            )
                         )
                     }
 
@@ -492,9 +518,10 @@ fun CameraXPreviewElement(
         }
     }
 
-    // Shut down single-threaded luminance analyzer executor when composable leaves composition
-    DisposableEffect(analysisExecutor) {
+    // Shut down analyzer executor and ML Kit BarcodeScanner when composable leaves composition
+    DisposableEffect(analysisExecutor, barcodeScanner) {
         onDispose {
+            runCatching { barcodeScanner.close() }
             analysisExecutor.shutdown()
         }
     }
@@ -662,18 +689,26 @@ object CameraBitmapProcessor {
 }
 
 /**
- * Lightweight CameraX [ImageAnalysis.Analyzer] that computes average luminance (0..255)
- * from the Y-plane every 400ms to power automatic low-light fridge EV compensation.
+ * Dual-purpose CameraX [ImageAnalysis.Analyzer] that:
+ * 1. Samples average luminance (0..255) from the Y-plane every 400ms for low-light fridge EV boost.
+ * 2. Runs on-device Google ML Kit Barcode Scanning every 450ms when enabled (Tier 0, $0 API cost),
+ *    closing [ImageProxy] safely after ML Kit completes.
  */
-private class FridgeLuminanceAnalyzer(
-    private val onLuminanceMeasured: (Int) -> Unit
+private class FridgeLuminanceAndBarcodeAnalyzer(
+    private val onLuminanceMeasured: (Int) -> Unit,
+    private val scanner: BarcodeScanner,
+    private val isBarcodeEnabled: () -> Boolean,
+    private val onBarcodeDetected: (String) -> Unit
 ) : ImageAnalysis.Analyzer {
-    private var lastAnalyzedTimestamp = 0L
+    private var lastLuminanceTimestamp = 0L
+    private var lastBarcodeTimestamp = 0L
+    private val barcodeInFlight = AtomicBoolean(false)
 
     override fun analyze(image: ImageProxy) {
+        var delegatedToMlKit = false
         try {
             val now = System.currentTimeMillis()
-            if (now - lastAnalyzedTimestamp >= 400L) {
+            if (now - lastLuminanceTimestamp >= 400L) {
                 val plane = image.planes.firstOrNull()
                 if (plane != null) {
                     val buffer: ByteBuffer = plane.buffer
@@ -695,10 +730,37 @@ private class FridgeLuminanceAnalyzer(
                         }
                     }
                 }
-                lastAnalyzedTimestamp = now
+                lastLuminanceTimestamp = now
+            }
+
+            if (isBarcodeEnabled() &&
+                (now - lastBarcodeTimestamp >= 450L) &&
+                barcodeInFlight.compareAndSet(false, true)
+            ) {
+                lastBarcodeTimestamp = now
+                delegatedToMlKit = true
+                BarcodeScanningUtility.analyzeCameraFrame(
+                    imageProxy = image,
+                    scanner = scanner,
+                    onBarcodesFound = { results ->
+                        results.firstOrNull()?.let { found ->
+                            onBarcodeDetected(found.rawValue)
+                        }
+                    },
+                    onFinished = {
+                        barcodeInFlight.set(false)
+                    }
+                )
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Analyzer frame skipped", e)
+            if (delegatedToMlKit) {
+                barcodeInFlight.set(false)
             }
         } finally {
-            image.close()
+            if (!delegatedToMlKit) {
+                image.close()
+            }
         }
     }
 }

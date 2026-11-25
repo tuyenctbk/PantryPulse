@@ -910,35 +910,6 @@ fun SupportAndEngagementHubDialog(
                             }
                         }
 
-                        if (BuildConfig.DEBUG) {
-                            Text(
-                                text = stringResource(id = R.string.telemetry_preview_title),
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                OutlinedButton(
-                                    onClick = onResetCooldownsForTesting,
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    modifier = Modifier.testTag("reset_engagement_6_ops_button")
-                                ) {
-                                    Text(stringResource(id = R.string.telemetry_btn_set_6_ops), style = MaterialTheme.typography.labelSmall)
-                                }
-                                SmartAutoPromptType.entries.forEach { type ->
-                                    OutlinedButton(
-                                        onClick = { onTriggerPreviewPrompt(type) },
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                                    ) {
-                                        Text(type.name, style = MaterialTheme.typography.labelSmall)
-                                    }
-                                }
-                            }
-                        }
-
                         HorizontalDivider()
 
                         Text(

@@ -7,11 +7,24 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.R
+import com.example.ai.BarcodeLookupSource
+import com.example.ai.OfflineBarcodeCache
+import com.example.data.remote.OpenFoodFactsRemoteDataSource
 import com.example.widget.PantryPulseWidgetProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+
+data class BarcodeIngredientLookupResult(
+    val barcode: String,
+    val found: Boolean,
+    val ingredient: Ingredient? = null,
+    val detectedIngredient: DetectedIngredient? = null,
+    val source: BarcodeLookupSource = BarcodeLookupSource.NOT_FOUND,
+    val persistedRowId: Long? = null,
+    val errorMessage: String? = null
+)
 
 private val Context.kitchenDataStore by preferencesDataStore(name = "kitchen_preferences")
 
@@ -69,16 +82,28 @@ data class KitchenSetupState(
 class PantryRepository(
     private val appContext: Context,
     private val dao: PantryDao,
-    private val ingredientDao: IngredientDao? = null
+    private val ingredientDao: IngredientDao? = null,
+    private val recipeDao: RecipeDao? = null,
+    private val openFoodFactsRemoteDataSource: OpenFoodFactsRemoteDataSource = OpenFoodFactsRemoteDataSource()
 ) {
     private val appliancesKey = stringSetPreferencesKey("owned_appliances")
     private val spicesKey = stringSetPreferencesKey("owned_spices")
     private val rescuedMealsKey = intPreferencesKey("rescued_meals_count")
     private val savedDollarsKey = doublePreferencesKey("saved_dollars_total")
     private val lowStockThresholdKey = intPreferencesKey("low_stock_threshold_percent")
+    private val barcodeCache by lazy { OfflineBarcodeCache(appContext.applicationContext) }
 
     val allIngredientsFlow: Flow<List<Ingredient>> =
         ingredientDao?.getAllIngredients() ?: emptyFlow()
+
+    val allRecipesFlow: Flow<List<Recipe>> =
+        recipeDao?.getAllRecipes() ?: emptyFlow()
+
+    val favoriteRecipesFlow: Flow<List<Recipe>> =
+        recipeDao?.getFavoriteRecipes() ?: emptyFlow()
+
+    val recipesWithIngredientsFlow: Flow<List<RecipeWithIngredients>> =
+        recipeDao?.getRecipesWithIngredients() ?: emptyFlow()
 
     val activeItemsFlow: Flow<List<PantryItemEntity>> = dao.getActiveItemsFlow()
 
@@ -125,6 +150,24 @@ class PantryRepository(
                     currentQuantity.contains("tbsp", ignoreCase = true)
             } ?: currentQuantity.ifBlank { "1 full pack" }
         }
+
+        /**
+         * Maps a product returned from Open Food Facts / offline barcode cache into a canonical
+         * Room [Ingredient] entity (`name`, `quantity`, `unit`, `expiryDate`).
+         */
+        fun mapDetectedProductToIngredient(
+            detected: DetectedIngredient,
+            fromTimestampMillis: Long = System.currentTimeMillis()
+        ): Ingredient {
+            val (parsedQty, parsedUnit) = Ingredient.parseQuantityAndUnit(detected.quantity)
+            val clampedDays = detected.daysUntilExpiry.coerceIn(1, 365)
+            return Ingredient(
+                name = detected.name.trim(),
+                quantity = parsedQty.coerceAtLeast(0.01),
+                unit = parsedUnit.ifBlank { "unit" },
+                expiryDate = computeExpiryEpochMillis(clampedDays, fromTimestampMillis)
+            )
+        }
     }
 
     suspend fun syncOnStartup() {
@@ -156,7 +199,17 @@ class PantryRepository(
                     expiryDateEpochMillis = resolvedExpiryMillis,
                     updatedTimestamp = now
                 )
+                ingredientDao?.insertIngredient(
+                    Ingredient.fromPantryItemEntity(
+                        item.copy(
+                            daysUntilExpiry = dynamicDays,
+                            expiryDateEpochMillis = resolvedExpiryMillis
+                        )
+                    )
+                )
                 updatedCount++
+            } else if (ingredientDao != null && ingredientDao.getIngredientById(item.id) == null) {
+                ingredientDao.insertIngredient(Ingredient.fromPantryItemEntity(item))
             }
         }
         if (updatedCount > 0) {
@@ -187,7 +240,11 @@ class PantryRepository(
                     (restock.sourcePantryItemId != null && restock.sourcePantryItemId == item.id) ||
                         restock.name.equals(item.name, ignoreCase = true)
                 }
-                val reason = "Auto-Added • Stock at ${item.stockPercent}% (≤$effectiveThreshold% threshold)"
+                val reason = appContext.getString(
+                    R.string.repo_restock_low_stock_reason_fmt,
+                    item.stockPercent,
+                    effectiveThreshold
+                )
                 if (existingMatch == null) {
                     val cat = item.parsedCategory
                     dao.insertRestockItem(
@@ -203,7 +260,7 @@ class PantryRepository(
                                 else -> 7
                             },
                             zeroWasteBuyingTip = item.storageTip.ifBlank {
-                                "Buy smaller packs or freeze half on day 1 to prevent spoilage."
+                                appContext.getString(R.string.repo_default_buying_tip)
                             },
                             estimatedCostDollars = item.estimatedValueDollars,
                             triggerReason = reason,
@@ -246,6 +303,88 @@ class PantryRepository(
 
     suspend fun updateIngredient(ingredient: Ingredient) {
         ingredientDao?.updateIngredient(ingredient)
+    }
+
+    /**
+     * Fetches product metadata for an EAN-13 / UPC barcode using an offline-first Tier 0 chain
+     * (Local DataStore cache -> Open Food Facts API v2 -> Built-in offline catalog),
+     * auto-populates a Room [Ingredient] entity (`name`, `quantity`, `unit`, `expiryDate`),
+     * and optionally inserts it into Room (`ingredients` and `pantry_items`).
+     */
+    suspend fun fetchProductAndPopulateIngredient(
+        rawBarcode: String,
+        persistToDatabase: Boolean = false
+    ): BarcodeIngredientLookupResult {
+        val barcode = OfflineBarcodeCache.normalizeBarcodeDigits(rawBarcode)
+        if (!OfflineBarcodeCache.isValidGroceryBarcode(barcode)) {
+            return BarcodeIngredientLookupResult(
+                barcode = barcode,
+                found = false,
+                source = BarcodeLookupSource.NOT_FOUND,
+                errorMessage = appContext.getString(R.string.tier0_barcode_invalid_error)
+            )
+        }
+
+        // 1. Offline-first persistent DataStore cache lookup
+        val cachedDetected = barcodeCache.getCachedIngredient(barcode)
+        val resolvedPair: Pair<DetectedIngredient, BarcodeLookupSource> = if (cachedDetected != null) {
+            cachedDetected to BarcodeLookupSource.OFFLINE_CACHE
+        } else {
+            // 2. Live Open Food Facts v2 API fetch via Retrofit/OkHttp/Gson with write-through caching
+            val apiResult = openFoodFactsRemoteDataSource.fetchProductByBarcode(barcode)
+            val apiDetected = apiResult.ingredient
+            if (apiResult.found && apiDetected != null) {
+                barcodeCache.putCachedIngredient(barcode, apiDetected)
+                apiDetected to BarcodeLookupSource.OPEN_FOOD_FACTS_API
+            } else {
+                return BarcodeIngredientLookupResult(
+                    barcode = barcode,
+                    found = false,
+                    source = BarcodeLookupSource.NOT_FOUND,
+                    errorMessage = apiResult.errorMessage
+                        ?: appContext.getString(R.string.tier0_barcode_not_found_fmt, barcode)
+                )
+            }
+        }
+
+        val (detected, source) = resolvedPair
+        val now = System.currentTimeMillis()
+        val populatedIngredient = mapDetectedProductToIngredient(detected, fromTimestampMillis = now)
+
+        var insertedRowId: Long? = null
+        if (persistToDatabase) {
+            val currentSetup = kitchenSetupFlow.first()
+            val clampedDays = detected.daysUntilExpiry.coerceIn(0, 365)
+            val pantryEntity = PantryItemEntity(
+                name = populatedIngredient.name,
+                category = detected.category.name,
+                quantity = detected.quantity.ifBlank { populatedIngredient.formattedQuantity }.trim(),
+                daysUntilExpiry = clampedDays,
+                expiryDateEpochMillis = populatedIngredient.expiryDate,
+                visualConditionNote = detected.visualConditionNote.trim(),
+                storageTip = detected.storageTip.trim(),
+                estimatedValueDollars = detected.estimatedValueDollars.coerceIn(0.50, 100.0),
+                stockPercent = inferStockPercentFromQuantity(detected.quantity),
+                lowStockThresholdPercent = currentSetup.lowStockThresholdPercent,
+                addedTimestamp = now,
+                updatedTimestamp = now
+            )
+            val itemId = dao.insertItem(pantryEntity)
+            val syncedIngredient = populatedIngredient.copy(id = itemId)
+            ingredientDao?.insertIngredient(syncedIngredient)
+            insertedRowId = itemId
+            syncLowStockToShoppingList()
+            PantryPulseWidgetProvider.updateAllWidgets(appContext)
+        }
+
+        return BarcodeIngredientLookupResult(
+            barcode = barcode,
+            found = true,
+            ingredient = populatedIngredient.copy(id = insertedRowId ?: 0L),
+            detectedIngredient = detected,
+            source = source,
+            persistedRowId = insertedRowId
+        )
     }
 
     suspend fun addDetectedIngredients(detected: List<DetectedIngredient>): List<String> {
@@ -336,9 +475,9 @@ class PantryRepository(
             return listOf(item.name)
         }
         val updatedQuantityLabel = when {
-            newStock <= 25 -> "Low (~$newStock% left)"
-            newStock <= 50 -> "Half (~$newStock% left)"
-            newStock >= 95 -> "Full pack (100%)"
+            newStock <= 25 -> appContext.getString(R.string.repo_stock_low_fmt, newStock)
+            newStock <= 50 -> appContext.getString(R.string.repo_stock_half_fmt, newStock)
+            newStock >= 95 -> appContext.getString(R.string.repo_stock_full)
             else -> item.quantity
         }
         val updated = item.copy(
@@ -519,7 +658,7 @@ class PantryRepository(
                 quantity = restockItem.suggestedQuantity,
                 daysUntilExpiry = restockItem.defaultExpiryDays,
                 expiryDateEpochMillis = freshExpiryMillis,
-                visualConditionNote = "Restocked to 100% from Smart Shopping List",
+                visualConditionNote = appContext.getString(R.string.repo_restocked_100_note),
                 stockPercent = 100,
                 updatedTimestamp = now
             )
@@ -532,7 +671,7 @@ class PantryRepository(
                 quantity = restockItem.suggestedQuantity,
                 daysUntilExpiry = restockItem.defaultExpiryDays,
                 expiryDateEpochMillis = freshExpiryMillis,
-                visualConditionNote = "Freshly restocked (100%) from Smart Shopping List",
+                visualConditionNote = appContext.getString(R.string.repo_freshly_restocked_note),
                 storageTip = restockItem.zeroWasteBuyingTip,
                 estimatedValueDollars = restockItem.estimatedCostDollars,
                 stockPercent = 100,
@@ -570,9 +709,56 @@ class PantryRepository(
         PantryPulseWidgetProvider.updateAllWidgets(appContext)
     }
 
+    suspend fun insertRecipe(recipe: Recipe, linkedIngredientIds: List<Long> = emptyList()): Long {
+        val rDao = recipeDao ?: return -1L
+        val insertedId = rDao.insertRecipe(recipe)
+        if (linkedIngredientIds.isNotEmpty()) {
+            rDao.insertRecipeIngredientCrossRefs(
+                linkedIngredientIds.distinct().map { ingId ->
+                    RecipeIngredientCrossRef(recipeId = insertedId, ingredientId = ingId)
+                }
+            )
+        }
+        return insertedId
+    }
+
+    suspend fun toggleRecipeFavorite(recipeId: Long, isFavorite: Boolean) {
+        recipeDao?.setRecipeFavorite(recipeId, isFavorite)
+    }
+
+    suspend fun deleteRecipe(recipeId: Long) {
+        recipeDao?.deleteRecipeById(recipeId)
+    }
+
     suspend fun saveGeneratedRecipes(recipes: List<RecipeSuggestion>) {
         dao.clearSavedRecipes()
         dao.insertSavedRecipes(recipes.map { it.toEntity() })
+
+        val rDao = recipeDao ?: return
+        rDao.deleteNonFavoriteRecipes()
+        val storedIngredients = ingredientDao?.getAllIngredientsSnapshot().orEmpty()
+        recipes.forEach { suggestion ->
+            val existing = rDao.getRecipeByExternalId(suggestion.id)
+            val entity = Recipe.fromRecipeSuggestion(
+                suggestion = suggestion,
+                id = existing?.id ?: 0L,
+                isFavorite = existing?.isFavorite ?: false
+            )
+            val recipeId = rDao.insertRecipe(entity)
+            if (storedIngredients.isNotEmpty()) {
+                val matchedIds = storedIngredients
+                    .filter { ing -> suggestion.matchesAvailableIngredient(ing.name) }
+                    .map { it.id }
+                if (matchedIds.isNotEmpty()) {
+                    rDao.deleteCrossRefsForRecipe(recipeId)
+                    rDao.insertRecipeIngredientCrossRefs(
+                        matchedIds.map { ingId ->
+                            RecipeIngredientCrossRef(recipeId = recipeId, ingredientId = ingId)
+                        }
+                    )
+                }
+            }
+        }
     }
 
     suspend fun completeRescueMeal(recipe: RecipeSuggestion, activeItems: List<PantryItemEntity>): List<String> {
@@ -596,13 +782,13 @@ class PantryRepository(
                 consumeItem(item, recordSavings = false)
                 rescuedValue += item.estimatedValueDollars
             } else {
-                dao.updateItem(
-                    item.copy(
-                        stockPercent = nextStock,
-                        quantity = "Low (~$nextStock% left after cooking)",
-                        updatedTimestamp = now
-                    )
+                val updatedItem = item.copy(
+                    stockPercent = nextStock,
+                    quantity = appContext.getString(R.string.repo_stock_after_cooking_fmt, nextStock),
+                    updatedTimestamp = now
                 )
+                dao.updateItem(updatedItem)
+                ingredientDao?.insertIngredient(Ingredient.fromPantryItemEntity(updatedItem))
                 rescuedValue += (item.estimatedValueDollars * 0.55)
             }
         }

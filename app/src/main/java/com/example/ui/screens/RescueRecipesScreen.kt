@@ -1,7 +1,13 @@
 package com.example.ui.screens
 
+import android.app.Activity
+import android.content.Intent
+import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -35,6 +41,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
@@ -84,6 +91,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.ai.AiFeatureType
+import com.example.ai.CookingVoiceCommand
+import com.example.ai.CookingVoiceCommandParser
 import com.example.ai.UsageQuotaSnapshot
 import com.example.data.KitchenSetupState
 import com.example.data.PantryItemEntity
@@ -92,7 +101,9 @@ import com.example.data.RecipeDietaryPreference
 import com.example.data.RecipeSuggestion
 import com.example.ui.RecipeGenerationUiState
 import com.example.ui.components.QuotaSoftNudgeBanner
+import com.example.ui.components.RecipeDishArtThumbnail
 import com.example.ui.components.SmartQuotaRecoveryCard
+import com.example.ui.components.WeeklyMealPlanCard
 import com.example.ui.components.tvFocusHighlight
 import com.example.ui.theme.CriticalCrimson
 import com.example.ui.theme.CriticalCrimsonContainer
@@ -132,13 +143,16 @@ fun RescueRecipesScreen(
     onOpenCookingMode: (RecipeSuggestion) -> Unit,
     onCloseCookingMode: () -> Unit,
     onCompleteCookingMeal: (RecipeSuggestion) -> Unit,
+    onSyncWeeklyPlanStaples: (List<String>) -> Unit = {},
+    onAskSousChefVoiceQuestion: (String) -> Unit = {},
     onNavigateBack: () -> Unit
 ) {
     if (activeCookingRecipe != null) {
         InteractiveCookingScreen(
             recipe = activeCookingRecipe,
             onBack = onCloseCookingMode,
-            onCompleteMeal = { onCompleteCookingMeal(activeCookingRecipe) }
+            onCompleteMeal = { onCompleteCookingMeal(activeCookingRecipe) },
+            onAskSousChefVoiceQuestion = onAskSousChefVoiceQuestion
         )
         return
     }
@@ -225,6 +239,14 @@ fun RescueRecipesScreen(
                 onToggleDietaryPreference = onToggleDietaryPreference,
                 onToggleIngredientFilter = onToggleIngredientFilter,
                 onClearAllFilters = onClearAllFilters
+            )
+        }
+
+        item {
+            WeeklyMealPlanCard(
+                pantryItems = pantryItems,
+                kitchenSetup = kitchenSetup,
+                onSyncMissingStaplesToShopping = onSyncWeeklyPlanStaples
             )
         }
 
@@ -784,6 +806,8 @@ private fun RankedRecipeCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
+            RecipeDishArtThumbnail(recipe = recipe)
+            Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1213,13 +1237,15 @@ private fun VisualChefPlatingDialog(
 private fun InteractiveCookingScreen(
     recipe: RecipeSuggestion,
     onBack: () -> Unit,
-    onCompleteMeal: () -> Unit
+    onCompleteMeal: () -> Unit,
+    onAskSousChefVoiceQuestion: (String) -> Unit = {}
 ) {
     BackHandler(onBack = onBack)
 
     val context = LocalContext.current
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     var isSpeaking by remember { mutableStateOf(false) }
+    var lastVoiceFeedback by rememberSaveable(recipe.id) { mutableStateOf<String?>(null) }
 
     DisposableEffect(context) {
         var instance: TextToSpeech? = null
@@ -1248,6 +1274,112 @@ private fun InteractiveCookingScreen(
 
     var timerSecondsRemaining by rememberSaveable(recipe.id) { mutableIntStateOf(180) }
     var isTimerRunning by rememberSaveable(recipe.id) { mutableStateOf(false) }
+
+    val voiceCommandLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val transcript = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+                ?.trim()
+                .orEmpty()
+            if (transcript.isNotBlank()) {
+                lastVoiceFeedback = transcript
+                when (val cmd = CookingVoiceCommandParser.parse(transcript)) {
+                    CookingVoiceCommand.NextStep -> {
+                        val nextIdx = completedSteps.indexOfFirst { !it }
+                        if (nextIdx >= 0) {
+                            completedSteps[nextIdx] = true
+                            val upcoming = nextIdx + 1
+                            if (upcoming < recipe.steps.size) {
+                                ttsEngine?.speak(
+                                    context.getString(R.string.tts_step_single_fmt, upcoming + 1, recipe.steps[upcoming]),
+                                    TextToSpeech.QUEUE_FLUSH,
+                                    null,
+                                    "voice_next_$upcoming"
+                                )
+                                isSpeaking = true
+                            } else {
+                                ttsEngine?.speak(
+                                    context.getString(R.string.cooking_voice_all_done),
+                                    TextToSpeech.QUEUE_FLUSH,
+                                    null,
+                                    "voice_done"
+                                )
+                                isSpeaking = true
+                            }
+                        }
+                    }
+                    CookingVoiceCommand.PreviousStep -> {
+                        val lastDone = completedSteps.indexOfLast { it }
+                        if (lastDone >= 0) {
+                            completedSteps[lastDone] = false
+                            ttsEngine?.speak(
+                                context.getString(R.string.tts_step_single_fmt, lastDone + 1, recipe.steps[lastDone]),
+                                TextToSpeech.QUEUE_FLUSH,
+                                null,
+                                "voice_prev_$lastDone"
+                            )
+                            isSpeaking = true
+                        }
+                    }
+                    CookingVoiceCommand.RepeatStep -> {
+                        val activeIdx = completedSteps.indexOfFirst { !it }.coerceAtLeast(0)
+                        recipe.steps.getOrNull(activeIdx)?.let { step ->
+                            ttsEngine?.speak(
+                                context.getString(R.string.tts_step_single_fmt, activeIdx + 1, step),
+                                TextToSpeech.QUEUE_FLUSH,
+                                null,
+                                "voice_repeat_$activeIdx"
+                            )
+                            isSpeaking = true
+                        }
+                    }
+                    CookingVoiceCommand.ReadAllSteps -> {
+                        val fullScript = buildString {
+                            append(context.getString(R.string.tts_cooking_title_fmt, recipe.title))
+                            recipe.steps.forEachIndexed { i, s ->
+                                append(context.getString(R.string.tts_step_fmt, i + 1, s))
+                            }
+                        }
+                        ttsEngine?.speak(fullScript, TextToSpeech.QUEUE_FLUSH, null, "voice_all")
+                        isSpeaking = true
+                    }
+                    CookingVoiceCommand.StopSpeaking -> {
+                        ttsEngine?.stop()
+                        isSpeaking = false
+                    }
+                    is CookingVoiceCommand.SetTimerSeconds -> {
+                        timerSecondsRemaining = cmd.seconds
+                        isTimerRunning = cmd.autoStart
+                        val label = String.format(Locale.US, "%d:%02d", cmd.seconds / 60, cmd.seconds % 60)
+                        ttsEngine?.speak(
+                            context.getString(R.string.cooking_voice_timer_set_fmt, label),
+                            TextToSpeech.QUEUE_FLUSH,
+                            null,
+                            "voice_timer"
+                        )
+                    }
+                    CookingVoiceCommand.StartTimer -> {
+                        if (timerSecondsRemaining == 0) timerSecondsRemaining = 180
+                        isTimerRunning = true
+                    }
+                    CookingVoiceCommand.PauseTimer -> {
+                        isTimerRunning = false
+                    }
+                    CookingVoiceCommand.ResetTimer -> {
+                        isTimerRunning = false
+                        timerSecondsRemaining = 180
+                    }
+                    is CookingVoiceCommand.AskSousChef -> {
+                        ttsEngine?.stop()
+                        onAskSousChefVoiceQuestion(cmd.question)
+                    }
+                }
+            }
+        }
+    }
 
     LaunchedEffect(isTimerRunning, timerSecondsRemaining) {
         if (isTimerRunning && timerSecondsRemaining > 0) {
@@ -1297,31 +1429,91 @@ private fun InteractiveCookingScreen(
                     )
                 }
 
-                OutlinedButton(
-                    onClick = {
-                        if (isSpeaking) {
-                            ttsEngine?.stop()
-                            isSpeaking = false
-                        } else {
-                            val fullScript = buildString {
-                                append(context.getString(R.string.tts_cooking_title_fmt, recipe.title))
-                                recipe.steps.forEachIndexed { i, s ->
-                                    append(context.getString(R.string.tts_step_fmt, i + 1, s))
-                                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Button(
+                        onClick = {
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(
+                                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                )
+                                putExtra(
+                                    RecognizerIntent.EXTRA_PROMPT,
+                                    context.getString(R.string.cooking_voice_prompt)
+                                )
                             }
-                            ttsEngine?.speak(fullScript, TextToSpeech.QUEUE_FLUSH, null, "recipe_all")
-                            isSpeaking = true
-                        }
-                    },
-                    modifier = Modifier.testTag("tts_read_all_button")
+                            try {
+                                voiceCommandLauncher.launch(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.voice_unavailable_toast),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("cooking_voice_command_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = stringResource(id = R.string.cd_cooking_voice_cmd),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(id = R.string.cooking_voice_cmd_btn),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            if (isSpeaking) {
+                                ttsEngine?.stop()
+                                isSpeaking = false
+                            } else {
+                                val fullScript = buildString {
+                                    append(context.getString(R.string.tts_cooking_title_fmt, recipe.title))
+                                    recipe.steps.forEachIndexed { i, s ->
+                                        append(context.getString(R.string.tts_step_fmt, i + 1, s))
+                                    }
+                                }
+                                ttsEngine?.speak(fullScript, TextToSpeech.QUEUE_FLUSH, null, "recipe_all")
+                                isSpeaking = true
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.testTag("tts_read_all_button")
+                    ) {
+                        Icon(
+                            imageVector = if (isSpeaking) Icons.Default.Stop else Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = stringResource(id = R.string.cd_hands_free_voice_guide),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(id = if (isSpeaking) R.string.btn_stop else R.string.btn_voice),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
+        }
+
+        if (!lastVoiceFeedback.isNullOrBlank()) {
+            item {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = if (isSpeaking) Icons.Default.Stop else Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = stringResource(id = R.string.cd_hands_free_voice_guide),
-                        modifier = Modifier.size(18.dp)
+                    Text(
+                        text = stringResource(id = R.string.cooking_voice_banner_fmt, lastVoiceFeedback.orEmpty()),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(id = if (isSpeaking) R.string.btn_stop else R.string.btn_voice))
                 }
             }
         }

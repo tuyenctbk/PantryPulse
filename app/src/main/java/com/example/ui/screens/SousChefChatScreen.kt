@@ -27,6 +27,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
@@ -66,6 +68,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -325,6 +328,7 @@ fun SousChefChatScreen(
             items(messages, key = { it.id }) { msg ->
                 ChatBubbleRow(
                     message = msg,
+                    modifier = Modifier.animateItem(),
                     onSpeakMessage = { textToRead ->
                         val cleanSpeech = textToRead.replace("**", "").replace("*", "")
                         ttsEngine?.speak(cleanSpeech, TextToSpeech.QUEUE_FLUSH, null, "bubble_${msg.id}")
@@ -429,6 +433,16 @@ fun SousChefChatScreen(
                         )
                     },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            if (inputText.isNotBlank() && chatUiState !is ChatUiState.Streaming) {
+                                val toSend = inputText
+                                inputText = ""
+                                onSendMessage(toSend)
+                            }
+                        }
+                    ),
                     shape = RoundedCornerShape(24.dp),
                     modifier = Modifier
                         .weight(1f)
@@ -472,10 +486,11 @@ fun SousChefChatScreen(
 @Composable
 private fun ChatBubbleRow(
     message: ChatMessage,
-    onSpeakMessage: (String) -> Unit
+    onSpeakMessage: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
     ) {
         Surface(
@@ -512,13 +527,13 @@ private fun ChatBubbleRow(
                         if (!message.isStreaming && message.text.isNotBlank()) {
                             IconButton(
                                 onClick = { onSpeakMessage(message.text) },
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                                     contentDescription = stringResource(id = R.string.cd_read_response_aloud),
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }

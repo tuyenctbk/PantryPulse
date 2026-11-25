@@ -136,8 +136,12 @@ fun SmartShoppingListScreen(
     var showAddForm by rememberSaveable { mutableStateOf(false) }
     var showThresholdControls by rememberSaveable { mutableStateOf(true) }
 
-    BackHandler(enabled = selectedManagerTab == ShoppingManagerTab.LOW_SUPPLY_INVENTORY) {
-        selectedManagerTab = ShoppingManagerTab.SHOPPING_LIST
+    BackHandler {
+        if (selectedManagerTab == ShoppingManagerTab.LOW_SUPPLY_INVENTORY) {
+            selectedManagerTab = ShoppingManagerTab.SHOPPING_LIST
+        } else {
+            onNavigateToPantry()
+        }
     }
 
     val defaultShoppingTip = stringResource(id = R.string.shopping_default_tip)

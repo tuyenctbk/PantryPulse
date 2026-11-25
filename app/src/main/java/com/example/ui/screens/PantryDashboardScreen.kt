@@ -113,8 +113,11 @@ import com.example.data.computeExpiryEpochMillis
 import com.example.data.formatExpiryDate
 import com.example.ui.PantrySortOrder
 import com.example.ui.PreservationCoachUiState
+import com.example.ui.components.DailyExpiryAlertsCard
 import com.example.ui.components.HomeCompactSupportBanner
+import com.example.ui.components.LocalSurplusMapsCard
 import com.example.ui.components.PostOperationValueRealizationCard
+import com.example.ui.components.pressScaleEffect
 import com.example.ui.components.rememberIsAndroidTv
 import com.example.ui.components.tvFocusHighlight
 import com.example.ui.engagement.EngagementSnapshot
@@ -124,6 +127,8 @@ import com.example.ui.theme.ExpiringAmber
 import com.example.ui.theme.ExpiringAmberContainer
 import com.example.ui.theme.FreshEmerald
 import com.example.ui.theme.FreshEmeraldContainer
+import com.example.ui.theme.HeroSubtleMintText
+import com.example.ui.theme.SplashTerracottaPulse
 import kotlin.math.roundToInt
 
 @Composable
@@ -282,6 +287,14 @@ fun PantryDashboardScreen(
                     expiringItems = expiringItems,
                     onPinOrRefreshWidget = onPinOrRefreshWidget
                 )
+            }
+
+            item {
+                DailyExpiryAlertsCard(expiringCount = expiringItems.size)
+            }
+
+            item {
+                LocalSurplusMapsCard()
             }
 
             if (restockItems.isNotEmpty()) {
@@ -1563,7 +1576,7 @@ private fun HeroPantryBanner(
                 Text(
                     text = stringResource(id = R.string.hero_impact_stats, rescuedMeals, savedDollars),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFD2E8DC)
+                    color = HeroSubtleMintText
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1575,12 +1588,13 @@ private fun HeroPantryBanner(
                     Button(
                         onClick = onSnapFridge,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE05A36),
+                            containerColor = SplashTerracottaPulse,
                             contentColor = Color.White
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                         modifier = Modifier
                             .weight(1f)
+                            .pressScaleEffect()
                             .tvFocusHighlight(shape = RoundedCornerShape(50))
                             .testTag("hero_snap_fridge_button")
                     ) {
@@ -1607,6 +1621,7 @@ private fun HeroPantryBanner(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                         modifier = Modifier
                             .weight(1f)
+                            .pressScaleEffect()
                             .tvFocusHighlight(shape = RoundedCornerShape(50))
                             .testTag("hero_plan_meals_button")
                     ) {
@@ -2057,7 +2072,7 @@ private fun PantryIngredientCard(
                         IconButton(
                             onClick = { onAdjustDays(-1) },
                             modifier = Modifier
-                                .size(38.dp)
+                                .size(42.dp)
                                 .testTag("decrease_days_${item.id}")
                         ) {
                             Icon(
@@ -2075,7 +2090,7 @@ private fun PantryIngredientCard(
                         IconButton(
                             onClick = { onAdjustDays(1) },
                             modifier = Modifier
-                                .size(38.dp)
+                                .size(42.dp)
                                 .testTag("increase_days_${item.id}")
                         ) {
                             Icon(
@@ -2094,7 +2109,7 @@ private fun PantryIngredientCard(
                     IconButton(
                         onClick = onOpenPreservationGuide,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(42.dp)
                             .testTag("preserve_item_${item.id}")
                     ) {
                         Icon(
@@ -2108,7 +2123,7 @@ private fun PantryIngredientCard(
                     IconButton(
                         onClick = onEdit,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(42.dp)
                             .testTag("edit_item_${item.id}")
                     ) {
                         Icon(
@@ -2122,7 +2137,7 @@ private fun PantryIngredientCard(
                     IconButton(
                         onClick = onDelete,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(42.dp)
                             .testTag("delete_item_${item.id}")
                     ) {
                         Icon(

@@ -1,232 +1,337 @@
 language_code,language_name,app_name,app_name_char_count,short_description,short_description_char_count,full_description,full_description_char_count
-en-US,English (United States),PantryPulse: Fridge Meal Plan,29,"Scan fridge shelves, track food expiry dates, and cook zero-waste rescue meals.",79,"PantryPulse helps households reduce food waste and plan practical daily dinners using the groceries already in their kitchen.
+en-US,English (United States),PantryPulse: Fridge Meal Plan,29,"Scan fridge shelves & barcodes, track expiry dates, cook zero-waste meals.",74,"PantryPulse helps households reduce food waste and plan practical daily dinners using the groceries already in their kitchen.
 
 KEY FEATURES
-• CameraX Fridge & Receipt Scanner: Snap a photo of open fridge shelves or grocery receipts (or pick from your photo library) to detect produce, dairy, proteins, and condiments with estimated freshness countdowns.
+• Live ML Kit Barcode & CameraX Scanner: Point the viewfinder at grocery barcodes for instant offline-cached Open Food Facts lookups, or snap fridge shelves and grocery receipts to detect items with freshness countdowns.
 • Manual & Hands-Free Voice Input: Prefer not to use a camera? Speak a multi-item grocery list or log ingredients manually with a custom builder and batch basket.
+• Weekly Zero-Waste Meal Planner & Expiry Alerts: Build 3-to-7 day meal plans prioritized by items expiring soonest, sync missing staples in one tap, and schedule local morning expiry reminders.
 • Freshness Pulse, Preservation Coach & Widget: Track items expiring within 72 hours, get storage and freezing tips to extend shelf life, and pin the countdown widget to your Android home screen.
-• 3 Ranked Rescue Recipes: Generate custom recipes prioritized by ingredients expiring soonest, tailored to your kitchen appliances (Air Fryer, Skillet, Instant Pot, Oven, Wok) and spice rack.
-• Smart Recipe Search & Filtering: Filter generated meals by Quick & Easy, Healthy/Low-Calorie, Budget-Friendly, dietary preferences, or available fridge ingredients.
+• 3 Ranked Rescue Recipes & Dish Cards: Generate custom recipes tailored to your appliances (Air Fryer, Skillet, Instant Pot, Oven, Wok) and spice rack, with Smart Search & Category Filters.
 • Smart Shopping List & Low-Stock Alerts: Automatically queues running-low or used-up items, tracks cart progress, restocks checked items to your pantry, and exports a shareable household checklist.
-• Zero-Waste Sous-Chef & Hands-Free Cooking: Ask substitution or food safety questions and follow step-by-step voice-guided cooking instructions with a built-in kitchen timer.
-• Android TV & Offline-First Design: Built for both phones and Android TV with full D-pad navigation, an offline Room database, and an on-device culinary fallback engine.",1618
-es-ES,Spanish (Spain),PantryPulse: Menú y Despensa,28,"Escanea tu nevera, controla vencimientos y cocina recetas sin desperdicio.",74,"PantryPulse ayuda a los hogares a reducir el desperdicio de alimentos y planificar cenas prácticas con los ingredientes disponibles en casa.
+• Hands-Free Voice Cooking & Sous-Chef: Control steps and timers by voice while cooking, ask substitution questions, and explore nearby community fridges or food banks via Maps.
+• Android TV, Offline-First & Flexible AI: Supports phones and Android TV D-pad navigation, local Room storage, Eco Lite mode, and encrypted Bring-Your-Own-Key (BYOK) Gemini support.
+
+WHAT'S NEW IN v1.3
+• EAN-13/UPC Barcode Scanning Utility + Retrofit/OkHttp/Gson Open Food Facts v2 API integration.
+• Refreshed adaptive app icon, store feature graphic, Android TV 16:9 banner & triple-ring splash animation.
+• 100% localized UI across 21 languages with zero hardcoded sample data.",1964
+es-ES,Spanish (Spain),PantryPulse: Menú y Despensa,28,"Escanea nevera y códigos de barras, controla fechas y cocina sin desperdicio.",77,"PantryPulse ayuda a los hogares a reducir el desperdicio de alimentos y planificar cenas prácticas con los ingredientes disponibles en casa.
 
 CARACTERÍSTICAS PRINCIPALES
-• Escáner CameraX de nevera y recibos: Fotografía los estantes de tu nevera o recibos de compra (o elige fotos de tu galería) para detectar verduras, lácteos, proteínas y salsas con cuenta regresiva de frescura.
+• Escáner CameraX y Códigos de Barras ML Kit: Apunta a códigos de barras para consultar Open Food Facts al instante (con caché sin conexión) o fotografía estantes y recibos para detectar alimentos y su frescura.
 • Entrada manual y por voz manos libres: Dicta varios alimentos con tu voz o regístralos manualmente con el formulario personalizado y cesta por lotes sin usar la cámara.
-• Pulso de frescura, conservación y widget: Supervisa los alimentos que vencen en 72 horas, recibe consejos de congelación y almacenamiento y fija el widget en tu pantalla de inicio.
-• 3 recetas rescate clasificadas: Crea recetas que priorizan los ingredientes próximos a vencer, adaptadas a tus electrodomésticos y especias.
-• Búsqueda y filtros inteligentes: Filtra recetas por Rápidas y fáciles, Saludables/Bajas en calorías, Económicas, preferencias dietéticas o ingredientes disponibles.
-• Lista de compras inteligente y stock bajo: Añade automáticamente los alimentos con stock bajo o agotados, repón tu despensa en un toque y comparte la lista familiar.
-• Sous-Chef cero residuos y cocina guiada: Consulta sustituciones, seguridad alimentaria y pasos de cocina guiados por voz con temporizador integrado.
-• Android TV y diseño sin conexión: Compatible con teléfonos y Android TV con navegación por cruceta, base de datos Room local y motor culinario sin internet.",1523
-fr-FR,French (France),PantryPulse: Frigo & Recettes,29,"Scannez le frigo, suivez les dates de péremption et cuisinez sans gaspillage.",77,"PantryPulse aide les foyers à réduire le gaspillage alimentaire et à préparer des repas quotidiens avec les ingrédients déjà présents en cuisine.
+• Planificador Semanal y Alertas Matutinas: Crea menús de 3 a 7 días priorizando ingredientes por vencer, sincroniza básicos en un toque y activa recordatorios locales de caducidad.
+• Pulso de frescura, conservación y widget: Supervisa alimentos que vencen en 72 horas, recibe consejos de congelación y fija el widget en tu pantalla de inicio.
+• 3 recetas rescate y filtros inteligentes: Crea platos adaptados a tus electrodomésticos y especias y filtra por Rápidas, Saludables, Económicas o dieta.
+• Lista de compras inteligente y stock bajo: Añade artículos casi agotados, repón tu despensa en un toque y comparte la lista familiar.
+• Cocina guiada por voz, Sous-Chef y Mapas: Controla pasos y temporizadores con tu voz, pregunta sustituciones y encuentra bancos de alimentos cercanos.
+• Android TV, modo sin conexión y clave BYOK: Compatible con Android TV, base local Room, modo Eco Lite y soporte cifrado para clave propia.
+
+NOVEDADES EN v1.3
+• Escáner EAN-13/UPC con ML Kit e integración Retrofit/OkHttp/Gson con Open Food Facts v2.
+• Nuevo icono adaptativo, gráfico de funciones, banner 16:9 para Android TV y animación de inicio.
+• Interfaz 100% localizada en 21 idiomas sin datos de muestra predefinidos.",1766
+fr-FR,French (France),PantryPulse: Frigo & Recettes,29,"Scannez frigo et codes-barres, suivez les dates et cuisinez anti-gaspi.",71,"PantryPulse aide les foyers à réduire le gaspillage alimentaire et à préparer des repas quotidiens avec les ingrédients déjà présents en cuisine.
 
 FONCTIONNALITÉS CLÉS
-• Scanner CameraX de frigo et tickets : Prenez en photo vos étagères de réfrigérateur ou tickets de caisse (ou importez depuis votre galerie) pour identifier légumes, produits laitiers et sauces avec suivi de fraîcheur.
-• Saisie manuelle et vocale mains libres : Dictez votre liste de courses à la voix ou saisissez vos produits manuellement avec le formulaire détaillé et le panier groupé.
-• Indice de fraîcheur, conservation et widget : Suivez les produits expirant sous 72 h, recevez des conseils de congélation et épinglez le widget sur votre écran d'accueil Android.
-• 3 recettes anti-gaspi classées : Générez des repas utilisant en priorité les ingrédients urgents selon vos appareils de cuisson et vos épices.
-• Recherche et filtres de recettes : Filtrez par Rapide et facile, Léger et équilibré, Économique, régime alimentaire ou ingrédients disponibles.
-• Liste de courses intelligente : Ajoute automatiquement les articles presque épuisés, réapprovisionne le garde-manger en un clic et partage la liste avec le foyer.
-• Sous-Chef zéro déchet et guide vocal : Posez vos questions sur les substitutions ou la sécurité alimentaire et cuisinez étape par étape avec minuteur intégré.
-• Android TV et mode hors ligne : Adapté aux téléphones et à Android TV (navigation télécommande), avec base locale Room et moteur culinaire embarqué.",1507
-de-DE,German (Germany),PantryPulse: Vorrat & Rezepte,29,"Kühlschrank scannen, Haltbarkeit prüfen und Reste-Rezepte ohne Verschwendung.",77,"PantryPulse unterstützt Haushalte dabei, Lebensmittelverschwendung zu vermeiden und schnelle Mahlzeiten aus vorhandenen Vorräten zu kochen.
+• Scanner CameraX & Codes-barres ML Kit : Visez un code-barres pour interroger Open Food Facts avec cache hors ligne, ou photographiez frigo et tickets pour estimer la fraîcheur.
+• Saisie manuelle et vocale mains libres : Dictez votre liste de courses à la voix ou saisissez vos produits manuellement sans caméra.
+• Planificateur Hebdo & Alertes d'expiration : Générez des menus sur 3 à 7 jours selon les dates limites, ajoutez les manquants en un clic et programmez des rappels matinaux.
+• Indice de fraîcheur, conservation et widget : Suivez les produits expirant sous 72 h, recevez des conseils de congélation et épinglez le widget d'accueil.
+• 3 recettes anti-gaspi et filtres : Créez des plats adaptés à vos appareils et épices, filtrables par Rapide, Léger, Économique ou régime.
+• Liste de courses intelligente : Ajoute les articles presque épuisés, réapprovisionne le garde-manger et partage la liste avec le foyer.
+• Cuisine vocale, Sous-Chef & Cartes : Pilotez étapes et minuteur à la voix, demandez des substitutions et trouvez des banques alimentaires proches.
+• Android TV, hors ligne & clé BYOK : Navigation télécommande Android TV, base Room locale, mode Eco Lite et prise en charge chiffrée de votre clé API.
+
+NOUVEAUTÉS v1.3
+• Utilitaire code-barres EAN-13/UPC ML Kit + intégration API Open Food Facts v2 via Retrofit/OkHttp/Gson.
+• Nouvelle icône adaptative, visuel de présentation, bannière Android TV 16:9 et écran d'accueil animé.
+• Interface 100 % traduite en 21 langues sans données d'exemple codées en dur.",1698
+de-DE,German (Germany),PantryPulse: Vorrat & Rezepte,29,"Kühlschrank & Barcodes scannen, Haltbarkeit prüfen, Reste sinnvoll kochen.",74,"PantryPulse unterstützt Haushalte dabei, Lebensmittelverschwendung zu vermeiden und schnelle Mahlzeiten aus vorhandenen Vorräten zu kochen.
 
 HAUPTFUNKTIONEN
-• CameraX Kühlschrank- & Kassenbon-Scanner: Fotografiere offene Kühlschrankfächer oder Einkaufsbons (oder wähle Fotos aus deiner Mediathek), um Gemüse, Milchprodukte und Saucen samt Frische-Countdown zu erfassen.
-• Manuelle & freihändige Spracheingabe: Diktiere mehrere Einkäufe per Sprache oder erfasse Zutaten manuell über das Detailformular und den Sammelkorb.
-• Frische-Puls, Haltbarkeits-Coach & Widget: Behalte Zutaten im Blick, die innerhalb von 72 Stunden ablaufen, nutze Einfrier- und Lagertipps und pinne das Countdown-Widget auf den Startbildschirm.
-• 3 Rettungs-Rezepte nach Priorität: Erhalte Rezeptvorschläge, die bald ablaufende Zutaten zuerst verbrauchen und zu deinen Küchengeräten sowie Gewürzen passen.
-• Rezeptsuche & Kategorienfilter: Filtere nach Schnell & Einfach, Gesund & Kalorienarm, Preisbewusst, Ernährungsweise oder vorhandenen Zutaten.
-• Smarte Einkaufsliste & Nachschub-Alarm: Fügt knappe oder aufgebrauchte Vorräte automatisch hinzu, bucht Einkäufe zurück in den Bestand und teilt Checklisten im Haushalt.
-• Zero-Waste Sous-Chef & Sprachführung: Frage nach Ersatzzutaten oder Lebensmittelsicherheit und koche Schritt für Schritt mit integriertem Küchentimer.
-• Android TV & Offline-Architektur: Optimiert für Smartphones und Android TV mit Steuerkreuz-Bedienung, lokaler Room-Datenbank und On-Device-Rezeptmotor.",1501
-it-IT,Italian (Italy),PantryPulse: Dispensa e Menu,28,"Scansiona il frigo, monitora le scadenze e cucina ricette antispreco.",69,"PantryPulse aiuta le famiglie a ridurre gli sprechi alimentari e a pianificare cene gustose con gli ingredienti già presenti in casa.
+• CameraX & ML Kit Barcode-Scanner: Scanne Barcodes in Echtzeit über Open Food Facts (mit Offline-Cache) oder fotografiere Kühlschrank und Kassenbons samt Frische-Countdown.
+• Manuelle & freihändige Spracheingabe: Diktiere mehrere Einkäufe per Sprache oder erfasse Zutaten manuell über Formular und Sammelkorb.
+• Wochenplaner & Ablauf-Erinnerungen: Erstelle 3-bis-7-Tage-Pläne nach Ablaufdatum, synchronisiere fehlende Basics per Tipp und aktiviere lokale Morgen-Alarme.
+• Frische-Puls, Haltbarkeits-Coach & Widget: Behalte Zutaten unter 72 Stunden im Blick, nutze Einfriertipps und pinne das Countdown-Widget an.
+• 3 Rettungs-Rezepte & smarte Filter: Angepasst an Küchengeräte und Gewürze, filterbar nach Schnell, Gesund, Preisbewusst oder Ernährung.
+• Smarte Einkaufsliste & Nachschub: Fügt knappe Vorräte automatisch hinzu, bucht Einkäufe zurück und teilt Checklisten im Haushalt.
+• Sprachgeführtes Kochen, Sous-Chef & Karten: Steuere Schritte und Timer per Sprache, frage nach Ersatz und finde lokale Tafeln via Maps.
+• Android TV, Offline-First & BYOK: Steuerkreuz-Navigation, lokale Room-Datenbank, Eco-Lite-Modus und verschlüsselter eigener API-Schlüssel.
+
+NEU IN v1.3
+• EAN-13/UPC-Barcode-Scanner mit ML Kit + Retrofit/OkHttp/Gson Open Food Facts v2-Integration.
+• Neues adaptives App-Symbol, Funktionsgrafik, 16:9 Android TV-Banner & animierter Startbildschirm.
+• 100 % lokalisierte Oberfläche in 21 Sprachen ohne fest codierte Beispieldaten.",1608
+it-IT,Italian (Italy),PantryPulse: Dispensa e Menu,28,"Scansiona frigo e codici a barre, monitora scadenze e cucina antispreco.",72,"PantryPulse aiuta le famiglie a ridurre gli sprechi alimentari e a pianificare cene gustose con gli ingredienti già presenti in casa.
 
 FUNZIONALITÀ PRINCIPALI
-• Scanner CameraX per frigo e scontrini: Fotografa i ripiani del frigorifero o lo scontrino (o scegli foto dalla libreria) per rilevare verdure, latticini e salse con conto alla rovescia di freschezza.
-• Inserimento manuale e vocale: Detta la lista della spesa a voce o registra gli ingredienti manualmente con il modulo personalizzato e il cestino multiplo.
-• Indice di freschezza, conservazione e widget: Controlla i cibi in scadenza entro 72 ore, ottieni consigli su congelamento e conservazione e fissa il widget sulla schermata Home.
-• 3 ricette salva-cibo classificate: Genera ricette che danno priorità agli ingredienti in scadenza, calibrate sui tuoi elettrodomestici e spezie.
-• Ricerca e filtri intelligenti: Filtra le ricette per Veloci e facili, Leggere e salutari, Economiche, preferenze alimentari o ingredienti disponibili.
-• Lista della spesa smart e scorte basse: Aggiunge automaticamente gli alimenti in esaurimento, rifornisce la dispensa in un tocco e condivide la lista in famiglia.
-• Sous-Chef antispreco e guida vocale: Chiedi consigli su sostituzioni e sicurezza alimentare e segui i passaggi di cottura con timer integrato.
-• Android TV e funzionamento offline: Progettata per smartphone e Android TV con navigazione D-pad, database locale Room e motore culinario offline.",1456
-pt-BR,Portuguese (Brazil),PantryPulse: Geladeira e Menu,29,"Escaneie a geladeira, acompanhe validades e faça receitas sem desperdício.",74,"O PantryPulse ajuda você a reduzir o desperdício de alimentos e planejar refeições práticas usando os ingredientes que já estão na sua cozinha.
+• Scanner CameraX e Codici a Barre ML Kit: Inquadra un codice a barre per cercare prodotti su Open Food Facts (con cache offline) o fotografa ripiani e scontrini con conto alla rovescia di freschezza.
+• Inserimento manuale e vocale: Detta la lista della spesa a voce o registra gli ingredienti manualmente con modulo dedicato e cestino multiplo.
+• Piano Settimanale e Avvisi di Scadenza: Crea menu da 3 a 7 giorni dando priorità ai cibi in scadenza, aggiungi gli essenziali in un tocco e imposta promemoria mattutini.
+• Indice di freschezza, conservazione e widget: Controlla i cibi in scadenza entro 72 ore, ottieni consigli su congelamento e fissa il widget sulla Home.
+• 3 ricette salva-cibo e filtri: Ricette calibrate su elettrodomestici e spezie, filtrabili per Veloci, Leggere, Economiche o dieta.
+• Lista della spesa smart: Aggiunge automaticamente gli alimenti in esaurimento, rifornisce la dispensa e condivide la lista in famiglia.
+• Guida vocale, Sous-Chef e Mappe: Comanda timer e passaggi con la voce, chiedi sostituzioni e scopri frigoriferi solidali o banchi alimentari vicini.
+• Android TV, offline e chiave BYOK: Navigazione D-pad per Android TV, database Room locale, modalità Eco Lite e supporto cifrato per chiave personale.
+
+NOVITÀ NELLA v1.3
+• Scansione codici EAN-13/UPC con ML Kit + integrazione API Open Food Facts v2 tramite Retrofit/OkHttp/Gson.
+• Nuova icona adattiva, grafica di presentazione, banner Android TV 16:9 e animazione splash.
+• Interfaccia localizzata al 100% in 21 lingue senza dati di esempio preimpostati.",1709
+pt-BR,Portuguese (Brazil),PantryPulse: Geladeira e Menu,29,"Escaneie geladeira e códigos de barras, acompanhe validades e evite perdas.",75,"O PantryPulse ajuda você a reduzir o desperdício de alimentos e planejar refeições práticas usando os ingredientes que já estão na sua cozinha.
 
 RECURSOS PRINCIPAIS
-• Scanner CameraX de geladeira e notas: Fotografe prateleiras da geladeira ou cupons fiscais (ou escolha fotos da galeria) para identificar vegetais, laticínios e molhos com estimativa de validade.
-• Entrada manual e por voz: Dite vários itens da compra por voz ou cadastre ingredientes manualmente com o formulário completo e a cesta em lote.
-• Pulso de frescor, conservação e widget: Acompanhe itens que vencem em até 72 horas, receba dicas de congelamento e fixe o widget de contagem regressiva na tela inicial.
-• 3 receitas resgate classificadas: Gere receitas que priorizam os ingredientes prestes a vencer, adaptadas aos seus eletrodomésticos e temperos.
-• Busca e filtros de receitas: Filtre pratos por Rápido e Fácil, Saudável/Baixa Caloria, Econômico, restrições alimentares ou ingredientes disponíveis.
-• Lista de compras inteligente: Adiciona automaticamente itens com estoque baixo ou acabando, reabastece a despensa em um toque e exporta a lista da casa.
-• Sous-Chef zero desperdício e modo mãos livres: Tire dúvidas sobre substituições e segurança alimentar e cozinhe passo a passo com cronômetro integrado.
-• Android TV e funcionamento offline: Compatível com celulares e Android TV com controle direcional, banco Room local e motor culinário offline.",1431
-ja-JP,Japanese (Japan),PantryPulse: 冷蔵庫在庫と献立,21,冷蔵庫の棚やレシートをスキャンし、賞味期限管理と食品ロス削減レシピを作成。,37,"PantryPulseは、ご家庭の冷蔵庫にある食材を活かして食品ロスを減らし、毎日の献立づくりをスマートにサポートするアプリです。
+• Scanner CameraX e Códigos de Barras ML Kit: Aponte para códigos de barras com consulta Open Food Facts em cache offline ou fotografe a geladeira e cupons fiscais com estimativa de validade.
+• Entrada manual e por voz: Dite vários itens da compra por voz ou cadastre ingredientes manualmente sem usar a câmera.
+• Plano Semanal e Alertas Matinais: Monte cardápios de 3 a 7 dias priorizando itens perto do vencimento, adicione faltantes em um toque e ative lembretes locais.
+• Pulso de frescor, conservação e widget: Acompanhe itens que vencem em até 72 horas, veja dicas de congelamento e fixe o widget na tela inicial.
+• 3 receitas resgate e filtros: Pratos adaptados aos seus aparelhos e temperos, com filtros por Rápido, Saudável, Econômico ou dieta.
+• Lista de compras inteligente: Adiciona automaticamente itens acabando, reabastece a despensa em um toque e exporta a lista da família.
+• Cozinha por voz, Sous-Chef e Mapas: Controle etapas e cronômetro pela voz, tire dúvidas de substituição e encontre bancos de alimentos próximos.
+• Android TV, offline e chave BYOK: Suporte a controle direcional na TV, banco Room local, modo Eco Lite e chave própria criptografada.
+
+NOVIDADES NA v1.3
+• Leitor de código de barras EAN-13/UPC com ML Kit + API Open Food Facts v2 via Retrofit/OkHttp/Gson.
+• Novo ícone adaptável, gráfico de destaque, banner 16:9 para Android TV e tela inicial animada.
+• Interface 100% localizada em 21 idiomas sem dados de exemplo fixos.",1626
+ja-JP,Japanese (Japan),PantryPulse: 冷蔵庫在庫と献立,21,冷蔵庫やバーコードをスキャンし、賞味期限管理と食品ロス削減レシピを作成。,36,"PantryPulseは、ご家庭の冷蔵庫にある食材を活かして食品ロスを減らし、毎日の献立づくりをスマートにサポートするアプリです。
 
 主な機能
-• CameraX 冷蔵庫＆レシートスキャン：冷蔵庫の棚や買い物レシートを撮影（または写真ライブラリから選択）するだけで、野菜・乳製品・調味料と推定残り日数を自動検出します。
-• 手動＆ハンズフリー音声入力：カメラを使わずに音声で複数食材を読み上げたり、カスタム入力フォームとまとめ登録バスケットで手軽に在庫管理できます。
+• ML Kit バーコード＆CameraXスキャン：商品のバーコードをリアルタイムスキャンしてオフラインキャッシュ対応のOpen Food Factsから即登録。冷蔵庫の棚やレシート撮影にも対応。
+• 手動＆ハンズフリー音声入力：カメラを使わずに音声で複数食材を読み上げたり、入力フォームやまとめ登録で手軽に在庫管理できます。
+• 週間ゼロウェイスト献立＆朝のリマインダー：期限間近の食材を優先した3〜7日分の献立を作成し、不足品を買い物リストへ一括追加。朝の期限通知も設定可能。
 • 鮮度パルス＆保存コーチ＆ウィジェット：72時間以内に期限を迎える食材を一覧表示し、冷凍・保存アドバイスとホーム画面ウィジェットで鮮度を守ります。
-• 優先度順・救済レシピ3選：期限間近の食材を優先消費するレシピを、お持ちの調理家電（エアフライヤー、フライパン、オーブンなど）やスパイスに合わせて提案します。
-• レシピ検索＆カテゴリ絞り込み：「時短＆簡単」「ヘルシー・低カロリー」「節約レシピ」や食事スタイル、在庫食材で自在に絞り込めます。
-• スマート買い物リスト＆在庫低下アラート：残量が少ない・使い切った食材を自動で追加し、購入後の在庫補充や家族へのリスト共有もワンタップです。
-• スーシェフ相談＆音声ガイド調理：代用食材や安全性の質問に答え、キッチンタイマー付きの音声読み上げガイドで調理をサポートします。
-• Android TV＆オフライン設計：スマホとAndroid TV（リモコン操作対応）の両方で動作し、ローカルRoomデータベースと端末内エンジンでオフラインでも安心です。",683
-ko-KR,Korean (Korea),PantryPulse: 냉장고 재고와 식단,23,냉장고 선반과 영수증을 스캔해 소비기한을 관리하고 맞춤 구출 레시피를 요리하세요.,45,"PantryPulse는 가정 내 식재료 낭비를 줄이고 냉장고 속 재료로 실용적인 저녁 식단을 계획하도록 돕는 제로웨이스트 요리 도우미입니다.
+• 優先度順レシピ3選＆検索絞り込み：お持ちの調理家電とスパイスに合わせ、「時短」「ヘルシー」「節約」や食事スタイルで検索できます。
+• スマート買い物リスト＆在庫補充：残量が少ない食材を自動追加し、購入後の在庫補充や家族への共有もワンタップです。
+• 音声ガイド調理・スーシェフ・周辺マップ：音声で手順やタイマーを操作し、代用食材の相談や近くのフードバンク検索も行えます。
+• Android TV・オフライン・BYOK対応：Android TVのリモコン操作、ローカルRoom DB、エコライトモード、暗号化BYOKキーに対応。
+
+v1.3 の新機能
+• ML Kit EAN-13/UPC バーコードスキャンと Retrofit/OkHttp/Gson による Open Food Facts v2 API 連携。
+• 新しいアダプティブアイコン、フィーチャーグラフィック、Android TV バナー、3重リングスプラッシュアニメーション。
+• サンプルデータを完全排除し、全21言語の完全ローカライズに対応。",848
+ko-KR,Korean (Korea),PantryPulse: 냉장고 재고와 식단,23,냉장고와 바코드를 스캔해 소비기한을 관리하고 맞춤 구출 레시피를 요리하세요.,42,"PantryPulse는 가정 내 식재료 낭비를 줄이고 냉장고 속 재료로 실용적인 저녁 식단을 계획하도록 돕는 제로웨이스트 요리 도우미입니다.
 
 주요 기능
-• CameraX 냉장고 및 영수증 스캐너: 열린 냉장고 선반이나 마트 영수증을 촬영하거나 사진 보관함에서 선택해 채소, 유제품, 소스와 예상 소비기한을 감지합니다.
+• ML Kit 바코드 및 CameraX 스캐너: 실시간 바코드 인식으로 오프라인 캐시 기반 Open Food Facts 상품을 즉시 등록하고, 냉장고 선반과 영수증 촬영도 지원합니다.
 • 수동 및 핸즈프리 음성 입력: 카메라 없이 음성으로 장보기 목록을 말하거나 직접 입력 폼과 일괄 장바구니로 간편하게 재고를 기록하세요.
-• 신선도 펄스, 보관 코치 및 위젯: 72시간 이내 만료되는 재료를 한눈에 파악하고 냉동·보관 팁과 홈 화면 카운트다운 위젯으로 신선도를 지키세요.
-• 우선순위 구출 레시피 3선: 기한이 임박한 재료를 먼저 소진하는 레시피를 보유 조리기구와 향신료에 맞춰 생성합니다.
-• 스마트 레시피 검색 및 필터: 빠르고 간편한 요리, 건강/저칼로리, 알뜰 식단, 식단 선호도 및 보유 식재료별로 필터링하세요.
-• 스마트 장보기 목록 및 재고 부족 알림: 부족하거나 다 쓴 식재료를 자동으로 추가하고, 구매 완료 항목을 팬트리에 즉시 보충하며 가족과 체크리스트를 공유하세요.
-• 제로웨이스트 수셰프 및 음성 요리 가이드: 대체 식재료와 식품 안전을 질문하고 내장 타이머와 음성 안내로 단계별 요리를 완성하세요.
-• Android TV 및 오프라인 우선 지원: 스마트폰과 Android TV(리모컨 방향키 탐색) 모두 지원하며 로컬 Room DB와 온디바이스 엔진으로 오프라인에서도 안정적입니다.",751
-zh-CN,Chinese (Simplified),PantryPulse: 冰箱食材与食谱,20,扫描冰箱隔层与购物小票，管理食材保鲜期并生成零浪费家常食谱。,30,"PantryPulse 帮助家庭减少食物浪费，利用厨房现有食材轻松规划每日晚餐。
+• 주간 식단 플래너 및 아침 만료 알림: 기한 임박 재료 중심의 3~7일 식단을 구성해 부족한 품목을 원탭 추가하고 매일 아침 로컬 알림을 받아보세요.
+• 신선도 펄스, 보관 코치 및 위젯: 72시간 이내 만료되는 재료를 확인하고 냉동·보관 팁과 홈 화면 카운트다운 위젯으로 신선도를 지키세요.
+• 우선순위 구출 레시피 3선 및 스마트 필터: 보유 조리기구와 향신료에 맞춘 요리를 간편/건강/알뜰/식단별로 필터링하세요.
+• 스마트 장보기 목록 및 재고 부족 알림: 부족한 식재료를 자동 추가하고 구매 후 즉시 보충하며 가족과 체크리스트를 공유하세요.
+• 음성 요리 제어, 수셰프 및 주변 지도: 음성으로 단계와 타이머를 제어하고 대체 재료를 질문하며 주변 푸드뱅크를 찾을 수 있습니다.
+• Android TV, 오프라인 및 BYOK 지원: Android TV 리모컨 탐색, 로컬 Room DB, 에코 라이트 모드, 암호화된 개인 API 키(BYOK)를 지원합니다.
+
+v1.3 새로운 기능
+• ML Kit EAN-13/UPC 바코드 스캔 유틸리티 및 Retrofit/OkHttp/Gson 기반 Open Food Facts v2 API 연동.
+• 새로워진 적응형 앱 아이콘, 그래픽 이미지, Android TV 배너 및 3중 링 스플래시 애니메이션.
+• 하드코딩된 샘플 데이터 제거 및 21개 언어 100% 현지화 완료.",950
+zh-CN,Chinese (Simplified),PantryPulse: 冰箱食材与食谱,20,实时扫描条码与冰箱，管理食材保鲜期并规划零浪费每周食谱。,28,"PantryPulse 帮助家庭减少食物浪费，利用厨房现有食材轻松规划每日晚餐。
 
 核心功能
-• CameraX 冰箱与小票视觉扫描：拍摄打开的冰箱隔层或超市小票（或从相册选取），自动识别蔬果、乳制品、肉类和酱料，并估算保鲜倒计时。
-• 手动与免提语音录入：无需相机，直接语音说出多项采购食材，或使用自定义表单与批量篮子快速登记库存。
-• 新鲜度脉搏、保鲜顾问与桌面小组件：直观追踪72小时内临期食材，获取冷冻与储存保鲜建议，并将倒计时小组件固定到 Android 主屏幕。
-• 3道智能排序拯救食谱：优先消耗临期食材，结合您的厨房电器（空气炸锅、平底锅、电压力锅、烤箱等）与香料架定制食谱。
-• 食谱搜索与多维筛选：支持按快手易做、健康低卡、经济实惠、饮食偏好或现有冰箱食材筛选食谱。
-• 智能购物清单与低库存提醒：自动将库存不足或用完的食材加入清单，勾选后一键补货入库，并可导出分享给家人。
-• 零浪费副主厨与语音导引烹饪：随时咨询食材替换与食品安全，配合内置厨房计时器与语音播报完成分步烹饪。
-• 支持 Android TV 与离线优先：适配手机及 Android TV 遥控器方向键导航，搭配本地 Room 数据库与设备端离线引擎。",520
-zh-TW,Chinese (Traditional),PantryPulse: 冰箱庫存與食譜,20,掃描冰箱層架與購物收據，追蹤食材到期日並打造零浪費家常料理。,30,"PantryPulse 協助家庭減少食物浪費，善用廚房現有食材輕鬆規劃每日餐點。
+• ML Kit 实时条码与 CameraX 扫描：实时识别商品条码并结合离线缓存查询 Open Food Facts，或拍摄冰箱隔层与购物小票估算保鲜倒计时。
+• 手动与免提语音录入：无需相机，直接语音说出多项采购食材，或使用自定义表单与批量篮子快速登记。
+• 每周零浪费食谱规划与清晨提醒：按临期顺序生成 3 至 7 天膳食计划，一键同步缺货基础料至清单，并接收本地临期通知。
+• 新鲜度脉搏、保鲜顾问与桌面小组件：追踪 72 小时内临期食材，获取冷冻储存建议并固定桌面小组件。
+• 3 道拯救食谱与智能筛选：结合厨房电器与香料架生成菜谱，支持快手、健康、省钱和饮食偏好筛选。
+• 智能购物清单与补货：自动记录低库存商品，勾选后一键入库，并分享给家人。
+• 语音控厨、副主厨与周边地图：烹饪时语音切步与定时，咨询替代食材，并在地图查找社区冰箱与食物银行。
+• Android TV、离线优先与 BYOK：适配电视遥控导航、本地 Room 数据库、节能轻享模式及加密自备密钥。
+
+v1.3 更新内容
+• 新增 ML Kit EAN-13/UPC 条码扫描工具与 Retrofit/OkHttp/Gson Open Food Facts v2 数据层。
+• 焕新自适应应用图标、商店置顶大图、Android TV 横幅与三环脉冲启动动画。
+• 移除所有硬编码示例数据，完成 21 种语言 100% 本地化翻译。",652
+zh-TW,Chinese (Traditional),PantryPulse: 冰箱庫存與食譜,20,即時掃描條碼與冰箱，掌握食材到期日並規劃零浪費每週料理。,28,"PantryPulse 協助家庭減少食物浪費，善用廚房現有食材輕鬆規劃每日餐點。
 
 主要特色
-• CameraX 冰箱與收據視覺掃描：拍攝打開的冰箱層架或超市收據（或從相簿選取），自動辨識蔬果、乳製品與醬料，並推算保鮮倒數天數。
-• 手動與免持語音輸入：不需開啟相機，直接語音念出多項採買食材，或透過自訂表單與批次購物籃輕鬆登錄庫存。
-• 新鮮度脈搏、保鮮教練與小工具：掌握72小時內即期食材，獲得冷凍與保存延長技巧，並將倒數小工具釘選至 Android 主畫面。
-• 3道智慧排序拯救食譜：優先消耗即期食材，並依照您的廚房家電（氣炸鍋、平底鍋、壓力鍋、烤箱等）與香料架量身打造食譜。
-• 智慧搜尋與分類篩選：可依快速簡單、健康低卡、經濟實惠、飲食偏好或冰箱現有食材篩選料理。
-• 智慧購物清單與低庫存提醒：自動加入庫存偏低或已用完的食材，勾選後一鍵補貨至食材庫，並可匯出與家人共享清單。
-• 零浪費副主廚與語音料理導引：隨時詢問食材替換與保存安全，搭配內建計時器與語音朗讀完成步驟料理。
-• Android TV 與離線優先設計：支援手機與 Android TV 遙控器方向鍵瀏覽，內建本機 Room 資料庫與離線料理引擎。",513
-vi-VN,Vietnamese,PantryPulse: Tủ Bếp & Món Ăn,28,"Quét tủ lạnh, theo dõi hạn dùng thực phẩm và gợi ý món ngon tránh lãng phí.",75,"PantryPulse giúp gia đình bạn giảm lãng phí thực phẩm và lên thực đơn bữa tối thiết thực từ những nguyên liệu sẵn có trong bếp.
+• ML Kit 即時條碼與 CameraX 掃描：即時辨識商品條碼並結合離線快取查詢 Open Food Facts，或拍攝冰箱層架與收據估算保鮮倒數天數。
+• 手動與免持語音輸入：無需相機，語音念出多項食材或使用自訂表單與批次購物籃輕鬆登錄庫存。
+• 每週零浪費餐單與晨間到期提醒：依即期優先排定 3 至 7 天菜單，一鍵同步缺少的常備料並設定本機到期通知。
+• 新鮮度脈搏、保鮮教練與小工具：掌握 72 小時內即期食材，獲得冷凍保存技巧並釘選桌面小工具。
+• 3 道拯救食譜與智慧篩選：依家電與香料架量身打造料理，支援快速、健康、省錢與飲食偏好篩選。
+• 智慧購物清單與補貨：自動加入低庫存項目，勾選後一鍵補貨至食材庫並分享給家人。
+• 語音控廚、副主廚與周邊地圖：做菜時語音切換步驟與計時，詢問替換建議並透過地圖尋找社區冰箱與食物銀行。
+• Android TV、離線優先與 BYOK：支援電視遙控方向鍵操作、本機 Room 資料庫、節能輕量模式與加密自備金鑰。
+
+v1.3 更新內容
+• 新增 ML Kit EAN-13/UPC 條碼掃描工具與 Retrofit/OkHttp/Gson Open Food Facts v2 資料層。
+• 煥新自適應應用程式圖示、商店精選圖片、Android TV 橫幅與三環脈衝啟動動畫。
+• 移除所有硬編碼範例資料，完成 21 種語言 100% 在地化翻譯。",650
+vi-VN,Vietnamese,PantryPulse: Tủ Bếp & Món Ăn,28,"Quét mã vạch & tủ lạnh, theo dõi hạn dùng và lên thực đơn tránh lãng phí.",73,"PantryPulse giúp gia đình bạn giảm lãng phí thực phẩm và lên thực đơn bữa tối thiết thực từ những nguyên liệu sẵn có trong bếp.
 
 TÍNH NĂNG NỔI BẬT
-• Quét Tủ Lạnh & Hóa Đơn CameraX: Chụp ảnh ngăn tủ lạnh hoặc hóa đơn đi chợ (hoặc chọn ảnh từ thư viện) để nhận diện rau củ, thịt cá, sữa và nước sốt kèm đếm ngược độ tươi.
-• Nhập Tay & Giọng Nói Rảnh Tay: Không cần máy ảnh — đọc danh sách thực phẩm bằng giọng nói hoặc nhập thủ công theo từng món và giỏ lưu hàng loạt.
-• Nhịp Độ Tươi, Mẹo Bảo Quản & Tiện Ích: Theo dõi thực phẩm sắp hết hạn trong 72 giờ, nhận hướng dẫn cấp đông kéo dài hạn dùng và ghim tiện ích đếm ngược ra màn hình chính.
-• 3 Công Thức Giải Cứu Xếp Hạng: Gợi ý món ăn ưu tiên dùng hết nguyên liệu sắp hỏng, tùy chỉnh theo thiết bị bếp (Nồi chiên không dầu, Chảo, Nồi áp suất, Lò nướng) và kệ gia vị.
-• Tìm Kiếm & Bộ Lọc Thông Minh: Lọc món ăn theo Nhanh & Dễ, Lành mạnh/Ít calo, Tiết kiệm chi phí, chế độ ăn hoặc nguyên liệu sẵn có.
-• Danh Sách Mua Sắm Thông Minh: Tự động thêm món sắp hết hoặc đã dùng hết, bổ sung lại tủ lạnh chỉ với 1 chạm và chia sẻ danh sách cho cả nhà.
-• Bếp Phó Không Lãng Phí & Hướng Dẫn Giọng Nói: Hỏi đáp mẹo thay thế nguyên liệu, an toàn thực phẩm và nấu từng bước với đồng hồ bấm giờ tích hợp.
-• Hỗ Trợ Android TV & Ngoại Tuyến: Hoạt động mượt mà trên điện thoại lẫn Android TV (điều khiển D-pad), lưu trữ Room cục bộ và công cụ dự phòng ngay trên thiết bị.",1404
-hi-IN,Hindi (India),PantryPulse: फ्रिज और रेसिपी,28,"फ्रिज स्कैन करें, ताज़गी ट्रैक करें और बची सामग्री से स्वादिष्ट भोजन पकाएं।",75,"PantryPulse परिवारों को भोजन की बर्बादी रोकने और रसोई में मौजूद सामग्री से रोज़मर्रा के स्वादिष्ट भोजन की योजना बनाने में मदद करता है।
+• Quét Mã Vạch ML Kit & CameraX: Quét mã vạch theo thời gian thực với bộ nhớ đệm ngoại tuyến Open Food Facts hoặc chụp ngăn tủ lạnh, hóa đơn để đếm ngược độ tươi.
+• Nhập Tay & Giọng Nói Rảnh Tay: Đọc danh sách thực phẩm bằng giọng nói hoặc nhập thủ công với giỏ lưu hàng loạt không cần camera.
+• Thực Đơn Tuần & Nhắc Hạn Sáng Sớm: Lập kế hoạch 3–7 ngày ưu tiên món sắp hết hạn, đồng bộ đồ thiếu sang danh sách mua sắm và bật thông báo nhắc buổi sáng.
+• Nhịp Độ Tươi, Mẹo Bảo Quản & Tiện Ích: Theo dõi món hết hạn trong 72 giờ, xem hướng dẫn cấp đông và ghim tiện ích ra màn hình chính.
+• 3 Công Thức Giải Cứu & Bộ Lọc: Gợi ý món theo thiết bị bếp và gia vị, lọc theo Nhanh, Lành mạnh, Tiết kiệm hoặc chế độ ăn.
+• Danh Sách Mua Sắm Thông Minh: Tự động thêm món sắp hết, bổ sung lại tủ bếp 1 chạm và chia sẻ danh sách cho gia đình.
+• Nấu Ăn Bằng Giọng Nói, Bếp Phó & Bản Đồ: Điều khiển bước nấu và hẹn giờ bằng giọng nói, hỏi thay thế nguyên liệu và tìm tủ lạnh cộng đồng gần bạn.
+• Android TV, Ngoại Tuyến & BYOK: Hỗ trợ điều hướng TV, dữ liệu Room cục bộ, chế độ Tiết kiệm và khóa API cá nhân mã hóa.
+
+WHAT'S NEW IN v1.3
+• EAN-13/UPC Barcode Scanning Utility + Retrofit/OkHttp/Gson Open Food Facts v2 API integration.
+• Refreshed adaptive app icon, store feature graphic, Android TV 16:9 banner & triple-ring splash animation.
+• 100% localized UI across 21 languages with zero hardcoded sample data.",1546
+hi-IN,Hindi (India),PantryPulse: फ्रिज और रेसिपी,28,"फ्रिज व बारकोड स्कैन करें, ताज़गी ट्रैक करें और ज़ीरो-वेस्ट भोजन पकाएं।",71,"PantryPulse परिवारों को भोजन की बर्बादी रोकने और रसोई में मौजूद सामग्री से रोज़मर्रा के स्वादिष्ट भोजन की योजना बनाने में मदद करता है।
 
 मुख्य विशेषताएं
-• CameraX फ्रिज और रसीद स्कैनर: सब्जियों, डेयरी और सॉस की पहचान और ताज़गी का समय जानने के लिए खुले फ्रिज या किराना रसीद की फोटो लें या गैलरी से चुनें।
-• मैनुअल और हैंड्स-फ़्री वॉइस इनपुट: बिना कैमरे के बोलकर कई सामग्री दर्ज करें या कस्टम फॉर्म और बैच बास्केट के साथ आसानी से इन्वेंट्री में जोड़ें।
-• ताज़गी पल्स, संरक्षण कोच और विजेट: 72 घंटों में समाप्त होने वाली सामग्री ट्रैक करें, फ्रीज़िंग और स्टोरेज टिप्स पाएं और होम स्क्रीन पर काउंटडाउन विजेट पिन करें।
-• 3 रैंक की गई रेस्क्यू रेसिपी: जल्द खराब होने वाली सामग्री का पहले उपयोग करने वाली रेसिपी बनाएं, जो आपके किचन उपकरणों और मसालों के अनुकूल हों।
-• स्मार्ट रेसिपी खोज और फ़िल्टर: झटपट और आसान, सेहतमंद/लो-कैलोरी, बजट-अनुकूल, आहार प्राथमिकता या उपलब्ध सामग्री के अनुसार फ़िल्टर करें।
-• स्मार्ट शॉपिंग लिस्ट और लो-स्टॉक अलर्ट: कम या खत्म हुई सामग्री अपने आप जोड़ता है, एक टैप में पैंट्री रीस्टॉक करता है और परिवार के साथ चेकलिस्ट साझा करता है।
-• ज़ीरो-वेस्ट सू-शेफ और वॉइस कुकिंग गाइड: सामग्री विकल्प और खाद्य सुरक्षा के बारे में पूछें और इन-बिल्ट टाइमर के साथ चरण-दर-चरण पकाएं।
-• Android TV और ऑफ़लाइन-फ़र्स्ट डिज़ाइन: फ़ोन और Android TV (D-pad नेविगेशन) दोनों के लिए तैयार, लोकल Room डेटाबेस और ऑन-डिवाइस इंजन के साथ।",1327
-ar,Arabic,PantryPulse: الثلاجة والوجبات,29,امسح رفوف الثلاجة، تابع صلاحية الأطعمة واطبخ وصفات ذكية بدون هدر.,65,"يساعد تطبيق PantryPulse العائلات على تقليل هدر الطعام وتخطيط وجبات يومية عملية باستخدام المكونات المتوفرة بالفعل في المطبخ.
+• ML Kit बारकोड और CameraX स्कैनर: ऑफ़लाइन कैश समर्थित Open Food Facts से तुरंत उत्पाद जोड़ने के लिए बारकोड स्कैन करें, या फ्रिज व रसीद की फोटो लें।
+• मैनुअल और हैंड्स-फ़्री वॉइस इनपुट: बिना कैमरे के बोलकर सामग्री दर्ज करें या बैच बास्केट के साथ इन्वेंट्री में जोड़ें।
+• साप्ताहिक मील प्लान और सुबह के अलर्ट: जल्द खत्म होने वाली सामग्री पर आधारित 3-से-7 दिन का प्लान बनाएं, ज़रूरी सामान सूची में जोड़ें और सुबह के रिमाइंडर पाएं।
+• ताज़गी पल्स, संरक्षण कोच और विजेट: 72 घंटों में समाप्त होने वाली सामग्री ट्रैक करें, फ्रीज़िंग टिप्स पाएं और विजेट पिन करें।
+• 3 रेस्क्यू रेसिपी और स्मार्ट फ़िल्टर: अपने उपकरणों और मसालों के अनुसार झटपट, सेहतमंद या बजट-अनुकूल भोजन खोजें।
+• स्मार्ट शॉपिंग लिस्ट: कम स्टॉक आइटम अपने आप जोड़ता है और एक टैप में पैंट्री रीस्टॉक करता है।
+• वॉइस कुकिंग, सू-शेफ और मैप्स: बोलकर टाइमर व स्टेप नियंत्रित करें और नज़दीकी फ़ूड बैंक खोजें।
+• Android TV, ऑफ़लाइन और BYOK: TV रिमोट नेविगेशन, लोकल Room डेटाबेस, इको लाइट मोड और एन्क्रिप्टेड निजी API कुंजी सपोर्ट।
+
+v1.3 में नया क्या है
+• ML Kit EAN-13/UPC बारकोड स्कैनिंग यूटिलिटी और Retrofit/OkHttp/Gson Open Food Facts v2 API एकीकरण।
+• नया अनुकूली ऐप आइकन, फीचर ग्राफिक, Android TV बैनर और ट्रिपल-रिंग स्प्लैश एनिमेशन।
+• बिना किसी हार्डकोडेड सैंपल डेटा के 21 भाषाओं में 100% स्थानीयकृत इंटरफ़ेस।",1415
+ar,Arabic,PantryPulse: الثلاجة والوجبات,29,امسح الثلاجة والباركود، تابع الصلاحية وخطط وجبات ذكية بدون هدر.,63,"يساعد تطبيق PantryPulse العائلات على تقليل هدر الطعام وتخطيط وجبات يومية عملية باستخدام المكونات المتوفرة بالفعل في المطبخ.
 
 المميزات الرئيسية
-• ماسح الثلاجة والإيصالات CameraX: التقط صورة لرفوف الثلاجة أو إيصالات البقالة (أو اختر من معرض الصور) للتعرف على الخضروات والألبان والصلصات مع عداد تنازلي للنضارة.
-• الإدخال اليدوي والصوتي بدون يدين: انطق قائمة مشترياتك بصوتك أو سجّل المكونات يدوياً باستخدام النموذج المخصص وسلة الإضافة الجماعية.
-• مؤشر النضارة ومدرب الحفظ والأداة الرئيسية: تابع المكونات التي تنتهي خلال 72 ساعة، احصل على نصائح التجميد والحفظ، وثبّت أداة العد التنازلي على شاشتك الرئيسية.
-• 3 وصفات إنقاذ مرتبة: احصل على وصفات تعطي الأولوية للمكونات قريبة الانتهاء ومصممة لأجهزة مطبخك ورف التوابل لديك.
-• بحث وتصفية ذكية للوصفات: صفِّ الوجبات حسب سريعة وسهلة، صحية، اقتصادية، التفضيلات الغذائية أو المكونات المتاحة.
-• قائمة تسوق ذكية وتنبيهات نقص المخزون: تضيف الأصناف المنخفضة أو المنتهية تلقائياً وتعيد تخزينها بنقرة واحدة مع مشاركة القائمة للعائلة.
-• مساعد الشيف ودليل الطهي الصوتي: اسأل عن بدائل المكونات وسلامة الغذاء واتبع خطوات الطهي الصوتية مع مؤقت مدمج.
-• دعم Android TV والعمل دون إنترنت: مصمم للهواتف وأجهزة Android TV مع التنقل بأزرار التحكم، وقاعدة بيانات Room محلية ومحرك طهي داخل الجهاز.",1214
-ru-RU,Russian (Russia),PantryPulse: Запасы и Рецепты,29,"Сканируйте холодильник, следите за сроками и готовьте блюда без отходов.",72,"PantryPulse помогает сократить пищевые отходы и планировать домашние ужины из тех продуктов, которые уже есть у вас на кухне.
+• ماسح الباركود ML Kit وCameraX: امسح الباركود فورياً عبر قاعدة Open Food Facts مع ذاكرة تخزين دون إنترنت، أو صوّر الثلاجة والإيصالات لتتبع النضارة.
+• الإدخال اليدوي والصوتي بدون يدين: انطق قائمة المشتريات بصوتك أو سجّل المكونات يدوياً دون استخدام الكاميرا.
+• خطة الوجبات الأسبوعية وتنبيهات الصباح: أنشئ خطة من 3 إلى 7 أيام للأطعمة القريبة الانتهاء وأضف النواقص بنقرة واحدة مع إشعارات صباحية محلية.
+• مؤشر النضارة ومدرب الحفظ والأداة: تابع المكونات التي تنتهي خلال 72 ساعة واحصل على نصائح التجميد مع أداة الشاشة الرئيسية.
+• 3 وصفات إنقاذ وتصفية ذكية: وصفات مخصصة لأجهزتك وتوابلك مع تصفية حسب السرعة أو الصحة أو الميزانية.
+• قائمة تسوق ذكية وتنبيهات النقص: تضيف الأصناف المنخفضة تلقائياً وتعيد التخزين بنقرة واحدة مع مشاركة القائمة.
+• الطهي بالصوت ومساعد الشيف والخرائط: تحكم بالخطوات والمؤقت صوتياً واعثر على بنوك الطعام القريبة عبر الخرائط.
+• دعم Android TV والعمل دون إنترنت وBYOK: تنقل بأزرار التلفاز، قاعدة Room محلية، وضع Eco Lite ودعم مشفر لمفتاحك الشخصي.
+
+الجديد في الإصدار v1.3
+• أداة مسح الباركود EAN-13/UPC عبر ML Kit مع تكامل Open Food Facts v2 بواسطة Retrofit/OkHttp/Gson.
+• أيقونة متكيفة جديدة، وصورة ميزات المتجر، وشعار Android TV، وشاشة بداية متحركة.
+• ترجمة كاملة بنسبة 100% بـ 21 لغة مع إزالة كافة البيانات التجريبية الثابتة.",1385
+ru-RU,Russian (Russia),PantryPulse: Запасы и Рецепты,29,"Сканируйте холодильник и штрихкоды, следите за сроками, готовьте без отходов.",77,"PantryPulse помогает сократить пищевые отходы и планировать домашние ужины из тех продуктов, которые уже есть у вас на кухне.
 
 ОСНОВНЫЕ ВОЗМОЖНОСТИ
-• Сканер холодильника и чеков CameraX: Сфотографируйте полку холодильника или магазинный чек (или выберите фото из галереи), чтобы распознать овощи, молочные продукты и соусы с прогнозом свежести.
-• Ручной и голосовой ввод: Надиктуйте список покупок голосом или добавляйте продукты вручную через удобную форму и корзину пакетного добавления.
-• Пульс свежести, советы по хранению и виджет: Отслеживайте продукты со сроком до 72 часов, получайте рекомендации по заморозке и закрепите виджет на главном экране.
-• 3 рецепта спасения по приоритету: Получайте рецепты, которые в первую очередь используют срочные ингредиенты с учётом вашей техники и специй.
-• Умный поиск и фильтрация блюд: Фильтруйте рецепты по категориям Быстро и просто, Полезные, Бюджетные, диете и продуктам в наличии.
-• Умный список покупок и контроль остатков: Автоматически добавляет заканчивающиеся продукты, пополняет кладовую одним касанием и делится списком с семьёй.
-• Су-шеф и голосовое ведение по шагам: Узнавайте замены ингредиентов, правила безопасности хранения и готовьте со встроенным таймером.
-• Android TV и надёжная работа офлайн: Поддержка смартфонов и Android TV (управление с пульта), локальная база Room и встроенный кулинарный движок.",1371
-tr-TR,Turkish (Turkey),PantryPulse: Kiler ve Tarif,27,"Buzdolabını tarayın, son kullanma tarihini izleyin ve sıfır atık yemek pişirin.",79,"PantryPulse, mutfağınızdaki mevcut malzemeleri değerlendirerek gıda israfını azaltmanıza ve pratik akşam yemekleri planlamanıza yardımcı olur.
+• Сканер штрихкодов ML Kit и CameraX: Распознавайте штрихкоды в реальном времени через Open Food Facts с офлайн-кэшем или снимайте полки холодильника и чеки для оценки свежести.
+• Ручной и голосовой ввод: Надиктуйте список покупок голосом или добавляйте продукты вручную через форму и корзину без камеры.
+• План питания на неделю и утренние напоминания: Составляйте меню на 3–7 дней из срочных продуктов, добавляйте недостающее в один клик и получайте локальные уведомления.
+• Пульс свежести, хранение и виджет: Отслеживайте продукты со сроком до 72 часов, получайте советы по заморозке и закрепите виджет на экране.
+• 3 рецепта спасения и умные фильтры: Подборка блюд под вашу технику и специи с фильтрацией по скорости, пользе, бюджету и диете.
+• Умный список покупок: Автоматически добавляет заканчивающиеся продукты и пополняет кладовую одним касанием.
+• Голосовое управление готовкой, су-шеф и карты: Управляйте шагами и таймером голосом и находите ближайшие пункты сбора еды.
+• Android TV, офлайн-база и BYOK: Управление с пульта ТВ, локальная база Room, режим Eco Lite и шифрованный собственный API-ключ.
+
+ЧТО НОВОГО В v1.3
+• Сканер штрихкодов EAN-13/UPC на базе ML Kit + интеграция с Open Food Facts v2 через Retrofit/OkHttp/Gson.
+• Обновленная адаптивная иконка, графика для магазина, баннер Android TV 16:9 и анимация запуска.
+• Полная локализация на 21 язык без встроенных демо-данных.",1544
+tr-TR,Turkish (Turkey),PantryPulse: Kiler ve Tarif,27,"Buzdolabı ve barkod tarayın, son kullanma izleyin ve sıfır atık pişirin.",72,"PantryPulse, mutfağınızdaki mevcut malzemeleri değerlendirerek gıda israfını azaltmanıza ve pratik akşam yemekleri planlamanıza yardımcı olur.
 
 ÖNE ÇIKAN ÖZELLİKLER
-• CameraX Buzdolabı ve Fiş Tarayıcı: Sebzeleri, süt ürünlerini ve sosları tahmini tazelik süreleriyle algılamak için buzdolabı rafını veya fişi fotoğraflayın ya da galeriden seçin.
-• Elle ve Sesle Giriş: Kamera kullanmadan alışveriş listenizi sesli söyleyin veya özel malzeme formu ve toplu sepetle kilerinize kolayca ekleyin.
-• Tazelik Nabzı, Saklama Koçu ve Widget: 72 saat içinde süresi dolacak ürünleri izleyin, dondurma ve saklama ipuçları alın ve geri sayım widget'ını ana ekrana sabitleyin.
-• Sıralanmış 3 Kurtarma Tarifi: Tarihi yaklaşan malzemeleri öncelikle tüketen, mutfak aletlerinize ve baharatlarınıza uygun tarifler oluşturun.
-• Akıllı Tarif Arama ve Filtreleme: Hızlı ve Kolay, Sağlıklı/Düşük Kalorili, Bütçe Dostu, beslenme tercihi veya eldeki malzemelere göre filtreleyin.
-• Akıllı Alışveriş Listesi ve Düşük Stok: Azalan veya biten ürünleri otomatik ekler, tek dokunuşla kilere yeniden stoklar ve aileyle paylaşılabilir liste oluşturur.
-• Sıfır Atık Yardımcı Şef ve Sesli Rehber: İkame malzemeleri ve gıda güvenliğini sorun, dahili zamanlayıcı ve sesli yönlendirme ile adım adım pişirin.
-• Android TV ve Çevrimdışı Tasarım: Hem telefon hem Android TV (D-pad kumanda uyumlu), yerel Room veritabanı ve cihaz içi mutfak motoru ile kesintisiz çalışır.",1431
-id-ID,Indonesian,PantryPulse: Kulkas & Resep,27,"Pindai isi kulkas, pantau masa segar bahan, dan masak menu tanpa limbah.",72,"PantryPulse membantu rumah tangga mengurangi limbah makanan dan merencanakan menu makan malam praktis dari bahan yang sudah ada di dapur.
+• ML Kit Barkod ve CameraX Tarayıcı: Çevrimdışı önbellekli Open Food Facts için barkodları anında tarayın ya da raf ve fişleri fotoğraflayarak tazelik süresini takip edin.
+• Elle ve Sesle Giriş: Kamera kullanmadan alışveriş listenizi sesli söyleyin veya toplu sepetle kilerinize ekleyin.
+• Haftalık Yemek Planı ve Sabah Uyarıları: Tarihi yaklaşan ürünlerden 3-7 günlük plan oluşturun, eksikleri tek dokunuşla listeye ekleyin ve yerel sabah bildirimleri alın.
+• Tazelik Nabzı, Saklama Koçu ve Widget: 72 saat içinde dolacak ürünleri izleyin, dondurma ipuçları alın ve widget'ı ana ekrana sabitleyin.
+• 3 Kurtarma Tarifi ve Akıllı Filtreler: Mutfak aletlerinize uygun yemekleri Hızlı, Sağlıklı veya Bütçe Dostu olarak filtreleyin.
+• Akıllı Alışveriş Listesi: Azalan ürünleri otomatik ekler ve tek dokunuşla kilere yeniden stoklar.
+• Sesli Pişirme, Yardımcı Şef ve Harita: Adımları ve zamanlayıcıyı sesle yönetin ve yakındaki gıda bankalarını haritada bulun.
+• Android TV, Çevrimdışı ve BYOK: TV kumanda desteği, yerel Room veritabanı, Eco Lite modu ve şifreli kişisel API anahtarı desteği.
+
+v1.3 YENİLİKLERİ
+• ML Kit EAN-13/UPC barkod tarama aracı + Retrofit/OkHttp/Gson ile Open Food Facts v2 API entegrasyonu.
+• Yenilenen uyarlanabilir uygulama simgesi, özellik grafiği, Android TV 16:9 afişi ve açılış animasyonu.
+• Sabit örnek veriler olmadan 21 dilde %100 yerelleştirilmiş arayüz.",1548
+id-ID,Indonesian,PantryPulse: Kulkas & Resep,27,"Pindai kulkas & kode batang, pantau kesegaran dan masak menu tanpa limbah.",74,"PantryPulse membantu rumah tangga mengurangi limbah makanan dan merencanakan menu makan malam praktis dari bahan yang sudah ada di dapur.
 
 FITUR UTAMA
-• Pemindai Kulkas & Struk CameraX: Ambil foto rak kulkas atau struk belanja (atau pilih dari galeri) untuk mendeteksi sayur, produk susu, dan saus beserta hitung mundur kesegaran.
-• Input Manual & Suara Bebas Genggam: Ucapkan beberapa bahan belanjaan sekaligus atau catat bahan secara manual dengan formulir kustom dan keranjang batch.
-• Detak Kesegaran, Pelatih Penyimpanan & Widget: Pantau bahan yang kedaluwarsa dalam 72 jam, dapatkan tips pembekuan, dan sematkan widget di layar utama Android.
-• 3 Resep Penyelamat Terbaik: Buat resep yang memprioritaskan bahan hampir kedaluwarsa, disesuaikan dengan alat masak dan bumbu di dapur Anda.
-• Pencarian & Filter Resep Cerdas: Saring menu berdasarkan Cepat & Mudah, Sehat/Rendah Kalori, Hemat Biaya, preferensi diet, atau bahan yang tersedia.
-• Daftar Belanja Cerdas & Peringatan Stok Rendah: Otomatis memasukkan bahan yang hampir habis, mengisi ulang stok pantri dalam sekali ketuk, dan membagikan daftar ke keluarga.
-• Sous-Chef & Panduan Masak Suara: Tanyakan pengganti bahan atau keamanan pangan, lalu ikuti langkah memasak dengan timer dapur bawaan.
-• Android TV & Desain Offline-First: Mendukung ponsel dan Android TV dengan navigasi D-pad, database Room lokal, dan mesin kuliner di perangkat.",1399
-th-TH,Thai,PantryPulse: ตู้เย็นและเมนู,27,สแกนชั้นวางตู้เย็น ติดตามวันหมดอายุ และทำอาหารลดขยะจากวัตถุดิบที่มี,67,"PantryPulse ช่วยให้ทุกครอบครัวลดขยะอาหารและวางแผนมื้อค่ำแสนอร่อยจากวัตถุดิบที่มีอยู่แล้วในครัวของคุณ
+• Pemindai Kode Batang ML Kit & CameraX: Pindai barcode produk secara langsung dengan Open Food Facts bercache offline, atau foto rak kulkas dan struk belanja.
+• Input Manual & Suara Bebas Genggam: Ucapkan beberapa bahan sekaligus atau catat manual lewat formulir kustom tanpa kamera.
+• Rencana Makan Mingguan & Pengingat Pagi: Susun menu 3–7 hari dari bahan hampir kedaluwarsa, sinkronkan daftar belanja sekali ketuk, dan aktifkan pengingat pagi lokal.
+• Detak Kesegaran, Pelatih Simpan & Widget: Pantau bahan kedaluwarsa dalam 72 jam, lihat tips pembekuan, dan sematkan widget layar utama.
+• 3 Resep Penyelamat & Filter Cerdas: Sesuaikan dengan alat masak dan bumbu Anda, lalu saring menurut Cepat, Sehat, Hemat, atau diet.
+• Daftar Belanja Cerdas: Otomatis mencatat stok menipis dan mengisi ulang pantri sekali ketuk.
+• Masak Suara, Sous-Chef & Peta Lokal: Atur langkah dan timer lewat suara serta temukan bank makanan terdekat lewat peta.
+• Android TV, Offline-First & BYOK: Mendukung navigasi D-pad TV, database Room lokal, mode Eco Lite, dan kunci API pribadi terenkripsi.
+
+WHAT'S NEW IN v1.3
+• EAN-13/UPC Barcode Scanning Utility + Retrofit/OkHttp/Gson Open Food Facts v2 API integration.
+• Refreshed adaptive app icon, store feature graphic, Android TV 16:9 banner & triple-ring splash animation.
+• 100% localized UI across 21 languages with zero hardcoded sample data.",1528
+th-TH,Thai,PantryPulse: ตู้เย็นและเมนู,27,สแกนตู้เย็นและบาร์โค้ด ติดตามความสด และทำอาหารลดขยะได้ทุกวัน,60,"PantryPulse ช่วยให้ทุกครอบครัวลดขยะอาหารและวางแผนมื้อค่ำแสนอร่อยจากวัตถุดิบที่มีอยู่แล้วในครัวของคุณ
 
 ฟีเจอร์หลัก
-• สแกนตู้เย็นและใบเสร็จด้วย CameraX: ถ่ายภาพชั้นวางตู้เย็นหรือใบเสร็จ (หรือเลือกจากคลังภาพ) เพื่อตรวจหาผัก ผลิตภัณฑ์นม และซอสพร้อมนับถอยหลังความสด
-• กรอกด้วยมือและคำสั่งเสียง: พูดรายการของชำหลายรายการพร้อมกัน หรือเพิ่มวัตถุดิบเองผ่านแบบฟอร์มกำหนดเองและตะกร้าบันทึกเป็นชุดโดยไม่ต้องใช้กล้อง
-• ชีพจรความสด โค้ชการเก็บรักษา และวิดเจ็ต: ติดตามวัตถุดิบที่จะหมดอายุใน 72 ชั่วโมง รับคำแนะนำการแช่แข็งและถนอมอาหาร และปักหมุดวิดเจ็ตบนหน้าจอหลัก
-• 3 สูตรอาหารช่วยลดของเสียจัดอันดับ: สร้างสูตรที่เน้นใช้วัตถุดิบใกล้หมดอายุก่อน ปรับให้เข้ากับเครื่องครัวและเครื่องเทศของคุณ
-• ค้นหาและกรองสูตรอาหารอัจฉริยะ: กรองเมนูตาม ทำง่ายและเร็ว สุขภาพดี/แคลอรีต่ำ ประหยัดงบ รูปแบบอาหาร หรือวัตถุดิบที่มีในตู้เย็น
-• รายการซื้อของอัจฉริยะและแจ้งเตือนของใกล้หมด: เพิ่มวัตถุดิบที่เหลือน้อยหรือหมดแล้วโดยอัตโนมัติ เติมสต็อกกลับเข้าคลังในแตะเดียว และแชร์รายการให้คนในบ้าน
-• ซูเชฟลดขยะและผู้ช่วยอ่านขั้นตอน: ถามเรื่องวัตถุดิบทดแทน ความปลอดภัยอาหาร และทำอาหารทีละขั้นตอนพร้อมนาฬิกาจับเวลาในตัว
-• รองรับ Android TV และใช้งานออฟไลน์: ใช้งานได้ทั้งมือถือและ Android TV (รองรับรีโมต D-pad) พร้อมฐานข้อมูล Room และระบบประมวลผลออฟไลน์ในเครื่อง",1218
-nl-NL,Dutch (Netherlands),PantryPulse: Voorraad & Menu,28,"Scan je koelkast, volg houdbaarheid en kook maaltijden zonder verspilling.",74,"PantryPulse helpt huishoudens voedselverspilling tegen te gaan en praktische maaltijden te plannen met de boodschappen die al in huis zijn.
+• สแกนบาร์โค้ด ML Kit และ CameraX: สแกนบาร์โค้ดสินค้าแบบเรียลไทม์ผ่าน Open Food Facts พร้อมแคชออฟไลน์ หรือถ่ายภาพชั้นตู้เย็นและใบเสร็จ
+• กรอกด้วยมือและเสียง: พูดรายการวัตถุดิบพร้อมกัน หรือบันทึกผ่านแบบฟอร์มและตะกร้าแบบไม่ต้องใช้กล้อง
+• แผนอาหารรายสัปดาห์และเตือนตอนเช้า: จัดเมนู 3–7 วันจากของใกล้หมดอายุ ซิงก์ของขาดเข้าลิสต์ในแตะเดียว และรับแจ้งเตือนตอนเช้าในเครื่อง
+• ชีพจรความสด โค้ชเก็บอาหาร และวิดเจ็ต: ติดตามของหมดอายุใน 72 ชั่วโมง พร้อมวิธีแช่แข็งและวิดเจ็ตหน้าจอหลัก
+• 3 สูตรช่วยลดขยะและตัวกรองอัจฉริยะ: ปรับตามเครื่องครัวและเครื่องเทศ กรองแบบทำง่าย แคลอรีต่ำ หรือประหยัด
+• รายการซื้อของอัจฉริยะ: เพิ่มของใกล้หมดอัตโนมัติและเติมสต็อกกลับเข้าคลังในแตะเดียว
+• คุมการทำอาหารด้วยเสียง ซูเชฟ และแผนที่: สั่งงานขั้นตอนและจับเวลาด้วยเสียง พร้อมค้นหาจุดบริจาคอาหารใกล้บ้าน
+• Android TV ออฟไลน์ และ BYOK: รองรับรีโมตทีวี ฐานข้อมูล Room ในเครื่อง โหมด Eco Lite และคีย์ส่วนตัวแบบเข้ารหัส
+
+WHAT'S NEW IN v1.3
+• EAN-13/UPC Barcode Scanning Utility + Retrofit/OkHttp/Gson Open Food Facts v2 API integration.
+• Refreshed adaptive app icon, store feature graphic, Android TV 16:9 banner & triple-ring splash animation.
+• 100% localized UI across 21 languages with zero hardcoded sample data.",1296
+nl-NL,Dutch (Netherlands),PantryPulse: Voorraad & Menu,28,"Scan koelkast en barcodes, volg houdbaarheid en kook zonder verspilling.",72,"PantryPulse helpt huishoudens voedselverspilling tegen te gaan en praktische maaltijden te plannen met de boodschappen die al in huis zijn.
 
 BELANGRIJKSTE FUNCTIES
-• CameraX Koelkast- & Kassabonscanner: Maak een foto van je open koelkastplank of kassabon (of kies uit je fotobibliotheek) om groenten, zuivel en sauzen met houdbaarheidsaftelling te herkennen.
-• Handmatige & Handsfree Spraakinvoer: Spreek meerdere boodschappen tegelijk in of voer ingrediënten handmatig in via het formulier en de verzamelmand.
-• Versheidsmeter, Bewaarcoach & Widget: Zie direct welke items binnen 72 uur verlopen, krijg invries- en bewaartips en zet de aftelwidget vast op je startscherm.
-• 3 Gerangschikte Reddingsrecepten: Genereer recepten die bijna verlopen ingrediënten als eerste gebruiken, afgestemd op jouw keukenapparatuur en kruidenrek.
-• Slim Zoeken & Filteren: Filter recepten op Snel & Makkelijk, Gezond & Caloriearm, Budgetvriendelijk, dieetvoorkeur of beschikbare ingrediënten.
-• Slimme Boodschappenlijst & Lage Voorraad: Voegt bijna opgeraakte producten automatisch toe, vult je voorraad met één tik weer aan en deelt een gezinslijst.
-• Zero-Waste Sous-Chef & Kookhulp: Stel vragen over vervangingen of voedselveiligheid en kook stap voor stap met ingebouwde kookwekker.
-• Android TV & Offline-First: Geschikt voor telefoons én Android TV met D-pad-navigatie, lokale Room-database en culinaire engine op het toestel.",1416
-pl-PL,Polish (Poland),PantryPulse: Spiżarnia i Menu,29,"Skanuj lodówkę, kontroluj terminy ważności i gotuj posiłki bez marnowania.",74,"PantryPulse pomaga domownikom ograniczyć marnowanie żywności i planować codzienne obiady ze składników dostępnych w kuchni.
+• Live ML Kit Barcode- & CameraX-scanner: Scan productbarcodes direct via Open Food Facts met offline cache of fotografeer je koelkastplank en kassabon voor houdbaarheid.
+• Handmatige & Spraakinvoer: Spreek meerdere boodschappen tegelijk in of voeg ze handmatig toe zonder camera.
+• Weekmenuplanner & Ochtendmeldingen: Stel een 3-tot-7-daags menu samen rond bijna verlopen producten, synchroniseer ontbrekende basiswaren met één tik en plan lokale ochtendmeldingen.
+• Versheidsmeter, Bewaarcoach & Widget: Bekijk items die binnen 72 uur verlopen, lees invriestips en zet de aftelwidget op je startscherm.
+• 3 Reddingsrecepten & Slimme Filters: Afgestemd op jouw apparatuur en kruiden, filterbaar op Snel, Gezond, Budget of dieet.
+• Slimme Boodschappenlijst: Voegt bijna opgeraakte producten automatisch toe en vult je voorraad met één tik weer aan.
+• Spraakgestuurd Koken, Sous-Chef & Kaarten: Bedien stappen en kookwekker met je stem en vind voedselbanken in de buurt via Maps.
+• Android TV, Offline-First & BYOK: Ondersteunt tv-afstandsbediening, lokale Room-database, Eco Lite-modus en versleutelde eigen API-sleutel.
+
+NIEUW IN v1.3
+• ML Kit EAN-13/UPC-barcodescanner + Retrofit/OkHttp/Gson Open Food Facts v2 API-integratie.
+• Vernieuwd adaptief app-icoon, feature graphic, 16:9 Android TV-banner en splash-animatie.
+• 100% gelokaliseerd in 21 talen zonder voorgeprogrammeerde voorbeeldgegevens.",1563
+pl-PL,Polish (Poland),PantryPulse: Spiżarnia i Menu,29,"Skanuj lodówkę i kody kreskowe, pilnuj terminów i gotuj bez marnowania.",71,"PantryPulse pomaga domownikom ograniczyć marnowanie żywności i planować codzienne obiady ze składników dostępnych w kuchni.
 
 NAJWAŻNIEJSZE FUNKCJE
-• Skaner Lodówki i Paragonów CameraX: Zrób zdjęcie półki lodówki lub paragonu (lub wybierz zdjęcie z galerii), aby rozpoznać warzywa, nabiał i sosy wraz z odliczaniem świeżości.
-• Wprowadzanie ręczne i głosowe: Podyktuj listę zakupów głosem lub dodaj produkty ręcznie w formularzu i koszyku zbiorczym bez użycia aparatu.
-• Puls świeżości, trener przechowywania i widżet: Kontroluj produkty tracące ważność w ciągu 72 godzin, korzystaj z porad mrożenia i przypnij widżet na ekranie głównym.
-• 3 Przepisy Ratunkowe wg Priorytetu: Twórz przepisy wykorzystujące najpierw pilne składniki, dopasowane do Twoich urządzeń kuchennych i przypraw.
-• Wyszukiwanie i filtrowanie przepisów: Filtruj dania wg kategorii Szybkie i łatwe, Zdrowe i niskokaloryczne, Oszczędne, diety lub składników w lodówce.
-• Inteligentna Lista Zakupów i Niskie Zapasy: Automatycznie dodaje kończące się produkty, uzupełnia spiżarnię jednym kliknięciem i udostępnia listę domownikom.
-• Sous-Chef Zero Waste i asystent głosowy: Pytaj o zamienniki składników oraz bezpieczeństwo żywności i gotuj krok po kroku z wbudowanym minutnikiem.
-• Android TV i tryb offline: Zaprojektowana dla telefonów i Android TV z obsługą pilota D-pad, lokalną bazą Room oraz silnikiem kulinarnym offline.",1394
-sv-SE,Swedish (Sweden),PantryPulse: Skafferi & Meny,28,"Skanna kylskåpet, håll koll på bäst före-datum och laga mat utan matsvinn.",74,"PantryPulse hjälper hushåll att minska matsvinnet och planera goda middagar med de råvaror som redan finns hemma i köket.
+• Skaner Kodów ML Kit i CameraX: Skanuj kody kreskowe w czasie rzeczywistym z bazą Open Food Facts i pamięcią offline lub fotografuj lodówkę i paragony z odliczaniem świeżości.
+• Wprowadzanie ręczne i głosowe: Dyktuj zakupy głosem lub dodawaj produkty ręcznie w koszyku zbiorczym bez użycia aparatu.
+• Planer Tygodniowy i Alerty Poranne: Twórz plany posiłków na 3–7 dni z pilnych produktów, dodawaj braki jednym kliknięciem i ustawiaj lokalne przypomnienia.
+• Puls świeżości, porady i widżet: Kontroluj produkty wygasające w ciągu 72 godzin, czytaj wskazówki mrożenia i przypnij widżet na ekran główny.
+• 3 Przepisy Ratunkowe i Filtry: Dopasowane do Twoich urządzeń i przypraw, z filtrem Szybkie, Zdrowe, Oszczędne i dieta.
+• Inteligentna Lista Zakupów: Automatycznie dopisuje kończące się zapasy i uzupełnia spiżarnię jednym kliknięciem.
+• Gotowanie głosowe, Sous-Chef i Mapy: Steruj krokami i minutnikiem głosem oraz znajduj pobliskie banki żywności na mapie.
+• Android TV, tryb offline i BYOK: Obsługa pilota TV, lokalna baza Room, tryb Eco Lite i szyfrowany własny klucz API.
+
+NOWOŚCI W v1.3
+• Skaner kodów EAN-13/UPC ML Kit + integracja z API Open Food Facts v2 przez Retrofit/OkHttp/Gson.
+• Odświeżona ikona adaptacyjna, grafika promocyjna, baner Android TV 16:9 i animowany ekran startowy.
+• Interfejs w 100% przetłumaczony na 21 języków bez sztywnych danych przykładowych.",1527
+sv-SE,Swedish (Sweden),PantryPulse: Skafferi & Meny,28,"Skanna kylskåp och streckkoder, håll koll på datum och laga utan matsvinn.",74,"PantryPulse hjälper hushåll att minska matsvinnet och planera goda middagar med de råvaror som redan finns hemma i köket.
 
 HUVUDFUNKTIONER
-• CameraX Kylskåps- & Kvittoskanner: Fota en öppen kylskåpshylla eller ett matkvitto (eller välj bilder från biblioteket) för att identifiera grönsaker, mejerivaror och såser med hållbarhetsnedräkning.
-• Manuell & Handsfree Röstinmatning: Läs in flera matvaror med rösten eller registrera dem manuellt via detaljformuläret och samlingskorgen.
-• Färskhetspuls, Förvaringscoach & Widget: Följ varor som går ut inom 72 timmar, få tips om frysning och förvaring och fäst nedräkningswidgeten på hemskärmen.
-• 3 Rankade Räddningsrecept: Skapa recept som prioriterar varor med kort datum, anpassade efter dina köksmaskiner och din kryddhylla.
-• Smart Receptsökning & Filter: Filtrera rätter efter Snabbt & Enkelt, Hälsosamt & Kalorisnålt, Budgetvänligt, kostpreferens eller tillgängliga varor.
-• Smart Inköpslista & Lågt Saldo: Lägger automatiskt till varor som håller på att ta slut, fyller på skafferiet med ett tryck och delar listan med hushållet.
-• Zero-Waste Sous-Chef & Röststyrd Matlagning: Fråga om ersättningsvaror och livsmedelssäkerhet och följ steg-för-steg-instruktioner med inbyggd timer.
-• Android TV & Offline-First: Anpassad för både mobil och Android TV med fjärrkontrollsstyrning, lokal Room-databas och inbyggd receptmotor.",1376
-uk-UA,Ukrainian,PantryPulse: Комора та Меню,27,"Скануйте холодильник, контролюйте терміни та готуйте страви без відходів.",73,"PantryPulse допомагає родинам зменшити харчові відходи та планувати щоденні вечері з продуктів, які вже є вдома на кухні.
+• Live ML Kit Streckkods- & CameraX-skanner: Skanna streckkoder i realtid via Open Food Facts med offlinecache eller fota kylskåpshyllor och kvitton med hållbarhetsnedräkning.
+• Manuell & Röstinmatning: Läs in flera matvaror med rösten eller registrera manuellt i samlingskorgen utan kamera.
+• Veckoplanerare & Morgonpåminnelser: Skapa 3-till-7-dagars menyer utifrån varor med kort datum, lägg till basvaror med ett tryck och få lokala morgonnotiser.
+• Färskhetspuls, Förvaringscoach & Widget: Följ varor som går ut inom 72 timmar, få frystips och fäst nedräkningswidgeten på hemskärmen.
+• 3 Räddningsrecept & Smarta Filter: Anpassade efter dina köksmaskiner och kryddor, filtrerbara på Snabbt, Hälsosamt, Budget eller kost.
+• Smart Inköpslista: Lägger automatiskt till varor som håller på att ta slut och fyller på skafferiet med ett tryck.
+• Röststyrd Matlagning, Sous-Chef & Kartor: Styr steg och timer med rösten och hitta lokala matbanker via kartan.
+• Android TV, Offline-First & BYOK: Fjärrkontrollsstöd, lokal Room-databas, Eco Lite-läge och krypterad egen API-nyckel.
+
+NYTT I v1.3
+• ML Kit EAN-13/UPC-streckkodsläsare + Retrofit/OkHttp/Gson Open Food Facts v2 API-integration.
+• Uppdaterad adaptiv appikon, funktionsbild, 16:9 Android TV-banner och animerad startskärm.
+• 100 % lokaliserat gränssnitt på 21 språk utan hårdkodad exempeldata.",1488
+uk-UA,Ukrainian,PantryPulse: Комора та Меню,27,"Скануйте холодильник і штрихкоди, стежте за термінами та готуйте без відходів.",78,"PantryPulse допомагає родинам зменшити харчові відходи та планувати щоденні вечері з продуктів, які вже є вдома на кухні.
 
 ОСНОВНІ МОЖЛИВОСТІ
-• Сканер холодильника та чеків CameraX: Сфотографуйте полицю холодильника або чек із магазину (або виберіть фото з галереї), щоб розпізнати овочі, молочні продукти та соуси з прогнозом свіжості.
-• Ручне та голосове введення: Надиктуйте список покупок голосом або додайте інгредієнти вручну через форму та пакетний кошик без камери.
-• Пульс свіжості, тренер зберігання та віджет: Відстежуйте продукти з терміном до 72 годин, отримуйте поради щодо заморожування та закріпіть віджет зворотного відліку на головному екрані.
-• 3 рецепти порятунку за пріоритетом: Отримуйте рецепти, які першочергово використовують термінові інгредієнти з урахуванням вашої кухонної техніки та спецій.
-• Пошук і фільтри рецептів: Фільтруйте страви за категоріями Швидко і просто, Здорові/Низькокалорійні, Бюджетні, дієтою або наявними продуктами.
-• Розумний список покупок і низький запас: Автоматично додає продукти, що закінчуються, поповнює комору одним дотиком і дозволяє поділитися списком із родиною.
-• Су-шеф і голосовий супровід готування: Запитуйте про заміни інгредієнтів та безпеку зберігання і готуйте крок за кроком із вбудованим таймером.
-• Підтримка Android TV та робота офлайн: Працює на смартфонах і Android TV (навігація пультом D-pad) із локальною базою Room та вбудованим кулінарним рушієм.",1429
+• Сканер штрихкодів ML Kit і CameraX: Розпізнавайте штрихкоди в реальному часі через Open Food Facts з офлайн-кешем або знімайте полиці холодильника й чеки для контролю свіжості.
+• Ручне та голосове введення: Надиктуйте покупки голосом або додавайте інгредієнти вручну без використання камери.
+• Тижневий план харчування й ранкові нагадування: Формуйте меню на 3–7 днів із термінових продуктів, синхронізуйте нестачу одним дотиком і отримуйте локальні сповіщення.
+• Пульс свіжості, поради та віджет: Контролюйте продукти з терміном до 72 годин, читайте поради з заморожування та закріпіть віджет на екрані.
+• 3 рецепти порятунку й фільтри: Адаптовані під вашу техніку та спеції з фільтрами Швидкі, Здорові, Бюджетні та дієта.
+• Розумний список покупок: Автоматично додає товари, що закінчуються, і поповнює комору одним дотиком.
+• Голосовий супровід, су-шеф і карти: Керуйте кроками та таймером голосом і знаходьте найближчі продовольчі банки.
+• Android TV, офлайн і BYOK: Навігація з пульта ТВ, локальна база Room, режим Eco Lite та шифрований власний API-ключ.
+
+WHAT'S NEW IN v1.3
+• EAN-13/UPC Barcode Scanning Utility + Retrofit/OkHttp/Gson Open Food Facts v2 API integration.
+• Refreshed adaptive app icon, store feature graphic, Android TV 16:9 banner & triple-ring splash animation.
+• 100% localized UI across 21 languages with zero hardcoded sample data.",1503

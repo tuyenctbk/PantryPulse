@@ -101,7 +101,15 @@ object AiModelConfig {
             val out = ByteArrayOutputStream()
             scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_UPLOAD_QUALITY, out)
             val bytes = out.toByteArray()
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: scaled
+            val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            if (decoded != null) {
+                if (scaled !== source && !scaled.isRecycled) {
+                    scaled.recycle()
+                }
+                decoded
+            } else {
+                scaled
+            }
         } catch (_: Exception) {
             scaled
         }

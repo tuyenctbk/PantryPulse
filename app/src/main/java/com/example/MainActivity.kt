@@ -7,14 +7,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -23,10 +18,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -36,11 +28,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -80,17 +72,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -105,8 +89,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ai.configureAppCheck
 import com.example.ui.PantryPulseViewModel
 import com.example.ui.PantryTab
-import com.example.ui.components.AiQuotaStatusPill
 import com.example.ui.components.AiValueReceiptDialog
+import com.example.ui.components.BrandedSplashOverlay
+import com.example.ui.components.PersistentQuotaStatusBanner
 import com.example.ui.components.SmartAutoSuggestionDialog
 import com.example.ui.components.SupportAndEngagementHubDialog
 import com.example.ui.components.SupporterHeaderActionChip
@@ -121,7 +106,6 @@ import com.example.ui.screens.SmartShoppingListScreen
 import com.example.ui.screens.SousChefChatScreen
 import com.example.ui.theme.PantryPulseTheme
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -162,6 +146,9 @@ fun PantryPulseApp(
     val lifecycleOwner = LocalLifecycleOwner.current
     val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     val quotaState by viewModel.quotaState.collectAsStateWithLifecycle()
+    val hasByokKey by viewModel.hasByokKey.collectAsStateWithLifecycle()
+    val byokKeyPreview by viewModel.byokKeyPreview.collectAsStateWithLifecycle()
+    val isLookingUpBarcode by viewModel.isLookingUpBarcode.collectAsStateWithLifecycle()
     val engagementState by viewModel.engagementState.collectAsStateWithLifecycle()
     val pantryItems by viewModel.pantryItems.collectAsStateWithLifecycle()
     val restockItems by viewModel.restockItems.collectAsStateWithLifecycle()
@@ -270,6 +257,11 @@ fun PantryPulseApp(
             quota = quotaState,
             rescuedMealsCount = kitchenSetup.rescuedMealsCount,
             savedDollarsTotal = kitchenSetup.savedDollarsTotal,
+            hasByokKey = hasByokKey,
+            byokKeyPreview = byokKeyPreview,
+            onSaveByokKey = viewModel::saveByokApiKey,
+            onClearByokKey = viewModel::clearByokApiKey,
+            onPurchaseCreditPack = { credits -> viewModel.purchaseCreditPack(uiContext, credits) },
             onToggleEcoLite = viewModel::setEcoLiteMode,
             onToggleForceLocal = viewModel::setForceLocalMode,
             onClaimGraceCredits = viewModel::claimBonusGraceCredits,
@@ -331,16 +323,25 @@ fun PantryPulseApp(
                 topBar = {
                     TopAppBar(
                         title = {
+                            val emblemScale by animateFloatAsState(
+                                targetValue = if (selectedTab == PantryTab.PANTRY) 1.04f else 1f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                ),
+                                label = "top_emblem_scale"
+                            )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Image(
-                                    painter = painterResource(id = R.drawable.pantrypulse_app_icon_1795047726134),
+                                    painter = painterResource(id = R.drawable.img_pantrypulse_icon),
                                     contentDescription = stringResource(id = R.string.cd_pantrypulse_emblem),
                                     modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(RoundedCornerShape(9.dp))
+                                        .size(34.dp)
+                                        .scale(emblemScale)
+                                        .clip(RoundedCornerShape(10.dp))
                                 )
                                 Text(
                                     text = stringResource(id = R.string.app_name),
@@ -360,14 +361,6 @@ fun PantryPulseApp(
                                 onClick = { showSupportHubDialog = true },
                                 compact = isCompactPhone,
                                 modifier = Modifier
-                                    .padding(end = 6.dp)
-                                    .tvFocusHighlight(shape = RoundedCornerShape(50))
-                            )
-                            AiQuotaStatusPill(
-                                quota = quotaState,
-                                onClick = { showValueReceiptDialog = true },
-                                compact = isCompactPhone,
-                                modifier = Modifier
                                     .padding(end = 8.dp)
                                     .tvFocusHighlight(shape = RoundedCornerShape(50))
                             )
@@ -382,8 +375,8 @@ fun PantryPulseApp(
                 bottomBar = {
                     if (!isWideScreen) {
                         NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 3.dp
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            tonalElevation = 2.dp
                         ) {
                             destinations.forEach { dest ->
                                 val selected = selectedTab == dest.tab ||
@@ -424,7 +417,7 @@ fun PantryPulseApp(
                 ) {
                     if (isWideScreen) {
                         NavigationRail(
-                            containerColor = MaterialTheme.colorScheme.surface
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         ) {
                             Spacer(modifier = Modifier.height(8.dp))
                             destinations.forEach { dest ->
@@ -460,12 +453,21 @@ fun PantryPulseApp(
                         }
                     }
 
-                    Box(
+                    Column(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
-                        contentAlignment = Alignment.TopCenter
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val contentMaxWidth = if (isAndroidTv) 1280.dp else 960.dp
+                        PersistentQuotaStatusBanner(
+                            quota = quotaState,
+                            onToggleEcoLite = viewModel::setEcoLiteMode,
+                            onOpenValueReceipt = { showValueReceiptDialog = true },
+                            hasByokKey = hasByokKey,
+                            modifier = Modifier.widthIn(max = contentMaxWidth)
+                        )
+
                         AnimatedContent(
                             targetState = selectedTab,
                             transitionSpec = {
@@ -481,8 +483,9 @@ fun PantryPulseApp(
                             },
                             label = "pantry_tab_transition",
                             modifier = Modifier
-                                .fillMaxSize()
-                                .widthIn(max = if (isAndroidTv) 1280.dp else 960.dp)
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .widthIn(max = contentMaxWidth)
                         ) { activeTab ->
                             when (activeTab) {
                                 PantryTab.PANTRY -> PantryDashboardScreen(
@@ -528,6 +531,9 @@ fun PantryPulseApp(
                                     captureMode = scanCaptureMode,
                                     scanState = visionScanState,
                                     quotaState = quotaState,
+                                    isLookingUpBarcode = isLookingUpBarcode,
+                                    onLookupBarcode = viewModel::lookupBarcodeTier0,
+                                    onScanPhotoBarcode = viewModel::scanPhotoForBarcodeTier0,
                                     onSelectCaptureMode = viewModel::setScanCaptureMode,
                                     onAddPhoto = viewModel::addCapturedPhoto,
                                     onCaptureAndTriggerIngestion = viewModel::captureAndTriggerGeminiIngestion,
@@ -613,6 +619,8 @@ fun PantryPulseApp(
                                     onOpenCookingMode = viewModel::openCookingMode,
                                     onCloseCookingMode = viewModel::closeCookingMode,
                                     onCompleteCookingMeal = viewModel::completeCookingRecipe,
+                                    onSyncWeeklyPlanStaples = viewModel::syncWeeklyPlanStaplesToShoppingList,
+                                    onAskSousChefVoiceQuestion = viewModel::askSousChefFromCookingVoice,
                                     onNavigateBack = { viewModel.selectTab(PantryTab.PANTRY) }
                                 )
                                 PantryTab.SHOPPING_LIST -> SmartShoppingListScreen(
@@ -668,6 +676,14 @@ private fun NavDestinationBadgeIcon(
     selected: Boolean,
     badgeCount: Int
 ) {
+    val iconScale by animateFloatAsState(
+        targetValue = if (selected) 1.08f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "nav_icon_scale"
+    )
     if (badgeCount > 0) {
         BadgedBox(
             badge = {
@@ -678,144 +694,15 @@ private fun NavDestinationBadgeIcon(
         ) {
             Icon(
                 imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-                contentDescription = stringResource(id = dest.labelRes)
+                contentDescription = stringResource(id = dest.labelRes),
+                modifier = Modifier.scale(iconScale)
             )
         }
     } else {
         Icon(
             imageVector = if (selected) dest.selectedIcon else dest.unselectedIcon,
-            contentDescription = stringResource(id = dest.labelRes)
+            contentDescription = stringResource(id = dest.labelRes),
+            modifier = Modifier.scale(iconScale)
         )
-    }
-}
-
-@Composable
-private fun BrandedSplashOverlay(onDismiss: () -> Unit) {
-    val iconScale = remember { Animatable(0.76f) }
-    val titleAlpha = remember { Animatable(0f) }
-    val titleOffsetY = remember { Animatable(24f) }
-    val infiniteTransition = rememberInfiniteTransition(label = "splash_pulse_rings")
-    val pulseProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "pulse_progress"
-    )
-
-    LaunchedEffect(Unit) {
-        launch {
-            iconScale.animateTo(
-                targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            )
-        }
-        delay(120L)
-        launch {
-            titleAlpha.animateTo(1f, animationSpec = tween(420, easing = FastOutSlowInEasing))
-        }
-        launch {
-            titleOffsetY.animateTo(0f, animationSpec = tween(420, easing = FastOutSlowInEasing))
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF15472C),
-                        Color(0xFF113C25),
-                        Color(0xFF0B2718)
-                    )
-                )
-            )
-            .onPreviewKeyEvent { keyEvent ->
-                if (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter) {
-                    onDismiss()
-                    true
-                } else {
-                    false
-                }
-            }
-            .clickable { onDismiss() }
-            .testTag("splash_overlay"),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(32.dp)
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(188.dp)
-            ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val baseRadius = size.minDimension * 0.34f
-                    val maxRadius = size.minDimension * 0.50f
-                    val ring1Radius = baseRadius + (maxRadius - baseRadius) * pulseProgress
-                    val ring1Alpha = (1f - pulseProgress) * 0.36f
-                    val ring2Progress = (pulseProgress + 0.5f) % 1f
-                    val ring2Radius = baseRadius + (maxRadius - baseRadius) * ring2Progress
-                    val ring2Alpha = (1f - ring2Progress) * 0.28f
-
-                    drawCircle(
-                        color = Color(0xFF7CE5B2).copy(alpha = ring1Alpha),
-                        radius = ring1Radius,
-                        style = Stroke(width = 3.dp.toPx())
-                    )
-                    drawCircle(
-                        color = Color(0xFFE05A36).copy(alpha = ring2Alpha),
-                        radius = ring2Radius,
-                        style = Stroke(width = 2.dp.toPx())
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(32.dp),
-                    shadowElevation = 14.dp,
-                    color = Color(0xFF18422C),
-                    modifier = Modifier
-                        .size(124.dp)
-                        .scale(iconScale.value)
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.pantrypulse_app_icon_1795047726134),
-                        contentDescription = stringResource(id = R.string.cd_pantrypulse_emblem),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(32.dp))
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .alpha(titleAlpha.value)
-                    .graphicsLayer { translationY = titleOffsetY.value }
-            ) {
-                Text(
-                    text = stringResource(id = R.string.app_name),
-                    style = MaterialTheme.typography.displayMedium,
-                    color = Color(0xFFF7F4ED)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = stringResource(id = R.string.splash_tagline),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Color(0xFF9AF0C4)
-                )
-            }
-        }
     }
 }

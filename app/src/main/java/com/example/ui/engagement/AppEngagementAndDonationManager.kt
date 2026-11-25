@@ -151,6 +151,7 @@ class AppEngagementAndDonationManager(context: Context) {
     private var activeMilestoneCount: Int = 0
 
     private val _eventLogs = mutableListOf<AppTrackedEvent>()
+    private val appliedReceiptTokens = mutableSetOf<String>()
 
     val billingManager = BillingManager(
         context = context,
@@ -449,6 +450,14 @@ class AppEngagementAndDonationManager(context: Context) {
     }
 
     private fun applyVerifiedGooglePlayReceipt(receipt: VerifiedPurchaseReceipt) {
+        val isFirstApplication = synchronized(appliedReceiptTokens) {
+            appliedReceiptTokens.add(receipt.purchaseToken)
+        }
+        if (!isFirstApplication) {
+            refreshState()
+            return
+        }
+
         val prevTotal = prefs.getFloat(KEY_TOTAL_DONATED_DOLLARS, 0f).toDouble()
         val newTotal = prevTotal + receipt.tier.amountDollars
         prefs.edit()
@@ -719,16 +728,18 @@ class AppEngagementAndDonationManager(context: Context) {
     }
 
     private fun logEventInternal(eventType: String, detail: String, algorithmNote: String) {
-        _eventLogs.add(
-            0,
-            AppTrackedEvent(
-                eventType = eventType,
-                detail = detail,
-                algorithmNote = algorithmNote
+        synchronized(_eventLogs) {
+            _eventLogs.add(
+                0,
+                AppTrackedEvent(
+                    eventType = eventType,
+                    detail = detail,
+                    algorithmNote = algorithmNote
+                )
             )
-        )
-        if (_eventLogs.size > 60) {
-            _eventLogs.removeAt(_eventLogs.lastIndex)
+            if (_eventLogs.size > 60) {
+                _eventLogs.removeAt(_eventLogs.lastIndex)
+            }
         }
     }
 
@@ -780,7 +791,7 @@ class AppEngagementAndDonationManager(context: Context) {
             autoPopupsShownThisSession = autoPopupsShownThisSession,
             billingUiState = currentBillingState,
             lastVerifiedReceipt = currentBillingState.lastVerifiedReceipt,
-            eventLogs = _eventLogs.toList()
+            eventLogs = synchronized(_eventLogs) { _eventLogs.toList() }
         )
     }
 

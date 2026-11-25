@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -95,7 +96,9 @@ fun CameraXFridgeViewfinder(
     onRemovePhoto: (Int) -> Unit,
     onClearPhotos: () -> Unit,
     onOpenPhotoPicker: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLiveBarcodeDetected: ((String) -> Unit)? = null,
+    onScanPhotoBarcode: ((Bitmap) -> Unit)? = null
 ) {
     val previewController = rememberCameraXPreviewController()
 
@@ -104,6 +107,8 @@ fun CameraXFridgeViewfinder(
     var exposureStep by rememberSaveable { mutableIntStateOf(2) }
     var autoLowLightBoost by rememberSaveable { mutableStateOf(true) }
     var autoIngestOnSnap by rememberSaveable { mutableStateOf(true) }
+    var liveBarcodeScanEnabled by rememberSaveable { mutableStateOf(true) }
+    var lastLiveBarcode by remember { mutableStateOf<String?>(null) }
 
     // Real-time ambient luminance (0..255) computed from CameraX ImageAnalysis Y-plane
     var ambientLuma by remember { mutableIntStateOf(115) }
@@ -112,6 +117,13 @@ fun CameraXFridgeViewfinder(
     var focusTapOffset by remember { mutableStateOf<Offset?>(null) }
     var showShutterFlash by remember { mutableStateOf(false) }
     var ingestionStage by remember { mutableIntStateOf(1) }
+
+    LaunchedEffect(lastLiveBarcode) {
+        if (lastLiveBarcode != null) {
+            delay(3_200L)
+            lastLiveBarcode = null
+        }
+    }
 
     LaunchedEffect(focusTapOffset) {
         if (focusTapOffset != null) {
@@ -170,6 +182,11 @@ fun CameraXFridgeViewfinder(
                 exposureStep = exposureStep,
                 onLuminanceMeasured = { luma -> ambientLuma = luma },
                 onTapFocus = { tapOffset -> focusTapOffset = tapOffset },
+                liveBarcodeScanEnabled = liveBarcodeScanEnabled && onLiveBarcodeDetected != null && !isIngesting,
+                onLiveBarcodeDetected = { barcode ->
+                    lastLiveBarcode = barcode
+                    onLiveBarcodeDetected?.invoke(barcode)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(290.dp)
@@ -317,19 +334,20 @@ fun CameraXFridgeViewfinder(
                     }
                 }
 
-                // Bottom HUD Hint Pill inside Viewfinder
+                // Bottom HUD Hint Pill inside Viewfinder (shows live ML Kit barcode lock-on when detected)
                 Surface(
-                    color = Color(0xB80B1911),
+                    color = if (lastLiveBarcode != null) Color(0xD90E4D2F) else Color(0xB80B1911),
                     shape = RoundedCornerShape(50),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 12.dp)
                 ) {
+                    val lockedBarcode = lastLiveBarcode
                     Text(
-                        text = if (captureMode == ScanCaptureMode.FRIDGE_SHELF) {
-                            stringResource(id = R.string.viewfinder_hint_fridge)
-                        } else {
-                            stringResource(id = R.string.viewfinder_hint_receipt)
+                        text = when {
+                            lockedBarcode != null -> stringResource(id = R.string.tier0_barcode_live_locked_fmt, lockedBarcode)
+                            captureMode == ScanCaptureMode.FRIDGE_SHELF -> stringResource(id = R.string.viewfinder_hint_fridge)
+                            else -> stringResource(id = R.string.viewfinder_hint_receipt)
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFFE5F6EC),
@@ -401,6 +419,33 @@ fun CameraXFridgeViewfinder(
                             )
                         }
                     }
+                }
+
+                if (onLiveBarcodeDetected != null) {
+                    FilterChip(
+                        selected = liveBarcodeScanEnabled,
+                        onClick = { liveBarcodeScanEnabled = !liveBarcodeScanEnabled },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = stringResource(
+                                    id = if (liveBarcodeScanEnabled) {
+                                        R.string.tier0_barcode_live_toggle_on
+                                    } else {
+                                        R.string.tier0_barcode_live_toggle_off
+                                    }
+                                ),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        modifier = Modifier.testTag("live_mlkit_barcode_toggle")
+                    )
                 }
 
                 // Auto-Trigger Gemini Workflow Toggle
@@ -546,7 +591,8 @@ fun CameraXFridgeViewfinder(
                     onFocusNoteChange = onFocusNoteChange,
                     onRemovePhoto = onRemovePhoto,
                     onClearPhotos = onClearPhotos,
-                    onTriggerIngestionForQueued = onTriggerIngestionForQueued
+                    onTriggerIngestionForQueued = onTriggerIngestionForQueued,
+                    onScanPhotoBarcode = onScanPhotoBarcode
                 )
             }
         }
@@ -562,7 +608,8 @@ private fun CapturedFrameQueueDock(
     onFocusNoteChange: (String) -> Unit,
     onRemovePhoto: (Int) -> Unit,
     onClearPhotos: () -> Unit,
-    onTriggerIngestionForQueued: (String) -> Unit
+    onTriggerIngestionForQueued: (String) -> Unit,
+    onScanPhotoBarcode: ((Bitmap) -> Unit)?
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -707,5 +754,20 @@ private fun CapturedFrameQueueDock(
                 stringResource(id = activeTier.badgeLabelRes)
             )
         )
+    }
+
+    if (capturedBitmaps.isNotEmpty() && onScanPhotoBarcode != null) {
+        OutlinedButton(
+            onClick = { onScanPhotoBarcode(capturedBitmaps.first()) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .testTag("scan_queued_photo_barcode_button"),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = stringResource(id = R.string.tier0_barcode_scan_photo_btn))
+        }
     }
 }

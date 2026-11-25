@@ -4,21 +4,33 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Viewfinder corner brackets inside 66dp safe zone -->
+    <!-- Minimal viewfinder corner brackets strictly inside 66dp safe zone (21..87) -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M33,42 L33,35 C33,33.9 33.9,33 35,33 L42,33 L42,37 L37,37 L37,42 Z" />
+        android:pathData="M31,42 L31,34 C31,32.3 32.3,31 34,31 L42,31 L42,34.5 L34.5,34.5 L34.5,42 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M75,42 L75,35 C75,33.9 74.1,33 73,33 L66,33 L66,37 L71,37 L71,42 Z" />
+        android:pathData="M77,42 L77,34 C77,32.3 75.7,31 74,31 L66,31 L66,34.5 L73.5,34.5 L73.5,42 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M33,66 L33,73 C33,74.1 33.9,75 35,75 L42,75 L42,71 L37,71 L37,66 Z" />
+        android:pathData="M31,66 L31,74 C31,75.7 32.3,77 34,77 L42,77 L42,73.5 L34.5,73.5 L34.5,66 Z" />
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M75,66 L75,73 C75,74.1 74.1,75 73,75 L66,75 L66,71 L71,71 L71,66 Z" />
-    <!-- Bold botanical leaf silhouette -->
+        android:pathData="M77,66 L77,74 C77,75.7 75.7,77 74,77 L66,77 L66,73.5 L73.5,73.5 L73.5,66 Z" />
+    <!-- Stylized botanical leaf outline -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,36 C44,42 40,51 42,60 C43.5,66.5 48.5,70.5 52,72 L52,51 L56,51 L56,72 C59.5,70.5 64.5,66.5 66,60 C68,51 64,42 54,36 Z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M43,66 C39,56 44,41 64,38 C66,55 58,67 43,66 Z" />
+    <!-- Freshness pulse heartbeat line -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M34,54 L46,54 L51,44 L56,62 L61,51 L65,54 L74,54" />
 </vector>

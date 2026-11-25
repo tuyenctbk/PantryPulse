@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
@@ -98,6 +99,9 @@ fun FridgeScannerScreen(
     captureMode: ScanCaptureMode,
     scanState: VisionScanUiState,
     quotaState: UsageQuotaSnapshot,
+    isLookingUpBarcode: Boolean = false,
+    onLookupBarcode: (String) -> Unit = {},
+    onScanPhotoBarcode: (Bitmap) -> Unit = {},
     onSelectCaptureMode: (ScanCaptureMode) -> Unit,
     onAddPhoto: (Bitmap) -> Unit,
     onCaptureAndTriggerIngestion: (Bitmap, String) -> Unit,
@@ -139,6 +143,7 @@ fun FridgeScannerScreen(
     }
 
     var focusNote by rememberSaveable { mutableStateOf("") }
+    var barcodeInput by rememberSaveable { mutableStateOf("") }
 
     // Zero-permission Google Play compliant Photo Picker for up to 2 fridge/receipt photos
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -247,6 +252,88 @@ fun FridgeScannerScreen(
             }
         }
 
+        // Tier 0 Zero-Cost Open Food Facts Barcode Lookup Card (0 Cloud Credits)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("tier0_barcode_lookup_card"),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = null,
+                            tint = FreshEmerald,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = stringResource(id = R.string.tier0_barcode_title),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = stringResource(id = R.string.tier0_barcode_subtitle),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = barcodeInput,
+                            onValueChange = { barcodeInput = it.filter { ch -> ch.isDigit() }.take(14) },
+                            label = {
+                                Text(
+                                    text = stringResource(id = R.string.tier0_barcode_input_label),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            singleLine = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("tier0_barcode_input")
+                        )
+                        Button(
+                            onClick = {
+                                if (barcodeInput.length >= 6) {
+                                    onLookupBarcode(barcodeInput)
+                                    barcodeInput = ""
+                                }
+                            },
+                            enabled = barcodeInput.length >= 6 && !isLookingUpBarcode,
+                            modifier = Modifier.testTag("tier0_barcode_lookup_button")
+                        ) {
+                            if (isLookingUpBarcode) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            } else {
+                                Text(stringResource(id = R.string.tier0_barcode_lookup_btn), maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Dedicated CameraX Viewfinder Component (or Permission Gate with Fallback Dock)
         item {
             if (hasCameraPermission) {
@@ -266,7 +353,9 @@ fun FridgeScannerScreen(
                         photoPickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
-                    }
+                    },
+                    onLiveBarcodeDetected = onLookupBarcode,
+                    onScanPhotoBarcode = onScanPhotoBarcode
                 )
             } else {
                 CameraPermissionGateWithIngestionDock(
@@ -281,7 +370,8 @@ fun FridgeScannerScreen(
                         )
                     },
                     onRemovePhoto = onRemovePhoto,
-                    onAnalyze = { onAnalyzePhotos(focusNote) }
+                    onAnalyze = { onAnalyzePhotos(focusNote) },
+                    onScanPhotoBarcode = onScanPhotoBarcode
                 )
             }
         }
@@ -472,7 +562,8 @@ private fun CameraPermissionGateWithIngestionDock(
     onRequestCamera: () -> Unit,
     onPickFromGallery: () -> Unit,
     onRemovePhoto: (Int) -> Unit,
-    onAnalyze: () -> Unit
+    onAnalyze: () -> Unit,
+    onScanPhotoBarcode: (Bitmap) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -629,6 +720,20 @@ private fun CameraPermissionGateWithIngestionDock(
                 Icon(Icons.Default.AutoAwesome, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(id = R.string.scanner_inspect_photos_btn_fmt, capturedBitmaps.size, photoWord))
+            }
+
+            if (capturedBitmaps.isNotEmpty()) {
+                OutlinedButton(
+                    onClick = { onScanPhotoBarcode(capturedBitmaps.first()) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("scan_gallery_photo_barcode_button")
+                ) {
+                    Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(id = R.string.tier0_barcode_scan_photo_btn))
+                }
             }
         }
     }

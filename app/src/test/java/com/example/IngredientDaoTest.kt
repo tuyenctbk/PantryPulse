@@ -205,6 +205,19 @@ class IngredientDaoTest {
         assertEquals(1.25, decQty, 0.001)
         assertEquals("lbs", decUnit)
 
+        val (mixedQty, mixedUnit) = Ingredient.parseQuantityAndUnit("1 1/2 cups")
+        assertEquals(1.5, mixedQty, 0.001)
+        assertEquals("cups", mixedUnit)
+
+        val pastIngredient = Ingredient(
+            name = "Old Milk",
+            quantity = -2.0,
+            unit = "carton",
+            expiryDate = System.currentTimeMillis() - 86_400_000L
+        )
+        assertTrue(pastIngredient.isExpired)
+        assertEquals("0 carton", pastIngredient.formattedQuantity)
+
         val pantryItem = PantryItemEntity(
             id = 42L,
             name = "Eggs",

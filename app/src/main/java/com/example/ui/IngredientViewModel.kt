@@ -351,6 +351,35 @@ class IngredientViewModel(
         }
     }
 
+    /**
+     * Resolves an EAN-13 / UPC barcode via [PantryRepository.fetchProductAndPopulateIngredient]
+     * (Open Food Facts + Tier 0 offline cache) and auto-populates & saves an [Ingredient] entity.
+     */
+    fun autoPopulateFromBarcode(
+        rawBarcode: String,
+        repository: com.example.data.PantryRepository,
+        autoSave: Boolean = true,
+        onResult: ((Ingredient?) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(ioDispatcher) {
+                    repository.fetchProductAndPopulateIngredient(
+                        rawBarcode = rawBarcode,
+                        persistToDatabase = autoSave
+                    )
+                }
+            }.getOrNull()
+            if (result != null && result.found) {
+                clearError()
+                onResult?.invoke(result.ingredient)
+            } else {
+                _errorMessage.value = result?.errorMessage ?: stringResolver(R.string.ingredient_err_save)
+                onResult?.invoke(null)
+            }
+        }
+    }
+
     companion object {
         private fun defaultIngredientString(@StringRes resId: Int): String = when (resId) {
             R.string.ingredient_default_unit -> "unit"

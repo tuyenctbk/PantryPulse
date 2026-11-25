@@ -1,12 +1,13 @@
 package com.example.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.Locale
 
 /**
- * Room Entity representing a stored kitchen ingredient in the local offline SQLite database.
+ * Room Entity representing a pantry/fridge ingredient in the local offline SQLite database.
  *
  * Fields:
  * - [id]: Auto-generated unique primary key.
@@ -24,10 +25,15 @@ import java.util.Locale
 )
 data class Ingredient(
     @PrimaryKey(autoGenerate = true)
+    @ColumnInfo(name = "id")
     val id: Long = 0L,
+    @ColumnInfo(name = "name")
     val name: String,
+    @ColumnInfo(name = "quantity")
     val quantity: Double,
-    val unit: String,
+    @ColumnInfo(name = "unit")
+    val unit: String = "unit",
+    @ColumnInfo(name = "expiryDate")
     val expiryDate: Long
 ) {
     /**
@@ -35,10 +41,11 @@ data class Ingredient(
      */
     val formattedQuantity: String
         get() {
-            val qtyStr = if (quantity % 1.0 == 0.0) {
-                quantity.toLong().toString()
+            val safeQty = quantity.coerceAtLeast(0.0)
+            val qtyStr = if (safeQty % 1.0 == 0.0) {
+                safeQty.toLong().toString()
             } else {
-                String.format(Locale.US, "%.2f", quantity).trimEnd('0').trimEnd('.')
+                String.format(Locale.US, "%.2f", safeQty).trimEnd('0').trimEnd('.')
             }
             return if (unit.isBlank()) qtyStr else "$qtyStr ${unit.trim()}"
         }
@@ -48,6 +55,12 @@ data class Ingredient(
      */
     val daysUntilExpiry: Int
         get() = computeDaysUntilExpiry(expiryDate)
+
+    /**
+     * Whether this ingredient's expiration date is strictly in the past.
+     */
+    val isExpired: Boolean
+        get() = daysUntilExpiry < 0
 
     /**
      * Formatted calendar expiration date string (e.g., "Nov 22, 2026").
@@ -85,16 +98,25 @@ data class Ingredient(
     }
 
     companion object {
+        private val MIXED_FRACTION_REGEX = Regex("^(\\d+)\\s+(\\d+)\\s*/\\s*(\\d+)\\s*(.*)$")
         private val FRACTION_PREFIX_REGEX = Regex("^(\\d+)\\s*/\\s*(\\d+)\\s*(.*)$")
         private val NUMBER_PREFIX_REGEX = Regex("^(\\d+(?:\\.\\d+)?)\\s*(.*)$")
 
         /**
-         * Parses a free-form quantity string (e.g., "5 oz wedge", "1/2 box", "6 eggs")
+         * Parses a free-form quantity string (e.g., "5 oz wedge", "1 1/2 cups", "1/2 box", "6 eggs")
          * into a structured `(quantity: Double, unit: String)` pair.
          */
         fun parseQuantityAndUnit(rawQuantity: String): Pair<Double, String> {
             val trimmed = rawQuantity.trim()
             if (trimmed.isEmpty()) return 1.0 to "unit"
+
+            MIXED_FRACTION_REGEX.matchEntire(trimmed)?.let { match ->
+                val whole = match.groupValues[1].toDoubleOrNull() ?: 0.0
+                val numerator = match.groupValues[2].toDoubleOrNull() ?: 0.0
+                val denominator = match.groupValues[3].toDoubleOrNull()?.takeIf { it != 0.0 } ?: 1.0
+                val unit = match.groupValues[4].trim().ifEmpty { "unit" }
+                return (whole + (numerator / denominator)) to unit
+            }
 
             FRACTION_PREFIX_REGEX.matchEntire(trimmed)?.let { match ->
                 val numerator = match.groupValues[1].toDoubleOrNull() ?: 1.0
@@ -124,7 +146,7 @@ data class Ingredient(
             }
             return Ingredient(
                 id = item.id,
-                name = item.name,
+                name = item.name.trim(),
                 quantity = parsedQty,
                 unit = parsedUnit,
                 expiryDate = resolvedExpiry

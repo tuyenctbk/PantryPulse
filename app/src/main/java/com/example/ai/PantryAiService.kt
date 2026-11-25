@@ -18,6 +18,7 @@ import com.google.firebase.ai.type.content
 import com.google.firebase.ai.type.generationConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 import java.util.Locale
@@ -27,10 +28,13 @@ data class AiInferenceResult<T>(
     val data: T,
     val tierUsed: AiCapabilityTier,
     val autoCascadedToLite: Boolean = false,
-    val fromDedupCache: Boolean = false
+    val fromDedupCache: Boolean = false,
+    val usedByokKey: Boolean = false
 )
 
-class PantryAiService {
+class PantryAiService(
+    private val byokApiKeyProvider: () -> String? = { null }
+) {
 
     private data class CachedEntry<T>(
         val fingerprint: String,
@@ -274,7 +278,19 @@ class PantryAiService {
             text(prompt)
         }
 
-        val (responseText, actualTier, cascaded) = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
+        val byokKey = byokApiKeyProvider()?.takeIf { it.isNotBlank() }
+        val (responseText, actualTier, cascaded) = if (byokKey != null) {
+            val byokPrompt = "$prompt Return ONLY valid JSON with fields: summaryNote (string) and ingredients (array of {name, category, quantity, daysUntilExpiry, visualConditionNote, storageTip, estimatedValueDollars})."
+            val modelName = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) "gemini-2.5-flash-lite" else "gemini-2.5-flash"
+            val text = ByokGeminiRestClient.generateContent(
+                apiKey = byokKey,
+                modelName = modelName,
+                prompt = byokPrompt,
+                bitmaps = optimizedBitmaps,
+                expectJson = true
+            )
+            Triple(text, preferredTier, false)
+        } else if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
             val res = economyVisionModel.generateContent(inputContent)
             Triple(res.text, AiCapabilityTier.TIER_2_ECO_LITE, false)
         } else {
@@ -294,21 +310,27 @@ class PantryAiService {
             }
         }
 
-        val jsonString = responseText ?: throw IllegalStateException("Gemini Vision returned an empty response.")
+        val jsonString = unwrapJsonPayload(responseText) ?: throw IllegalStateException("Gemini Vision returned an empty response.")
         val root = JSONObject(jsonString)
         val summary = root.optString("summaryNote", "Scanned and identified ingredients by freshness urgency.")
-        val arr = root.getJSONArray("ingredients")
-        val detected = (0 until arr.length()).map { idx ->
-            val obj = arr.getJSONObject(idx)
-            DetectedIngredient(
-                name = obj.getString("name"),
-                category = PantryCategory.fromString(obj.optString("category", "PRODUCE")),
-                quantity = obj.optString("quantity", "1 item"),
-                daysUntilExpiry = obj.optInt("daysUntilExpiry", 3).coerceIn(1, 30),
-                visualConditionNote = obj.optString("visualConditionNote", "Detected in scan"),
-                storageTip = obj.optString("storageTip", "Store in sealed container in fridge."),
-                estimatedValueDollars = obj.optDouble("estimatedValueDollars", 3.50).coerceIn(0.50, 25.0)
-            )
+        val arr = root.optJSONArray("ingredients")
+        val detected = if (arr != null) {
+            (0 until arr.length()).mapNotNull { idx ->
+                val obj = arr.optJSONObject(idx) ?: return@mapNotNull null
+                val name = obj.optString("name", "").trim()
+                if (name.isBlank()) return@mapNotNull null
+                DetectedIngredient(
+                    name = name,
+                    category = PantryCategory.fromString(obj.optString("category", "PRODUCE")),
+                    quantity = obj.optString("quantity", "1 item").ifBlank { "1 item" },
+                    daysUntilExpiry = obj.optInt("daysUntilExpiry", 3).coerceIn(1, 30),
+                    visualConditionNote = obj.optString("visualConditionNote", "Detected in scan"),
+                    storageTip = obj.optString("storageTip", "Store in sealed container in fridge."),
+                    estimatedValueDollars = obj.optDouble("estimatedValueDollars", 3.50).coerceIn(0.50, 25.0)
+                )
+            }
+        } else {
+            emptyList()
         }
 
         val payload = summary to detected
@@ -316,7 +338,8 @@ class PantryAiService {
         return AiInferenceResult(
             data = payload,
             tierUsed = actualTier,
-            autoCascadedToLite = cascaded
+            autoCascadedToLite = cascaded,
+            usedByokKey = byokKey != null
         )
     }
 
@@ -374,7 +397,18 @@ class PantryAiService {
             }
         }
 
-        val (responseText, actualTier, cascaded) = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
+        val byokKey = byokApiKeyProvider()?.takeIf { it.isNotBlank() }
+        val (responseText, actualTier, cascaded) = if (byokKey != null) {
+            val byokPrompt = "$prompt\nReturn ONLY valid JSON: {\"recipes\":[{\"rank\":1,\"title\":\"...\",\"recipeCategory\":\"QUICK_EASY\",\"rescueScore\":95,\"prepTimeMinutes\":20,\"servings\":2,\"caloriesPerServing\":360,\"estimatedCostPerServing\":2.0,\"applianceUsed\":\"...\",\"whyItRescues\":\"...\",\"expiringIngredientsUsed\":[],\"pantryIngredientsUsed\":[],\"spicesUsed\":[],\"steps\":[],\"chefTip\":\"...\"}]}"
+            val modelName = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) "gemini-2.5-flash-lite" else "gemini-2.5-flash"
+            val text = ByokGeminiRestClient.generateContent(
+                apiKey = byokKey,
+                modelName = modelName,
+                prompt = byokPrompt,
+                expectJson = true
+            )
+            Triple(text, preferredTier, false)
+        } else if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
             val res = economyRecipeModel.generateContent(prompt)
             Triple(res.text, AiCapabilityTier.TIER_2_ECO_LITE, false)
         } else {
@@ -394,42 +428,47 @@ class PantryAiService {
             }
         }
 
-        val jsonString = responseText ?: throw IllegalStateException("Recipe generator returned empty text.")
+        val jsonString = unwrapJsonPayload(responseText) ?: throw IllegalStateException("Recipe generator returned empty text.")
         val root = JSONObject(jsonString)
-        val recipesArray = root.getJSONArray("recipes")
+        val recipesArray = root.optJSONArray("recipes")
 
-        val recipes = (0 until recipesArray.length()).map { idx ->
-            val obj = recipesArray.getJSONObject(idx)
-            val expArr = obj.getJSONArray("expiringIngredientsUsed")
-            val panArr = obj.getJSONArray("pantryIngredientsUsed")
-            val spiceArr = obj.getJSONArray("spicesUsed")
-            val stepsArr = obj.getJSONArray("steps")
+        val recipes = if (recipesArray != null) {
+            (0 until recipesArray.length()).mapNotNull { idx ->
+                val obj = recipesArray.optJSONObject(idx) ?: return@mapNotNull null
+                val title = obj.optString("title", "").trim()
+                if (title.isBlank()) return@mapNotNull null
 
-            RecipeSuggestion(
-                id = UUID.randomUUID().toString(),
-                rank = obj.optInt("rank", idx + 1),
-                title = obj.getString("title"),
-                recipeCategory = RecipeCategoryFilter.fromString(obj.optString("recipeCategory", "QUICK_EASY")),
-                rescueScore = obj.optInt("rescueScore", 95 - idx * 5).coerceIn(60, 100),
-                prepTimeMinutes = obj.optInt("prepTimeMinutes", 20),
-                servings = obj.optInt("servings", 2),
-                caloriesPerServing = obj.optInt("caloriesPerServing", 360).coerceIn(120, 1200),
-                estimatedCostPerServing = obj.optDouble("estimatedCostPerServing", 2.10).coerceIn(0.50, 15.0),
-                applianceUsed = obj.optString("applianceUsed", kitchenSetup.ownedAppliances.firstOrNull() ?: "Skillet"),
-                whyItRescues = obj.optString("whyItRescues", "Prioritizes expiring produce before spoilage."),
-                expiringIngredientsUsed = (0 until expArr.length()).map { expArr.getString(it) },
-                pantryIngredientsUsed = (0 until panArr.length()).map { panArr.getString(it) },
-                spicesUsed = (0 until spiceArr.length()).map { spiceArr.getString(it) },
-                steps = (0 until stepsArr.length()).map { stepsArr.getString(it) },
-                chefTip = obj.optString("chefTip", "Season to taste right before serving.")
-            )
-        }.sortedBy { it.rank }
+                RecipeSuggestion(
+                    id = UUID.randomUUID().toString(),
+                    rank = obj.optInt("rank", idx + 1),
+                    title = title,
+                    recipeCategory = RecipeCategoryFilter.fromString(obj.optString("recipeCategory", "QUICK_EASY")),
+                    rescueScore = obj.optInt("rescueScore", 95 - idx * 5).coerceIn(60, 100),
+                    prepTimeMinutes = obj.optInt("prepTimeMinutes", 20),
+                    servings = obj.optInt("servings", 2),
+                    caloriesPerServing = obj.optInt("caloriesPerServing", 360).coerceIn(120, 1200),
+                    estimatedCostPerServing = obj.optDouble("estimatedCostPerServing", 2.10).coerceIn(0.50, 15.0),
+                    applianceUsed = obj.optString("applianceUsed", kitchenSetup.ownedAppliances.firstOrNull() ?: "Skillet"),
+                    whyItRescues = obj.optString("whyItRescues", "Prioritizes expiring produce before spoilage."),
+                    expiringIngredientsUsed = obj.optStringList("expiringIngredientsUsed"),
+                    pantryIngredientsUsed = obj.optStringList("pantryIngredientsUsed"),
+                    spicesUsed = obj.optStringList("spicesUsed"),
+                    steps = obj.optStringList("steps").ifEmpty {
+                        listOf("Combine ingredients, season to taste, and cook until tender.")
+                    },
+                    chefTip = obj.optString("chefTip", "Season to taste right before serving.")
+                )
+            }.sortedBy { it.rank }
+        } else {
+            emptyList()
+        }
 
         cachedRecipeResult = CachedEntry(fingerprint, now, recipes)
         return AiInferenceResult(
             data = recipes,
             tierUsed = actualTier,
-            autoCascadedToLite = cascaded
+            autoCascadedToLite = cascaded,
+            usedByokKey = byokKey != null
         )
     }
 
@@ -462,6 +501,21 @@ class PantryAiService {
             }
             append("User's Question: $userMessage\n")
             append("Respond warmly, concisely, and practically with bullet points or numbered steps tailored to their exact kitchen setup.")
+        }
+
+        val byokKey = byokApiKeyProvider()?.takeIf { it.isNotBlank() }
+        if (byokKey != null) {
+            val modelName = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) "gemini-2.5-flash-lite" else "gemini-2.5-flash"
+            return flow {
+                emit(
+                    ByokGeminiRestClient.generateContent(
+                        apiKey = byokKey,
+                        modelName = modelName,
+                        prompt = fullPrompt,
+                        expectJson = false
+                    )
+                )
+            }
         }
 
         val targetModel = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
@@ -507,7 +561,18 @@ class PantryAiService {
             }
         }
 
-        val (responseText, actualTier, cascaded) = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
+        val byokKey = byokApiKeyProvider()?.takeIf { it.isNotBlank() }
+        val (responseText, actualTier, cascaded) = if (byokKey != null) {
+            val byokPrompt = "$prompt Return ONLY valid JSON: {\"ingredients\":[{\"name\":\"...\",\"category\":\"PRODUCE\",\"quantity\":\"1 unit\",\"daysUntilExpiry\":3,\"visualConditionNote\":\"...\",\"storageTip\":\"...\",\"estimatedValueDollars\":3.5}]}"
+            val modelName = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) "gemini-2.5-flash-lite" else "gemini-2.5-flash"
+            val text = ByokGeminiRestClient.generateContent(
+                apiKey = byokKey,
+                modelName = modelName,
+                prompt = byokPrompt,
+                expectJson = true
+            )
+            Triple(text, preferredTier, false)
+        } else if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
             val res = economyVisionModel.generateContent(prompt)
             Triple(res.text, AiCapabilityTier.TIER_2_ECO_LITE, false)
         } else {
@@ -527,28 +592,35 @@ class PantryAiService {
             }
         }
 
-        val jsonString = responseText ?: throw IllegalStateException("Voice-to-Inventory AI returned empty text.")
+        val jsonString = unwrapJsonPayload(responseText) ?: throw IllegalStateException("Voice-to-Inventory AI returned empty text.")
         val root = JSONObject(jsonString)
-        val arr = root.getJSONArray("ingredients")
-        val parsed = (0 until arr.length()).map { idx ->
-            val obj = arr.getJSONObject(idx)
-            DetectedIngredient(
-                name = obj.getString("name"),
-                category = PantryCategory.fromString(obj.optString("category", "PRODUCE")),
-                quantity = obj.optString("quantity", "1 unit"),
-                daysUntilExpiry = obj.optInt("daysUntilExpiry", 3).coerceIn(1, 30),
-                visualConditionNote = obj.optString("visualConditionNote", "Parsed from voice memo"),
-                storageTip = obj.optString("storageTip", "Store in sealed container in fridge."),
-                estimatedValueDollars = obj.optDouble("estimatedValueDollars", 3.50).coerceIn(0.50, 25.0),
-                isSelected = true
-            )
+        val arr = root.optJSONArray("ingredients")
+        val parsed = if (arr != null) {
+            (0 until arr.length()).mapNotNull { idx ->
+                val obj = arr.optJSONObject(idx) ?: return@mapNotNull null
+                val name = obj.optString("name", "").trim()
+                if (name.isBlank()) return@mapNotNull null
+                DetectedIngredient(
+                    name = name,
+                    category = PantryCategory.fromString(obj.optString("category", "PRODUCE")),
+                    quantity = obj.optString("quantity", "1 unit").ifBlank { "1 unit" },
+                    daysUntilExpiry = obj.optInt("daysUntilExpiry", 3).coerceIn(1, 30),
+                    visualConditionNote = obj.optString("visualConditionNote", "Parsed from voice memo"),
+                    storageTip = obj.optString("storageTip", "Store in sealed container in fridge."),
+                    estimatedValueDollars = obj.optDouble("estimatedValueDollars", 3.50).coerceIn(0.50, 25.0),
+                    isSelected = true
+                )
+            }
+        } else {
+            emptyList()
         }
 
         cachedVoiceParseResult = CachedEntry(fingerprint, now, parsed)
         return AiInferenceResult(
             data = parsed,
             tierUsed = actualTier,
-            autoCascadedToLite = cascaded
+            autoCascadedToLite = cascaded,
+            usedByokKey = byokKey != null
         )
     }
 
@@ -600,7 +672,18 @@ class PantryAiService {
             }
         }
 
-        val (responseText, actualTier, cascaded) = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
+        val byokKey = byokApiKeyProvider()?.takeIf { it.isNotBlank() }
+        val (responseText, actualTier, cascaded) = if (byokKey != null) {
+            val byokPrompt = "$prompt\nReturn ONLY valid JSON: {\"analysisSummary\":\"...\",\"guides\":[{\"ingredientName\":\"...\",\"methodType\":\"FREEZE_LOCK\",\"extendedShelfLifeDays\":30,\"urgencyHeadline\":\"...\",\"personalizedStorageTip\":\"...\",\"preservationSteps\":[],\"bestUseAfterPreserving\":\"...\"}]}"
+            val modelName = if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) "gemini-2.5-flash-lite" else "gemini-2.5-flash"
+            val text = ByokGeminiRestClient.generateContent(
+                apiKey = byokKey,
+                modelName = modelName,
+                prompt = byokPrompt,
+                expectJson = true
+            )
+            Triple(text, preferredTier, false)
+        } else if (preferredTier == AiCapabilityTier.TIER_2_ECO_LITE) {
             val res = economyPreservationModel.generateContent(prompt)
             Triple(res.text, AiCapabilityTier.TIER_2_ECO_LITE, false)
         } else {
@@ -620,54 +703,55 @@ class PantryAiService {
             }
         }
 
-        val jsonString = responseText ?: throw IllegalStateException("Shelf-Life Preservation AI returned empty text.")
+        val jsonString = unwrapJsonPayload(responseText) ?: throw IllegalStateException("Shelf-Life Preservation AI returned empty text.")
         val root = JSONObject(jsonString)
         val summary = root.optString(
             "analysisSummary",
             "Personalized zero-waste preservation & freezing plan ready for ${targetItems.size} expiring ingredients."
         )
-        val guidesArr = root.getJSONArray("guides")
-        val parsedGuides = (0 until guidesArr.length()).map { idx ->
-            val obj = guidesArr.getJSONObject(idx)
-            val rawName = obj.optString("ingredientName", "Pantry Item")
-            val matchedEntity = targetItems.firstOrNull {
-                it.name.equals(rawName, ignoreCase = true) ||
-                    it.name.contains(rawName, ignoreCase = true) ||
-                    rawName.contains(it.name, ignoreCase = true)
-            } ?: targetItems.getOrElse(idx) { targetItems.first() }
+        val guidesArr = root.optJSONArray("guides")
+        val parsedGuides = if (guidesArr != null && targetItems.isNotEmpty()) {
+            (0 until guidesArr.length()).mapNotNull { idx ->
+                val obj = guidesArr.optJSONObject(idx) ?: return@mapNotNull null
+                val rawName = obj.optString("ingredientName", "Pantry Item")
+                val matchedEntity = targetItems.firstOrNull {
+                    it.name.equals(rawName, ignoreCase = true) ||
+                        it.name.contains(rawName, ignoreCase = true) ||
+                        rawName.contains(it.name, ignoreCase = true)
+                } ?: targetItems.getOrElse(idx) { targetItems.first() }
 
-            val stepsJson = obj.optJSONArray("preservationSteps")
-            val steps = if (stepsJson != null && stepsJson.length() > 0) {
-                (0 until stepsJson.length()).map { stepsJson.getString(it) }
-            } else {
-                LocalCulinaryFallbackEngine.buildPreservationGuideForItem(matchedEntity).preservationSteps
+                val steps = obj.optStringList("preservationSteps").ifEmpty {
+                    LocalCulinaryFallbackEngine.buildPreservationGuideForItem(matchedEntity).preservationSteps
+                }
+                val method = PreservationMethodType.fromString(obj.optString("methodType", "FREEZE_LOCK"))
+
+                PreservationGuide(
+                    id = "ai-preserve-${matchedEntity.id}-$idx",
+                    itemId = matchedEntity.id,
+                    ingredientName = matchedEntity.name,
+                    category = matchedEntity.parsedCategory,
+                    currentDaysLeft = matchedEntity.effectiveDaysUntilExpiry,
+                    extendedShelfLifeDays = obj.optInt("extendedShelfLifeDays", method.defaultBonusDays).coerceIn(5, 90),
+                    methodType = method,
+                    urgencyHeadline = obj.optString(
+                        "urgencyHeadline",
+                        "Extend ${matchedEntity.name} by +${method.defaultBonusDays} days via ${method.label}"
+                    ),
+                    personalizedStorageTip = obj.optString(
+                        "personalizedStorageTip",
+                        matchedEntity.storageTip
+                    ),
+                    preservationSteps = steps,
+                    bestUseAfterPreserving = obj.optString(
+                        "bestUseAfterPreserving",
+                        "Cook directly from preserved state in skillets, soups, or frittatas."
+                    ),
+                    estimatedSavingsDollars = matchedEntity.estimatedValueDollars,
+                    isApplied = matchedEntity.visualConditionNote.contains("Preserved via", ignoreCase = true)
+                )
             }
-            val method = PreservationMethodType.fromString(obj.optString("methodType", "FREEZE_LOCK"))
-
-            PreservationGuide(
-                id = "ai-preserve-${matchedEntity.id}-$idx",
-                itemId = matchedEntity.id,
-                ingredientName = matchedEntity.name,
-                category = matchedEntity.parsedCategory,
-                currentDaysLeft = matchedEntity.effectiveDaysUntilExpiry,
-                extendedShelfLifeDays = obj.optInt("extendedShelfLifeDays", method.defaultBonusDays).coerceIn(5, 90),
-                methodType = method,
-                urgencyHeadline = obj.optString(
-                    "urgencyHeadline",
-                    "Extend ${matchedEntity.name} by +${method.defaultBonusDays} days via ${method.label}"
-                ),
-                personalizedStorageTip = obj.optString(
-                    "personalizedStorageTip",
-                    matchedEntity.storageTip
-                ),
-                preservationSteps = steps,
-                bestUseAfterPreserving = obj.optString(
-                    "bestUseAfterPreserving",
-                    "Cook directly from preserved state in skillets, soups, or frittatas."
-                ),
-                estimatedSavingsDollars = matchedEntity.estimatedValueDollars,
-                isApplied = matchedEntity.visualConditionNote.contains("Preserved via", ignoreCase = true)
-            )
+        } else {
+            emptyList()
         }
 
         val payload = summary to parsedGuides
@@ -675,11 +759,24 @@ class PantryAiService {
         return AiInferenceResult(
             data = payload,
             tierUsed = actualTier,
-            autoCascadedToLite = cascaded
+            autoCascadedToLite = cascaded,
+            usedByokKey = byokKey != null
         )
     }
 
     companion object {
+        fun unwrapJsonPayload(raw: String?): String? {
+            val trimmed = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            if (!trimmed.startsWith("```")) return trimmed
+            return trimmed
+                .removePrefix("```json")
+                .removePrefix("```JSON")
+                .removePrefix("```")
+                .removeSuffix("```")
+                .trim()
+                .takeIf { it.isNotEmpty() }
+        }
+
         fun isQuotaOrRateLimitException(e: Throwable): Boolean {
             val msg = (e.message ?: "") + " " + (e.cause?.message ?: "")
             val lower = msg.lowercase()
@@ -688,6 +785,12 @@ class PantryAiService {
                 lower.contains("quota") ||
                 lower.contains("rate limit") ||
                 lower.contains("too many requests")
+        }
+        private fun JSONObject.optStringList(key: String): List<String> {
+            val arr = optJSONArray(key) ?: return emptyList()
+            return (0 until arr.length()).mapNotNull { i ->
+                arr.optString(i, "").trim().takeIf { it.isNotEmpty() }
+            }
         }
     }
 }

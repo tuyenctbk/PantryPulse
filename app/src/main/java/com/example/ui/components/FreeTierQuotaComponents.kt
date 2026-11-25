@@ -36,6 +36,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -45,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -109,9 +111,9 @@ fun AiQuotaStatusPill(
             Text(
                 text = if (compact) {
                     when (tier) {
-                        AiCapabilityTier.TIER_1_PRIMARY -> "${quota.remainingCredits} left"
-                        AiCapabilityTier.TIER_2_ECO_LITE -> "Eco ${quota.remainingCredits}"
-                        AiCapabilityTier.TIER_3_LOCAL_FALLBACK -> "Local"
+                        AiCapabilityTier.TIER_1_PRIMARY -> stringResource(id = R.string.quota_pill_compact_standard_fmt, quota.remainingCredits)
+                        AiCapabilityTier.TIER_2_ECO_LITE -> stringResource(id = R.string.quota_pill_compact_eco_fmt, quota.remainingCredits)
+                        AiCapabilityTier.TIER_3_LOCAL_FALLBACK -> stringResource(id = R.string.quota_pill_compact_local)
                     }
                 } else {
                     when (tier) {
@@ -430,6 +432,11 @@ fun AiValueReceiptDialog(
     quota: UsageQuotaSnapshot,
     rescuedMealsCount: Int,
     savedDollarsTotal: Double,
+    hasByokKey: Boolean = false,
+    byokKeyPreview: String = "",
+    onSaveByokKey: (String) -> Unit = {},
+    onClearByokKey: () -> Unit = {},
+    onPurchaseCreditPack: (Int) -> Unit = {},
     onToggleEcoLite: (Boolean) -> Unit,
     onToggleForceLocal: (Boolean) -> Unit,
     onClaimGraceCredits: () -> Unit,
@@ -437,6 +444,7 @@ fun AiValueReceiptDialog(
     onDismiss: () -> Unit
 ) {
     var showPrivacyPolicyDialog by rememberSaveable { mutableStateOf(false) }
+    var byokInput by rememberSaveable { mutableStateOf("") }
 
     if (showPrivacyPolicyDialog) {
         PrivacyPolicyDialog(onDismiss = { showPrivacyPolicyDialog = false })
@@ -519,11 +527,20 @@ fun AiValueReceiptDialog(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = stringResource(
-                                    id = R.string.receipt_remaining_fmt,
-                                    quota.remainingCredits,
-                                    quota.totalAllowance
-                                ),
+                                text = if (quota.ecoLiteMode && !quota.isExhausted) {
+                                    stringResource(
+                                        id = R.string.receipt_remaining_eco_fmt,
+                                        quota.remainingCredits,
+                                        quota.totalAllowance,
+                                        quota.remainingEcoLiteCalls
+                                    )
+                                } else {
+                                    stringResource(
+                                        id = R.string.receipt_remaining_fmt,
+                                        quota.remainingCredits,
+                                        quota.totalAllowance
+                                    )
+                                },
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -635,39 +652,129 @@ fun AiValueReceiptDialog(
                     )
                 }
 
-                if (BuildConfig.DEBUG) {
-                    HorizontalDivider()
+                HorizontalDivider()
 
-                    // 4. Interactive Playbook Simulator (Debug builds only)
-                    Text(
-                        text = stringResource(id = R.string.receipt_preview_stages_title),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // 3b. Zero-Cost Power Upgrades: Encrypted BYOK + Non-Expiring Credit Packs
+                Text(
+                    text = stringResource(id = R.string.byok_section_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        FilterChip(
-                            selected = !quota.isSoftNudgeThreshold && !quota.isExhausted,
-                            onClick = { onSimulatePreset("HEALTHY") },
-                            label = { Text(stringResource(id = R.string.receipt_stage_healthy)) },
-                            modifier = Modifier.testTag("simulate_healthy_chip")
+                        Text(
+                            text = stringResource(id = R.string.byok_card_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
                         )
-                        FilterChip(
-                            selected = quota.isSoftNudgeThreshold,
-                            onClick = { onSimulatePreset("SOFT_NUDGE_80") },
-                            label = { Text(stringResource(id = R.string.receipt_stage_soft_nudge)) },
-                            modifier = Modifier.testTag("simulate_soft_nudge_chip")
+                        Text(
+                            text = if (hasByokKey) {
+                                stringResource(id = R.string.byok_card_active_fmt, byokKeyPreview)
+                            } else {
+                                stringResource(id = R.string.byok_card_inactive)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (hasByokKey) FreshEmerald else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        FilterChip(
-                            selected = quota.isExhausted,
-                            onClick = { onSimulatePreset("EXHAUSTED_100") },
-                            label = { Text(stringResource(id = R.string.receipt_stage_exhausted)) },
-                            modifier = Modifier.testTag("simulate_exhausted_chip")
+
+                        OutlinedTextField(
+                            value = byokInput,
+                            onValueChange = { byokInput = it },
+                            label = { Text(stringResource(id = R.string.byok_input_label)) },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("byok_api_key_input")
                         )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    onSaveByokKey(byokInput)
+                                    byokInput = ""
+                                },
+                                enabled = byokInput.trim().length >= 16,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("byok_save_key_button")
+                            ) {
+                                Text(stringResource(id = R.string.byok_save_btn))
+                            }
+                            if (hasByokKey) {
+                                OutlinedButton(
+                                    onClick = onClearByokKey,
+                                    modifier = Modifier.testTag("byok_clear_key_button")
+                                ) {
+                                    Text(stringResource(id = R.string.byok_clear_btn))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Non-expiring Consumable AI Credit Packs
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.credit_packs_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (quota.purchasedCreditBalance > 0) {
+                            Text(
+                                text = stringResource(id = R.string.credit_pack_balance_fmt, quota.purchasedCreditBalance),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = FreshEmerald,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { onPurchaseCreditPack(30) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("buy_credit_pack_30_button")
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.credit_pack_30_btn),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                            OutlinedButton(
+                                onClick = { onPurchaseCreditPack(100) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("buy_credit_pack_100_button")
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.credit_pack_100_btn),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
                     }
                 }
             }

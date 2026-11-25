@@ -28,7 +28,13 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = OnDeepForestSurfaceDark,
     surfaceVariant = SageSurfaceVariantDark,
     onSurfaceVariant = OnSageSurfaceVariantDark,
-    outline = OutlineSageDark
+    surfaceContainerLowest = SurfaceContainerLowestDark,
+    surfaceContainerLow = SurfaceContainerLowDark,
+    surfaceContainer = SurfaceContainerDark,
+    surfaceContainerHigh = SurfaceContainerHighDark,
+    surfaceContainerHighest = SurfaceContainerHighestDark,
+    outline = OutlineSageDark,
+    outlineVariant = OutlineVariantSageDark
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -50,7 +56,13 @@ private val LightColorScheme = lightColorScheme(
     onSurface = OnWarmSurfaceLight,
     surfaceVariant = SageSurfaceVariantLight,
     onSurfaceVariant = OnSageSurfaceVariantLight,
-    outline = OutlineSageLight
+    surfaceContainerLowest = SurfaceContainerLowestLight,
+    surfaceContainerLow = SurfaceContainerLowLight,
+    surfaceContainer = SurfaceContainerLight,
+    surfaceContainerHigh = SurfaceContainerHighLight,
+    surfaceContainerHighest = SurfaceContainerHighestLight,
+    outline = OutlineSageLight,
+    outlineVariant = OutlineVariantSageLight
 )
 
 val PantryShapes = Shapes(

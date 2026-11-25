@@ -356,15 +356,18 @@ data class RecipeSuggestion(
     fun matchesSearchQuery(query: String): Boolean {
         val trimmed = query.trim().lowercase()
         if (trimmed.isEmpty()) return true
-        return trimmed.split(" ").all { token ->
+        val tokens = trimmed.split(Regex("\\s+")).filter { it.isNotBlank() }
+        return tokens.all { token ->
             combinedCorpusLower.contains(token) || applianceUsed.lowercase().contains(token)
         }
     }
 
     fun matchesDietaryPreference(pref: RecipeDietaryPreference): Boolean {
         val corpus = combinedCorpusLower
-        val hasMeatKeywords = listOf("chicken", "beef", "pork", "bacon", "sausage", "turkey", "salmon", "shrimp")
-            .any { corpus.contains(it) }
+        val hasMeatKeywords = listOf(
+            "chicken", "beef", "pork", "bacon", "sausage", "turkey",
+            "salmon", "shrimp", "fish", "tuna", "ham", "prosciutto", "lamb", "steak", "anchovy"
+        ).any { corpus.contains(it) }
         val hasGlutenKeywords = listOf("bread", "toast", "sourdough", "pasta", "noodle", "flour", "tortilla")
             .any { corpus.contains(it) }
         val hasProteinKeywords = listOf("egg", "frittata", "shakshuka", "cheddar", "feta", "cheese", "tofu", "chicken", "yogurt", "chickpea")
