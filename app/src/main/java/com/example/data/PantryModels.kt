@@ -52,8 +52,8 @@ fun formatExpiryDate(expiryDateEpochMillis: Long): String {
 enum class FreshnessStatus(
     val label: String,
     val badgeText: String,
-    @StringRes val labelRes: Int,
-    @StringRes val badgeRes: Int
+    @get:StringRes val labelRes: Int,
+    @get:StringRes val badgeRes: Int
 ) {
     CRITICAL("Use Today / Tomorrow", "CRITICAL", R.string.freshness_critical, R.string.freshness_critical_badge),
     EXPIRING_SOON("Expiring Soon", "SOON", R.string.freshness_soon, R.string.freshness_soon_badge),
@@ -71,7 +71,7 @@ enum class FreshnessStatus(
 enum class PantryCategory(
     val displayName: String,
     val emoji: String,
-    @StringRes val displayNameRes: Int
+    @get:StringRes val displayNameRes: Int
 ) {
     PRODUCE("Produce & Greens", "🥬", R.string.category_produce),
     DAIRY_CHEESE("Dairy & Cheese", "🧀", R.string.category_dairy),
@@ -100,8 +100,8 @@ enum class RecipeCategoryFilter(
     val displayName: String,
     val shortBadge: String,
     val aiPromptInstruction: String,
-    @StringRes val displayNameRes: Int,
-    @StringRes val shortBadgeRes: Int
+    @get:StringRes val displayNameRes: Int,
+    @get:StringRes val shortBadgeRes: Int
 ) {
     QUICK_EASY(
         displayName = "Quick & Easy",
@@ -142,8 +142,8 @@ enum class RecipeDietaryPreference(
     val displayName: String,
     val badgeLabel: String,
     val aiPromptInstruction: String,
-    @StringRes val displayNameRes: Int,
-    @StringRes val badgeLabelRes: Int
+    @get:StringRes val displayNameRes: Int,
+    @get:StringRes val badgeLabelRes: Int
 ) {
     VEGETARIAN(
         displayName = "Vegetarian",
@@ -185,8 +185,8 @@ enum class RecipeDietaryPreference(
 enum class ScanCaptureMode(
     val title: String,
     val subtitle: String,
-    @StringRes val titleRes: Int,
-    @StringRes val subtitleRes: Int
+    @get:StringRes val titleRes: Int,
+    @get:StringRes val subtitleRes: Int
 ) {
     FRIDGE_SHELF(
         title = "Fridge / Pantry Shelf",
@@ -254,6 +254,12 @@ data class PantryItemEntity(
 
     val isLowStock: Boolean
         get() = stockPercent <= lowStockThresholdPercent
+
+    val isPreserved: Boolean
+        get() = PreservationMethodType.entries.any { visualConditionNote.contains(it.badgeEmoji) } ||
+            visualConditionNote.contains("Preserved", ignoreCase = true) ||
+            visualConditionNote.contains("Freeze", ignoreCase = true) ||
+            visualConditionNote.contains("Pickle", ignoreCase = true)
 }
 
 @Entity(
@@ -441,7 +447,7 @@ enum class PreservationMethodType(
     val label: String,
     val badgeEmoji: String,
     val defaultBonusDays: Int,
-    @StringRes val labelRes: Int
+    @get:StringRes val labelRes: Int
 ) {
     FREEZE_LOCK("Freeze & Lock", "❄️", 45, R.string.preservation_method_freeze),
     BLANCH_FREEZE("Blanch & Ice Shock", "♨️", 60, R.string.preservation_method_blanch),

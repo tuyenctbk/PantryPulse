@@ -39,8 +39,8 @@ enum class GooglePlayDonationTier(
     val amountDollars: Double,
     val badgeEmoji: String,
     val description: String,
-    @StringRes val titleRes: Int,
-    @StringRes val descriptionRes: Int
+    @get:StringRes val titleRes: Int,
+    @get:StringRes val descriptionRes: Int
 ) {
     TIER_1(
         skuId = "pantrypulse_supporter_199",
@@ -86,7 +86,7 @@ enum class GooglePlayDonationTier(
 
 enum class SmartAutoPromptType(
     val title: String,
-    @StringRes val titleRes: Int
+    @get:StringRes val titleRes: Int
 ) {
     MILESTONE_DONATION("Milestone Reached • Support PantryPulse", R.string.prompt_title_milestone),
     RATE_APP("Enjoying PantryPulse? Rate Us", R.string.prompt_title_rate),

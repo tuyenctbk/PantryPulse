@@ -14,7 +14,7 @@ enum class AiCapabilityTier(
     val badgeLabel: String,
     val modelDisplayName: String,
     val description: String,
-    @StringRes val badgeLabelRes: Int
+    @get:StringRes val badgeLabelRes: Int
 ) {
     TIER_1_PRIMARY(
         badgeLabel = "Tier 1 • Standard AI",

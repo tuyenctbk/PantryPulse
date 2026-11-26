@@ -335,7 +335,7 @@ object LocalCulinaryFallbackEngine {
         val lower = (item.name + " " + item.visualConditionNote).lowercase()
         val category = item.parsedCategory
         val daysLeft = item.effectiveDaysUntilExpiry.coerceAtLeast(0)
-        val alreadyPreserved = item.visualConditionNote.contains("Preserved", ignoreCase = true)
+        val alreadyPreserved = item.isPreserved || item.visualConditionNote.contains("Preserved", ignoreCase = true)
 
         return when {
             // Specific Leafy Greens (Spinach, Kale, Arugula, Chard, Collards, Herbs)

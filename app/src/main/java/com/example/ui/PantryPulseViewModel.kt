@@ -60,7 +60,7 @@ enum class PantryTab {
     CHEF_CHAT
 }
 
-enum class PantrySortOrder(val label: String, @StringRes val labelRes: Int) {
+enum class PantrySortOrder(val label: String, @get:StringRes val labelRes: Int) {
     URGENCY("Expiring First", R.string.sort_urgency),
     VALUE_HIGH("Highest Value $", R.string.sort_value_high),
     RECENT("Recently Added", R.string.sort_recent)

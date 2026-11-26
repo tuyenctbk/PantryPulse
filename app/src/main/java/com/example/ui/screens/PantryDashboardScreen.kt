@@ -60,7 +60,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -254,6 +254,7 @@ fun PantryDashboardScreen(
                     val preservedFreezerItems = remember(items) {
                         items.filter {
                             it.effectiveDaysUntilExpiry >= 14 ||
+                                it.isPreserved ||
                                 it.visualConditionNote.contains("Preserved", ignoreCase = true) ||
                                 it.visualConditionNote.contains("Freeze", ignoreCase = true)
                         }
@@ -1452,7 +1453,7 @@ private fun SearchAndSortSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Sort,
+                imageVector = Icons.AutoMirrored.Filled.Sort,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(16.dp)

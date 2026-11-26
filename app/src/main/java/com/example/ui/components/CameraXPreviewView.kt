@@ -332,7 +332,6 @@ fun CameraXPreviewElement(
                         controller.streamState = CameraPreviewStreamState.Initializing
                     }
                 }
-                null -> Unit
             }
         }
         previewView.previewStreamState.observe(lifecycleOwner, streamObserver)
@@ -467,7 +466,7 @@ fun CameraXPreviewElement(
                 controller.currentZoomRatio = zoomStateValue?.zoomRatio ?: 1f
 
                 val zObserver = Observer<ZoomState> { zState ->
-                    if (zState != null && !isDisposed) {
+                    if (!isDisposed) {
                         controller.currentZoomRatio = zState.zoomRatio
                         controller.capabilities = controller.capabilities.copy(
                             minZoomRatio = zState.minZoomRatio,

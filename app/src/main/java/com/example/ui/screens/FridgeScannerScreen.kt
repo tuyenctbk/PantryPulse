@@ -38,7 +38,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -235,7 +235,7 @@ fun FridgeScannerScreen(
                                 imageVector = if (mode == ScanCaptureMode.FRIDGE_SHELF) {
                                     Icons.Default.Kitchen
                                 } else {
-                                    Icons.Default.ReceiptLong
+                                    Icons.AutoMirrored.Filled.ReceiptLong
                                 },
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)

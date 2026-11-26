@@ -747,7 +747,7 @@ class PantryAiService(
                         "Cook directly from preserved state in skillets, soups, or frittatas."
                     ),
                     estimatedSavingsDollars = matchedEntity.estimatedValueDollars,
-                    isApplied = matchedEntity.visualConditionNote.contains("Preserved via", ignoreCase = true)
+                    isApplied = matchedEntity.isPreserved || matchedEntity.visualConditionNote.contains("Preserved via", ignoreCase = true)
                 )
             }
         } else {

@@ -44,7 +44,7 @@ object OpenFoodFactsNetworkModule {
 
     val gson: Gson by lazy {
         GsonBuilder()
-            .setLenient()
+            .setStrictness(com.google.gson.Strictness.LENIENT)
             .create()
     }
 

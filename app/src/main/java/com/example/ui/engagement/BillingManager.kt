@@ -41,7 +41,7 @@ private const val TAG = "BillingManager"
  */
 enum class BillingConnectionState(
     val displayLabel: String,
-    @StringRes val displayLabelRes: Int
+    @get:StringRes val displayLabelRes: Int
 ) {
     DISCONNECTED("Disconnected", R.string.billing_conn_disconnected),
     CONNECTING("Connecting to Google Play…", R.string.billing_conn_connecting),
