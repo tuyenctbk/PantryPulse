@@ -67,6 +67,7 @@ object WeeklyMealPlanner {
 
         val days = mutableListOf<MealPlanDay>()
         val allMissing = linkedSetOf<String>()
+        val seenRescuedKeys = mutableSetOf<String>()
         var rescuedDollars = 0.0
 
         for (dayIdx in 0 until clampedDays) {
@@ -84,8 +85,16 @@ object WeeklyMealPlanner {
             val slice = listOfNotNull(first, second)
 
             if (dayIdx < 3) {
-                rescuedDollars += slice.filter { it.effectiveDaysUntilExpiry <= 3 }
-                    .sumOf { it.estimatedValueDollars }
+                slice.filter { it.effectiveDaysUntilExpiry <= 3 }.forEach { expiringItem ->
+                    val dedupKey = if (expiringItem.id != 0L) {
+                        "id:${expiringItem.id}"
+                    } else {
+                        "name:${expiringItem.name.trim().lowercase()}"
+                    }
+                    if (seenRescuedKeys.add(dedupKey)) {
+                        rescuedDollars += expiringItem.estimatedValueDollars
+                    }
+                }
             }
 
             val primaryItem = slice.first()

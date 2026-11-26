@@ -42,8 +42,11 @@ class PantryAiService(
         val payload: T
     )
 
+    @Volatile
     private var cachedVisionResult: CachedEntry<Pair<String, List<DetectedIngredient>>>? = null
+    @Volatile
     private var cachedRecipeResult: CachedEntry<List<RecipeSuggestion>>? = null
+    @Volatile
     private var cachedPreservationResult: CachedEntry<Pair<String, List<PreservationGuide>>>? = null
 
     private val visionSchema = Schema.obj(
@@ -326,7 +329,7 @@ class PantryAiService(
                     daysUntilExpiry = obj.optInt("daysUntilExpiry", 3).coerceIn(1, 30),
                     visualConditionNote = obj.optString("visualConditionNote", "Detected in scan"),
                     storageTip = obj.optString("storageTip", "Store in sealed container in fridge."),
-                    estimatedValueDollars = obj.optDouble("estimatedValueDollars", 3.50).coerceIn(0.50, 25.0)
+                    estimatedValueDollars = obj.optSafeDouble("estimatedValueDollars", 3.50).coerceIn(0.50, 25.0)
                 )
             }
         } else {
@@ -447,7 +450,7 @@ class PantryAiService(
                     prepTimeMinutes = obj.optInt("prepTimeMinutes", 20),
                     servings = obj.optInt("servings", 2),
                     caloriesPerServing = obj.optInt("caloriesPerServing", 360).coerceIn(120, 1200),
-                    estimatedCostPerServing = obj.optDouble("estimatedCostPerServing", 2.10).coerceIn(0.50, 15.0),
+                    estimatedCostPerServing = obj.optSafeDouble("estimatedCostPerServing", 2.10).coerceIn(0.50, 15.0),
                     applianceUsed = obj.optString("applianceUsed", kitchenSetup.ownedAppliances.firstOrNull() ?: "Skillet"),
                     whyItRescues = obj.optString("whyItRescues", "Prioritizes expiring produce before spoilage."),
                     expiringIngredientsUsed = obj.optStringList("expiringIngredientsUsed"),
@@ -529,6 +532,7 @@ class PantryAiService(
         }
     }
 
+    @Volatile
     private var cachedVoiceParseResult: CachedEntry<List<DetectedIngredient>>? = null
 
     /**
@@ -607,7 +611,7 @@ class PantryAiService(
                     daysUntilExpiry = obj.optInt("daysUntilExpiry", 3).coerceIn(1, 30),
                     visualConditionNote = obj.optString("visualConditionNote", "Parsed from voice memo"),
                     storageTip = obj.optString("storageTip", "Store in sealed container in fridge."),
-                    estimatedValueDollars = obj.optDouble("estimatedValueDollars", 3.50).coerceIn(0.50, 25.0),
+                    estimatedValueDollars = obj.optSafeDouble("estimatedValueDollars", 3.50).coerceIn(0.50, 25.0),
                     isSelected = true
                 )
             }
@@ -786,6 +790,12 @@ class PantryAiService(
                 lower.contains("rate limit") ||
                 lower.contains("too many requests")
         }
+        private fun JSONObject.optSafeDouble(key: String, fallback: Double): Double {
+            if (isNull(key)) return fallback
+            val parsed = optDouble(key, fallback)
+            return if (parsed.isFinite()) parsed else fallback
+        }
+
         private fun JSONObject.optStringList(key: String): List<String> {
             val arr = optJSONArray(key) ?: return emptyList()
             return (0 until arr.length()).mapNotNull { i ->

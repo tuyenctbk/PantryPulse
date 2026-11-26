@@ -33,6 +33,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 private const val TAG = "BillingManager"
 
@@ -146,7 +147,10 @@ class BillingManager(
     private var hostActivityRef: WeakReference<Activity> = WeakReference(context.findActivity())
 
     // Cached ProductDetails from Google Play Store keyed by productId (SKU)
-    private val productDetailsMap = mutableMapOf<String, ProductDetails>()
+    private val productDetailsMap = ConcurrentHashMap<String, ProductDetails>()
+
+    // Queued callbacks waiting for an in-flight BillingClient connection to finish
+    private val pendingInitCallbacks = mutableListOf<(Boolean) -> Unit>()
 
     // Deduplication set of already-verified purchase tokens
     private val processedPurchaseTokens = mutableSetOf<String>()
@@ -272,6 +276,17 @@ class BillingManager(
         }
     }
 
+    private fun dispatchPendingInitCallbacks(connected: Boolean) {
+        val callbacks = synchronized(pendingInitCallbacks) {
+            val copy = pendingInitCallbacks.toList()
+            pendingInitCallbacks.clear()
+            copy
+        }
+        callbacks.forEach { cb ->
+            mainHandler.post { cb(connected) }
+        }
+    }
+
     /**
      * Initializes the [BillingClient] connection, validates readiness, queries product details,
      * and restores any existing unacknowledged purchases.
@@ -286,8 +301,18 @@ class BillingManager(
                     statusDiagnosticMessage = "Google Play BillingClient connected & ready."
                 )
             }
-            onInitialized?.invoke(true)
+            if (productDetailsMap.isEmpty()) {
+                queryProductDetails { _ -> onInitialized?.invoke(true) }
+            } else {
+                onInitialized?.invoke(true)
+            }
             return
+        }
+
+        if (onInitialized != null) {
+            synchronized(pendingInitCallbacks) {
+                pendingInitCallbacks.add(onInitialized)
+            }
         }
 
         if (billingClient.connectionState == BillingClient.ConnectionState.CONNECTING) {
@@ -320,9 +345,10 @@ class BillingManager(
                             "Google Play BillingClient connected (responseCode=OK)",
                             "Querying ProductDetails & active purchases."
                         )
-                        queryProductDetails()
                         queryExistingPurchases()
-                        onInitialized?.invoke(true)
+                        queryProductDetails { _ ->
+                            dispatchPendingInitCallbacks(true)
+                        }
                     } else {
                         Log.w(
                             TAG,
@@ -339,7 +365,7 @@ class BillingManager(
                             "Play Store service code=${billingResult.responseCode} (${billingResult.debugMessage})",
                             "Validated local Billing Sandbox so 1-Tap purchases always succeed on emulators."
                         )
-                        onInitialized?.invoke(false)
+                        dispatchPendingInitCallbacks(false)
                     }
                 }
 
@@ -351,6 +377,7 @@ class BillingManager(
                             statusDiagnosticMessage = "Billing service disconnected; will auto-reconnect on next purchase."
                         )
                     }
+                    dispatchPendingInitCallbacks(false)
                 }
             })
         } catch (e: Exception) {
@@ -361,7 +388,7 @@ class BillingManager(
                     statusDiagnosticMessage = "Play Billing Sandbox ready (${e.javaClass.simpleName})."
                 )
             }
-            onInitialized?.invoke(false)
+            dispatchPendingInitCallbacks(false)
         }
     }
 
@@ -522,6 +549,20 @@ class BillingManager(
             val details = productDetailsMap[tier.skuId]
             if (connected && currentActivity != null && details != null) {
                 launchNativePlayBillingSheet(currentActivity, tier, details, callback)
+            } else if (connected && currentActivity != null) {
+                queryProductDetails(listOf(tier.skuId)) { _ ->
+                    val refreshedDetails = productDetailsMap[tier.skuId]
+                    val activeAct = resolveValidActivitySession(uiContext) ?: currentActivity
+                    if (refreshedDetails != null && !activeAct.isFinishing && !activeAct.isDestroyed) {
+                        launchNativePlayBillingSheet(activeAct, tier, refreshedDetails, callback)
+                    } else {
+                        completeVerifiedSandboxTransaction(
+                            tier = tier,
+                            activityName = activeAct.javaClass.simpleName,
+                            callback = callback
+                        )
+                    }
+                }
             } else {
                 completeVerifiedSandboxTransaction(
                     tier = tier,
@@ -725,22 +766,27 @@ class BillingManager(
                     return
                 }
 
-                // Acknowledge if not yet acknowledged
-                if (!purchase.isAcknowledged && billingClient.isReady) {
-                    val ackParams = AcknowledgePurchaseParams.newBuilder()
-                        .setPurchaseToken(purchase.purchaseToken)
-                        .build()
-                    billingClient.acknowledgePurchase(ackParams) { ackResult ->
-                        Log.d(TAG, "Acknowledge result: ${ackResult.responseCode}")
-                    }
-                }
-
-                // Consume repeatable supporter tip so user can tip again in the future if desired
+                // Consume repeatable supporter tip / credit pack (in Play Billing, consumeAsync
+                // automatically acknowledges the purchase). Fall back to acknowledgePurchase only
+                // if consumeAsync fails and the purchase is not yet acknowledged.
                 if (billingClient.isReady) {
                     val consumeParams = ConsumeParams.newBuilder()
                         .setPurchaseToken(purchase.purchaseToken)
                         .build()
-                    billingClient.consumeAsync(consumeParams) { _, _ -> }
+                    billingClient.consumeAsync(consumeParams) { consumeResult, _ ->
+                        Log.d(TAG, "Consume result: ${consumeResult.responseCode}")
+                        if (consumeResult.responseCode != BillingResponseCode.OK &&
+                            !purchase.isAcknowledged &&
+                            billingClient.isReady
+                        ) {
+                            val ackParams = AcknowledgePurchaseParams.newBuilder()
+                                .setPurchaseToken(purchase.purchaseToken)
+                                .build()
+                            billingClient.acknowledgePurchase(ackParams) { ackResult ->
+                                Log.d(TAG, "Fallback acknowledge result: ${ackResult.responseCode}")
+                            }
+                        }
+                    }
                 }
 
                 val offerPrice = _billingUiState.value.productOffers[sku]?.formattedPrice ?: matchedTier.priceFormatted

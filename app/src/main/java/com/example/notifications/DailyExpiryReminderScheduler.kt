@@ -49,6 +49,17 @@ object DailyExpiryReminderScheduler {
         )
     }
 
+    /**
+     * Re-arms the daily inexact repeating alarm if reminders are enabled (for example after a device reboot
+     * or process update when the OS clears previous AlarmManager registrations).
+     */
+    fun rescheduleIfEnabled(context: Context) {
+        val settings = getSettings(context)
+        if (settings.enabled) {
+            setDailyReminderEnabled(context, enabled = true, hourOfDay = settings.reminderHour)
+        }
+    }
+
     fun setDailyReminderEnabled(context: Context, enabled: Boolean, hourOfDay: Int = 9): ExpiryReminderSettings {
         val appContext = context.applicationContext
         val clampedHour = hourOfDay.coerceIn(6, 21)
@@ -141,7 +152,7 @@ object DailyExpiryReminderScheduler {
         )
 
         val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))

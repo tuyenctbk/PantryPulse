@@ -213,4 +213,41 @@ class PantryOfflineDatabaseTest {
         assertEquals(0, defaultSetup.rescuedMealsCount)
         assertEquals(0.0, defaultSetup.savedDollarsTotal, 0.001)
     }
+
+    @Test
+    fun `addMissingStaplesToShoppingList deduplicates existing items case-insensitively`() = runTest {
+        val firstAdded = repository.addMissingStaplesToShoppingList(
+            staples = listOf("Garlic Cloves", "Lemon", "garlic cloves"),
+            buyingTip = "Check pantry first"
+        )
+        assertEquals(2, firstAdded)
+        assertEquals(2, dao.getRestockItemsSnapshot().size)
+
+        val secondAdded = repository.addMissingStaplesToShoppingList(
+            staples = listOf("GARLIC CLOVES", "Dry Pasta", "Lemon"),
+            buyingTip = "Check pantry first"
+        )
+        assertEquals(1, secondAdded)
+        assertEquals(3, dao.getRestockItemsSnapshot().size)
+    }
+
+    @Test
+    fun `addDetectedIngredients preserves packaged barcode shelf life up to 365 days`() = runTest {
+        repository.addDetectedIngredients(
+            listOf(
+                com.example.data.DetectedIngredient(
+                    name = "Organic Chickpeas Can",
+                    category = PantryCategory.PANTRY_STAPLE,
+                    quantity = "400 g",
+                    daysUntilExpiry = 180,
+                    visualConditionNote = "Shelf-stable barcode item",
+                    storageTip = "Store in cool dry pantry",
+                    estimatedValueDollars = 1.99
+                )
+            )
+        )
+        val stored = dao.getActiveItemsSnapshot().single()
+        assertEquals(180, stored.daysUntilExpiry)
+        assertEquals(180, stored.effectiveDaysUntilExpiry)
+    }
 }

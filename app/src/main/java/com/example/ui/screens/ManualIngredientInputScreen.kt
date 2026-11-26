@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.app.Activity
 import android.content.Intent
 import android.speech.RecognizerIntent
+import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -504,7 +505,7 @@ fun ManualIngredientInputScreen(
                             style = MaterialTheme.typography.labelLarge
                         )
                         Text(
-                            text = "$${String.format("%.2f", estimatedValue)}",
+                            text = "$${String.format(Locale.US, "%.2f", estimatedValue)}",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -521,7 +522,7 @@ fun ManualIngredientInputScreen(
                             FilterChip(
                                 selected = estimatedValue == price,
                                 onClick = { estimatedValue = price },
-                                label = { Text("$${String.format("%.2f", price)}", style = MaterialTheme.typography.labelSmall) }
+                                label = { Text("$${String.format(Locale.US, "%.2f", price)}", style = MaterialTheme.typography.labelSmall) }
                             )
                         }
                     }
@@ -708,7 +709,7 @@ private fun StagedManualBatchCard(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "${item.quantity} • $${String.format("%.2f", item.estimatedValueDollars)}",
+                                text = "${item.quantity} • $${String.format(Locale.US, "%.2f", item.estimatedValueDollars)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

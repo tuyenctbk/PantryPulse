@@ -65,7 +65,10 @@ class PantryPulseWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetIds: IntArray
         ) {
-            val items = PantryDatabase.getInstance(context).pantryDao().getActiveItemsSnapshot()
+            val items = PantryDatabase.getInstance(context)
+                .pantryDao()
+                .getActiveItemsSnapshot()
+                .sortedBy { it.effectiveDaysUntilExpiry }
             val expiringItems = items.filter { it.effectiveDaysUntilExpiry <= 3 }
             val topItems = (expiringItems.ifEmpty { items }).take(3)
 

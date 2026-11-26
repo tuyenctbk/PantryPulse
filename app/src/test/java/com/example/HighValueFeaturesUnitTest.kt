@@ -113,8 +113,41 @@ class HighValueFeaturesUnitTest {
         assertEquals(5, plan.daysCount)
         assertEquals(5, plan.days.size)
         assertTrue(plan.days.first().mealTitle.contains("Baby Spinach"))
-        assertTrue(plan.totalAtRiskDollarsRescued >= 9.50)
+        assertEquals(9.50, plan.totalAtRiskDollarsRescued, 0.001)
         assertTrue(plan.consolidatedMissingStaples.isNotEmpty())
+    }
+
+    @Test
+    fun weeklyMealPlannerDoesNotDoubleCountAtRiskDollarsOnSmallPantry() {
+        val twoExpiringItems = listOf(
+            PantryItemEntity(
+                id = 10L,
+                name = "Fresh Cilantro",
+                category = PantryCategory.PRODUCE.name,
+                quantity = "1 bunch",
+                daysUntilExpiry = 1,
+                visualConditionNote = "Delicate stems",
+                storageTip = "Store upright in water",
+                estimatedValueDollars = 2.50
+            ),
+            PantryItemEntity(
+                id = 11L,
+                name = "Greek Yogurt",
+                category = PantryCategory.DAIRY_CHEESE.name,
+                quantity = "1 tub",
+                daysUntilExpiry = 2,
+                visualConditionNote = "Opened",
+                storageTip = "Keep chilled",
+                estimatedValueDollars = 6.00
+            )
+        )
+        val plan = WeeklyMealPlanner.buildZeroWastePlan(
+            pantryItems = twoExpiringItems,
+            kitchenSetup = KitchenSetupState(),
+            daysCount = 5
+        )
+        // Must count each expiring item at most once ($2.50 + $6.00 = $8.50), never double/triple counted
+        assertEquals(8.50, plan.totalAtRiskDollarsRescued, 0.001)
     }
 
     @Test
@@ -136,6 +169,44 @@ class HighValueFeaturesUnitTest {
         assertEquals(30, today.purchasedCreditBalance)
         assertEquals(40, today.totalAllowance)
         assertEquals(40, today.remainingCredits)
+    }
+
+    @Test
+    fun purchasedCreditPacksDeductConsumedOverflowAcrossMidnightRollover() {
+        // 10 base + 3 grace = 13 free credits (39 units) + 30 purchased credits (90 units) = 43 total
+        // Consuming 15 standard credits (45 units) dips 6 units (2 credits) into purchased balance.
+        val yesterday = UsageQuotaSnapshot(
+            dateIso = "2026-11-24",
+            visionUsed = 15,
+            bonusGraceCredits = 3,
+            purchasedCreditBalance = 30,
+            graceClaimed = true,
+            creditUnitsUsed = 45
+        )
+        val today = yesterday.rolloverForDate("2026-11-25")
+        assertEquals(28, today.purchasedCreditBalance)
+        assertEquals(38, today.totalAllowance)
+        assertEquals(38, today.remainingCredits)
+        assertEquals(0, today.effectiveCreditUnitsUsed)
+
+        // Partial Eco Lite overflow (1 unit over 30 free units) deducts 1 purchased credit
+        val ecoOverflowDay = UsageQuotaSnapshot(
+            dateIso = "2026-11-25",
+            bonusGraceCredits = 0,
+            purchasedCreditBalance = 10,
+            creditUnitsUsed = 31
+        ).rolloverForDate("2026-11-26")
+        assertEquals(9, ecoOverflowDay.purchasedCreditBalance)
+
+        // Exhausting beyond purchased balance clamps cleanly to 0
+        val exhaustedDay = UsageQuotaSnapshot(
+            dateIso = "2026-11-26",
+            bonusGraceCredits = 0,
+            purchasedCreditBalance = 5,
+            creditUnitsUsed = 100
+        ).rolloverForDate("2026-11-27")
+        assertEquals(0, exhaustedDay.purchasedCreditBalance)
+        assertEquals(10, exhaustedDay.remainingCredits)
     }
 
     @Test

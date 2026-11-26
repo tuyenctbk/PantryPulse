@@ -392,15 +392,42 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         _snackbarMessage.value = str(R.string.byok_cleared_toast)
     }
 
-    fun purchaseCreditPack(uiContext: Context, credits: Int) {
-        val tier = if (credits >= 100) GooglePlayDonationTier.TIER_2 else GooglePlayDonationTier.TIER_1
-        engagementManager.completeGooglePlayDonation(uiContext, tier) { _ ->
-            viewModelScope.launch {
-                quotaManager.grantPurchasedCreditPack(credits)
-                clearQuotaRecoveryStates()
-                _snackbarMessage.value = str(R.string.credit_pack_granted_toast_fmt, credits)
+    private fun resolveEffectiveTier(
+        snap: UsageQuotaSnapshot,
+        forceTier: AiCapabilityTier?,
+        byokActive: Boolean
+    ): AiCapabilityTier {
+        if (forceTier != null) return forceTier
+        if (byokActive) {
+            return if (snap.ecoLiteMode) {
+                AiCapabilityTier.TIER_2_ECO_LITE
+            } else {
+                AiCapabilityTier.TIER_1_PRIMARY
             }
         }
+        return snap.activeCapabilityTier
+    }
+
+    fun purchaseCreditPack(uiContext: Context, credits: Int) {
+        val tier = if (credits >= 100) GooglePlayDonationTier.TIER_2 else GooglePlayDonationTier.TIER_1
+        var granted = false
+        engagementManager.completeGooglePlayDonation(
+            uiContext = uiContext,
+            tier = tier,
+            onVerified = { _ ->
+                granted = true
+                viewModelScope.launch {
+                    quotaManager.grantPurchasedCreditPack(credits)
+                    clearQuotaRecoveryStates()
+                    _snackbarMessage.value = str(R.string.credit_pack_granted_toast_fmt, credits)
+                }
+            },
+            onSuccessMessage = { msg ->
+                if (!granted) {
+                    _snackbarMessage.value = msg
+                }
+            }
+        )
     }
 
     /**
@@ -413,36 +440,40 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             _isLookingUpBarcode.value = true
             try {
-                val result = repository.fetchProductAndPopulateIngredient(
-                    rawBarcode = rawBarcode,
-                    persistToDatabase = autoSaveToPantry
-                )
-                val foundItem = result.detectedIngredient
-                val populatedEntity = result.ingredient
-                if (result.found && foundItem != null && populatedEntity != null) {
-                    _lastPopulatedIngredient.value = populatedEntity
-                    val toastMsg = if (result.source == BarcodeLookupSource.OFFLINE_CACHE) {
-                        str(R.string.tier0_barcode_cache_found_toast_fmt, foundItem.name)
-                    } else {
-                        str(R.string.tier0_barcode_found_toast_fmt, foundItem.name)
-                    }
-                    if (!autoSaveToPantry) {
-                        val existing = (_visionScanState.value as? VisionScanUiState.Success)?.detectedItems.orEmpty()
-                        _visionScanState.value = VisionScanUiState.Success(
-                            summaryNote = toastMsg,
-                            detectedItems = listOf(foundItem) + existing.filterNot {
-                                it.name.equals(foundItem.name, ignoreCase = true)
-                            },
-                            tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
-                        )
-                    }
-                    _snackbarMessage.value = toastMsg
-                } else {
-                    _snackbarMessage.value = result.errorMessage ?: str(R.string.tier0_barcode_lookup_failed)
-                }
+                performBarcodeLookupTier0(rawBarcode = rawBarcode, autoSaveToPantry = autoSaveToPantry)
             } finally {
                 _isLookingUpBarcode.value = false
             }
+        }
+    }
+
+    private suspend fun performBarcodeLookupTier0(rawBarcode: String, autoSaveToPantry: Boolean) {
+        val result = repository.fetchProductAndPopulateIngredient(
+            rawBarcode = rawBarcode,
+            persistToDatabase = autoSaveToPantry
+        )
+        val foundItem = result.detectedIngredient
+        val populatedEntity = result.ingredient
+        if (result.found && foundItem != null && populatedEntity != null) {
+            _lastPopulatedIngredient.value = populatedEntity
+            val toastMsg = if (result.source == BarcodeLookupSource.OFFLINE_CACHE) {
+                str(R.string.tier0_barcode_cache_found_toast_fmt, foundItem.name)
+            } else {
+                str(R.string.tier0_barcode_found_toast_fmt, foundItem.name)
+            }
+            if (!autoSaveToPantry) {
+                val existing = (_visionScanState.value as? VisionScanUiState.Success)?.detectedItems.orEmpty()
+                _visionScanState.value = VisionScanUiState.Success(
+                    summaryNote = toastMsg,
+                    detectedItems = listOf(foundItem) + existing.filterNot {
+                        it.name.equals(foundItem.name, ignoreCase = true)
+                    },
+                    tierUsed = AiCapabilityTier.TIER_3_LOCAL_FALLBACK
+                )
+            }
+            _snackbarMessage.value = toastMsg
+        } else {
+            _snackbarMessage.value = result.errorMessage ?: str(R.string.tier0_barcode_lookup_failed)
         }
     }
 
@@ -459,8 +490,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     .ifEmpty { barcodeScanningUtility.scanBitmapForBarcodes(bitmap) }
                 val firstCode = codes.firstOrNull()?.rawValue
                 if (firstCode != null) {
-                    _isLookingUpBarcode.value = false
-                    lookupBarcodeTier0(firstCode)
+                    performBarcodeLookupTier0(rawBarcode = firstCode, autoSaveToPantry = false)
                 } else {
                     _snackbarMessage.value = str(R.string.tier0_barcode_none_in_photo)
                 }
@@ -473,16 +503,15 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
     fun syncWeeklyPlanStaplesToShoppingList(staples: List<String>) {
         if (staples.isEmpty()) return
         viewModelScope.launch {
-            staples.forEach { staple ->
-                repository.addManualShoppingItem(
-                    name = staple,
-                    category = PantryCategory.PANTRY_STAPLE,
-                    suggestedQuantity = "1 pack",
-                    estimatedCostDollars = 2.99,
-                    buyingTip = str(R.string.shopping_default_tip)
-                )
+            val addedCount = repository.addMissingStaplesToShoppingList(
+                staples = staples,
+                buyingTip = str(R.string.shopping_default_tip)
+            )
+            _snackbarMessage.value = if (addedCount > 0) {
+                str(R.string.weekly_plan_synced_toast_fmt, addedCount)
+            } else {
+                str(R.string.vm_already_in_shopping_fmt, staples.joinToString(", "))
             }
-            _snackbarMessage.value = str(R.string.weekly_plan_synced_toast_fmt, staples.size)
         }
     }
 
@@ -607,7 +636,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 return@launch
             }
 
-            val preferredTier = forceTier ?: snap.activeCapabilityTier
+            val preferredTier = resolveEffectiveTier(snap, forceTier, byokActive)
             _visionScanState.value = VisionScanUiState.Analyzing
             try {
                 val result = withTimeout(60_000L) {
@@ -623,7 +652,8 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     if (!result.fromDedupCache && !result.usedByokKey) {
                         quotaManager.recordSuccessfulInteraction(
                             feature = AiFeatureType.VISION_SCAN,
-                            usedFallbackCascade = result.autoCascadedToLite
+                            usedFallbackCascade = result.autoCascadedToLite,
+                            usedEcoLite = result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE
                         )
                     } else if (result.fromDedupCache) {
                         _snackbarMessage.value = str(R.string.vm_vision_dedup_hit)
@@ -673,7 +703,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
         val state = _visionScanState.value
         if (state is VisionScanUiState.Success) {
             val updated = state.detectedItems.mapIndexed { i, item ->
-                if (i == index) item.copy(daysUntilExpiry = (item.daysUntilExpiry + delta).coerceIn(1, 45)) else item
+                if (i == index) item.copy(daysUntilExpiry = (item.daysUntilExpiry + delta).coerceIn(1, 365)) else item
             }
             _visionScanState.value = state.copy(detectedItems = updated)
         }
@@ -716,7 +746,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            val clampedDays = daysUntilExpiry.coerceIn(0, 90)
+            val clampedDays = daysUntilExpiry.coerceIn(0, 365)
             val now = System.currentTimeMillis()
             val resolvedUnit = quantity.ifBlank { str(R.string.qty_1_unit) }.trim()
             val resolvedNote = conditionNote.ifBlank { str(R.string.vm_default_condition_note) }.trim()
@@ -826,13 +856,14 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 runLocalVoiceParseFallback(cleaned, onItemsParsed)
                 return@launch
             }
-            if (snap.isExhausted && forceTier == null && !hasByokKey.value) {
+            val byokActive = hasByokKey.value
+            if (snap.isExhausted && forceTier == null && !byokActive) {
                 _voiceParseState.value = VoiceParseUiState.QuotaRecoveryNeeded
                 _snackbarMessage.value = str(R.string.vm_voice_quota_reached)
                 return@launch
             }
 
-            val preferredTier = forceTier ?: snap.activeCapabilityTier
+            val preferredTier = resolveEffectiveTier(snap, forceTier, byokActive)
             _voiceParseState.value = VoiceParseUiState.Parsing
             try {
                 val result = withTimeout(45_000L) {
@@ -846,7 +877,8 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     if (!result.fromDedupCache && !result.usedByokKey) {
                         quotaManager.recordSuccessfulInteraction(
                             feature = AiFeatureType.VOICE_MEMO_PARSE,
-                            usedFallbackCascade = result.autoCascadedToLite
+                            usedFallbackCascade = result.autoCascadedToLite,
+                            usedEcoLite = result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE
                         )
                     }
                     if (result.autoCascadedToLite) {
@@ -894,7 +926,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
     ) {
         if (newName.isBlank()) return
         viewModelScope.launch {
-            val clampedDays = newDays.coerceIn(0, 90)
+            val clampedDays = newDays.coerceIn(0, 365)
             val now = System.currentTimeMillis()
             repository.updateItemDetails(
                 item.copy(
@@ -1120,13 +1152,14 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 runLocalPreservationFallback()
                 return@launch
             }
-            if (snap.isExhausted && forceTier == null && !hasByokKey.value) {
+            val byokActive = hasByokKey.value
+            if (snap.isExhausted && forceTier == null && !byokActive) {
                 _preservationState.value = PreservationCoachUiState.QuotaRecoveryNeeded
                 _snackbarMessage.value = str(R.string.vm_preservation_quota_reached)
                 return@launch
             }
 
-            val preferredTier = forceTier ?: snap.activeCapabilityTier
+            val preferredTier = resolveEffectiveTier(snap, forceTier, byokActive)
             _preservationState.value = PreservationCoachUiState.Analyzing
             try {
                 val result = withTimeout(50_000L) {
@@ -1140,7 +1173,8 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     if (!result.fromDedupCache && !result.usedByokKey) {
                         quotaManager.recordSuccessfulInteraction(
                             feature = AiFeatureType.SHELF_LIFE_PRESERVATION,
-                            usedFallbackCascade = result.autoCascadedToLite
+                            usedFallbackCascade = result.autoCascadedToLite,
+                            usedEcoLite = result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE
                         )
                     }
                     if (result.autoCascadedToLite) {
@@ -1311,13 +1345,14 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 runLocalRecipeFallback(cravingOrNote)
                 return@launch
             }
-            if (snap.isExhausted && forceTier == null && !hasByokKey.value) {
+            val byokActive = hasByokKey.value
+            if (snap.isExhausted && forceTier == null && !byokActive) {
                 _recipeGenState.value = RecipeGenerationUiState.QuotaRecoveryNeeded
                 _snackbarMessage.value = str(R.string.vm_recipes_quota_reached)
                 return@launch
             }
 
-            val preferredTier = forceTier ?: snap.activeCapabilityTier
+            val preferredTier = resolveEffectiveTier(snap, forceTier, byokActive)
             _recipeGenState.value = RecipeGenerationUiState.Generating
             try {
                 val activeCats = _selectedRecipeCategories.value
@@ -1337,7 +1372,8 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     if (!result.fromDedupCache && !result.usedByokKey) {
                         quotaManager.recordSuccessfulInteraction(
                             feature = AiFeatureType.RECIPE_RANKING,
-                            usedFallbackCascade = result.autoCascadedToLite
+                            usedFallbackCascade = result.autoCascadedToLite,
+                            usedEcoLite = result.tierUsed == AiCapabilityTier.TIER_2_ECO_LITE
                         )
                     }
                     if (result.autoCascadedToLite) {
@@ -1478,7 +1514,7 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                 return@launch
             }
 
-            val preferredTier = forceTier ?: snap.activeCapabilityTier
+            val preferredTier = resolveEffectiveTier(snap, forceTier, byokActive)
             val historySnapshot = _chatMessages.value.map { it.isUser to it.text }
             val streamingId = java.util.UUID.randomUUID().toString()
             val placeholderAiMsg = ChatMessage(
@@ -1519,7 +1555,8 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
                     if (!byokActive) {
                         quotaManager.recordSuccessfulInteraction(
                             feature = AiFeatureType.SOUS_CHEF_CHAT,
-                            usedFallbackCascade = false
+                            usedFallbackCascade = false,
+                            usedEcoLite = preferredTier == AiCapabilityTier.TIER_2_ECO_LITE
                         )
                     }
                     _chatMessages.update { list ->
@@ -1535,14 +1572,24 @@ class PantryPulseViewModel(application: Application) : AndroidViewModel(applicat
             } catch (e: TimeoutCancellationException) {
                 Log.e(TAG, "Sous-Chef streaming timed out; falling back to local reflex", e)
                 _chatMessages.update { list ->
-                    list.filterNot { it.id == streamingId && it.text.isBlank() }
+                    list.mapNotNull { msg ->
+                        if (msg.id != streamingId) msg
+                        else if (msg.text.isBlank()) null
+                        else msg.copy(isStreaming = false)
+                    }
                 }
                 sendLocalReflexChatMessage(customPrompt = trimmed, appendUserBubble = false)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Sous-Chef streaming failed", e)
-                _chatMessages.update { list -> list.filterNot { it.id == streamingId && it.text.isBlank() } }
+                _chatMessages.update { list ->
+                    list.mapNotNull { msg ->
+                        if (msg.id != streamingId) msg
+                        else if (msg.text.isBlank()) null
+                        else msg.copy(isStreaming = false)
+                    }
+                }
                 if (PantryAiService.isQuotaOrRateLimitException(e)) {
                     _chatUiState.value = ChatUiState.QuotaRecoveryNeeded
                 } else {

@@ -37,7 +37,6 @@ import com.example.data.RecipeCategoryFilter
 import com.example.data.RecipeSuggestion
 import com.example.ui.theme.ExpiringAmber
 import com.example.ui.theme.FreshEmerald
-import kotlin.math.abs
 
 /**
  * Zero-cost on-device stylized culinary dish preview card rendered with Compose Canvas.
@@ -57,7 +56,7 @@ fun RecipeDishArtThumbnail(
     val surface = MaterialTheme.colorScheme.surface
     val onSurface = MaterialTheme.colorScheme.onSurface
 
-    val seed = abs(recipe.title.hashCode())
+    val seed = recipe.title.hashCode() and Int.MAX_VALUE
     val (bgStart, bgEnd, accentDishColor) = when (recipe.recipeCategory) {
         RecipeCategoryFilter.QUICK_EASY -> Triple(tertiaryContainer, secondaryContainer, secondary)
         RecipeCategoryFilter.HEALTHY_LOW_CAL -> Triple(primaryContainer, tertiaryContainer, primary)

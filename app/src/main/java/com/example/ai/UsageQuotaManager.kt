@@ -115,11 +115,18 @@ data class UsageQuotaSnapshot(
 
     /**
      * Returns a rolled-over snapshot if [targetDateIso] differs from [dateIso],
-     * resetting daily usage counters and one-time grace credits while preserving
-     * user preferences ([ecoLiteMode], [forceLocalOfflineMode], [queuedScansCount]).
+     * resetting daily usage counters and one-time grace credits while deducting any
+     * purchased credits that were consumed beyond yesterday's free + grace allowance,
+     * and preserving user preferences ([ecoLiteMode], [forceLocalOfflineMode], [queuedScansCount]).
      */
     fun rolloverForDate(targetDateIso: String): UsageQuotaSnapshot {
         if (dateIso == targetDateIso) return this
+        val remainingPurchased = computeRemainingPurchasedAfterRollover(
+            baseDailyAllowance = baseDailyAllowance,
+            bonusGraceCredits = bonusGraceCredits,
+            purchasedCreditBalance = purchasedCreditBalance,
+            creditUnitsUsed = effectiveCreditUnitsUsed
+        )
         return copy(
             dateIso = targetDateIso,
             visionUsed = 0,
@@ -127,6 +134,7 @@ data class UsageQuotaSnapshot(
             chatUsed = 0,
             audioUsed = 0,
             bonusGraceCredits = 0,
+            purchasedCreditBalance = remainingPurchased,
             graceClaimed = false,
             fallbackCascadeCount = 0,
             creditUnitsUsed = 0
@@ -139,6 +147,28 @@ data class UsageQuotaSnapshot(
         const val STANDARD_CALL_UNIT_COST = 3
         const val ECO_LITE_CALL_UNIT_COST = 1
         const val UNSPECIFIED_CREDIT_UNITS = -1
+
+        /**
+         * Computes the surviving non-expiring purchased credit balance after midnight rollover.
+         * Daily free + grace units are spent first; only usage exceeding that daily pool
+         * reduces [purchasedCreditBalance].
+         */
+        fun computeRemainingPurchasedAfterRollover(
+            baseDailyAllowance: Int,
+            bonusGraceCredits: Int,
+            purchasedCreditBalance: Int,
+            creditUnitsUsed: Int
+        ): Int {
+            if (purchasedCreditBalance <= 0) return 0
+            val freeUnits = (baseDailyAllowance + bonusGraceCredits).coerceAtLeast(0) * UNITS_PER_CREDIT
+            val overflowUnits = (creditUnitsUsed - freeUnits).coerceAtLeast(0)
+            val purchasedConsumed = if (overflowUnits <= 0) {
+                0
+            } else {
+                (overflowUnits + UNITS_PER_CREDIT - 1) / UNITS_PER_CREDIT
+            }
+            return (purchasedCreditBalance - purchasedConsumed).coerceAtLeast(0)
+        }
     }
 }
 
@@ -200,13 +230,24 @@ class UsageQuotaManager(private val appContext: Context) {
                 prefs[creditUnitsUsedKey] = 0
                 prefs[lastMirrorSyncedKey] = System.currentTimeMillis()
             } else if (existingDate != today) {
-                // Automatic Rollover Reset: reset usage counters & graceClaimed while preserving ecoLiteMode
+                // Automatic Rollover Reset: deduct purchased credits consumed beyond yesterday's
+                // free+grace allowance, reset daily usage counters & graceClaimed, preserve ecoLiteMode.
+                val previousUnits = resolveCurrentCreditUnits(prefs)
+                val previousBonus = prefs[bonusGraceKey] ?: 0
+                val previousPurchased = prefs[purchasedCreditsKey] ?: 0
+                val remainingPurchased = UsageQuotaSnapshot.computeRemainingPurchasedAfterRollover(
+                    baseDailyAllowance = UsageQuotaSnapshot.DEFAULT_BASE_DAILY_ALLOWANCE,
+                    bonusGraceCredits = previousBonus,
+                    purchasedCreditBalance = previousPurchased,
+                    creditUnitsUsed = previousUnits
+                )
                 prefs[dateIsoKey] = today
                 prefs[visionUsedKey] = 0
                 prefs[recipeUsedKey] = 0
                 prefs[chatUsedKey] = 0
                 prefs[audioUsedKey] = 0
                 prefs[bonusGraceKey] = 0
+                prefs[purchasedCreditsKey] = remainingPurchased
                 prefs[graceClaimedKey] = false
                 prefs[cascadeCountKey] = 0
                 prefs[creditUnitsUsedKey] = 0
@@ -362,6 +403,7 @@ class UsageQuotaManager(private val appContext: Context) {
      */
     suspend fun grantPurchasedCreditPack(credits: Int) {
         if (credits <= 0) return
+        ensureDailyRollover()
         val today = currentDateIso()
         val updated = appContext.quotaDataStore.edit { prefs ->
             prefs[purchasedCreditsKey] = (prefs[purchasedCreditsKey] ?: 0) + credits
@@ -372,6 +414,7 @@ class UsageQuotaManager(private val appContext: Context) {
     }
 
     suspend fun setEcoLiteMode(enabled: Boolean) {
+        ensureDailyRollover()
         val today = currentDateIso()
         val updated = appContext.quotaDataStore.edit { prefs ->
             prefs[ecoLiteModeKey] = enabled
@@ -390,6 +433,7 @@ class UsageQuotaManager(private val appContext: Context) {
     }
 
     suspend fun setForceLocalOfflineMode(enabled: Boolean) {
+        ensureDailyRollover()
         val today = currentDateIso()
         val updated = appContext.quotaDataStore.edit { prefs ->
             prefs[forceLocalKey] = enabled
@@ -467,35 +511,31 @@ class UsageQuotaManager(private val appContext: Context) {
 
     private fun snapshotFromPreferences(prefs: Preferences, today: String): UsageQuotaSnapshot {
         val storedDate = prefs[dateIsoKey] ?: today
-        val isNewDay = storedDate != today
-        val vision = if (isNewDay) 0 else (prefs[visionUsedKey] ?: 0)
-        val recipe = if (isNewDay) 0 else (prefs[recipeUsedKey] ?: 0)
-        val chat = if (isNewDay) 0 else (prefs[chatUsedKey] ?: 0)
-        val audio = if (isNewDay) 0 else (prefs[audioUsedKey] ?: 0)
-        val storedUnits = if (isNewDay) {
-            0
-        } else {
-            prefs[creditUnitsUsedKey]
-                ?: ((vision + recipe + chat + audio) * UsageQuotaSnapshot.UNITS_PER_CREDIT)
-        }
+        val storedVision = prefs[visionUsedKey] ?: 0
+        val storedRecipe = prefs[recipeUsedKey] ?: 0
+        val storedChat = prefs[chatUsedKey] ?: 0
+        val storedAudio = prefs[audioUsedKey] ?: 0
+        val storedUnits = prefs[creditUnitsUsedKey]
+            ?: ((storedVision + storedRecipe + storedChat + storedAudio) * UsageQuotaSnapshot.UNITS_PER_CREDIT)
 
-        return UsageQuotaSnapshot(
-            dateIso = today,
-            visionUsed = vision,
-            recipeUsed = recipe,
-            chatUsed = chat,
-            audioUsed = audio,
+        val base = UsageQuotaSnapshot(
+            dateIso = storedDate,
+            visionUsed = storedVision,
+            recipeUsed = storedRecipe,
+            chatUsed = storedChat,
+            audioUsed = storedAudio,
             baseDailyAllowance = UsageQuotaSnapshot.DEFAULT_BASE_DAILY_ALLOWANCE,
-            bonusGraceCredits = if (isNewDay) 0 else (prefs[bonusGraceKey] ?: 0),
+            bonusGraceCredits = prefs[bonusGraceKey] ?: 0,
             purchasedCreditBalance = prefs[purchasedCreditsKey] ?: 0,
-            graceClaimed = if (isNewDay) false else (prefs[graceClaimedKey] ?: false),
+            graceClaimed = prefs[graceClaimedKey] ?: false,
             ecoLiteMode = prefs[ecoLiteModeKey] ?: false,
             forceLocalOfflineMode = prefs[forceLocalKey] ?: false,
-            fallbackCascadeCount = if (isNewDay) 0 else (prefs[cascadeCountKey] ?: 0),
+            fallbackCascadeCount = prefs[cascadeCountKey] ?: 0,
             queuedScansCount = prefs[queuedScansKey] ?: 0,
             creditUnitsUsed = storedUnits,
             lastMirrorSyncedEpochMs = prefs[lastMirrorSyncedKey] ?: 0L
         )
+        return base.rolloverForDate(today)
     }
 
     private fun readColdStartMirror(): UsageQuotaSnapshot {

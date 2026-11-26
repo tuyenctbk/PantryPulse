@@ -394,11 +394,13 @@ class AppEngagementAndDonationManager(context: Context) {
     /**
      * Executes a Google Play In-App Purchase Donation Tier via [BillingManager].
      * Validates the active [Activity] session, verifies purchase token & state, acknowledges the receipt,
-     * and invokes [onSuccessMessage] on the UI thread once the transaction completes.
+     * invokes [onVerified] ONLY on verified purchase completion, and invokes [onSuccessMessage] with
+     * user-facing status messages for all outcomes (verified, pending, cancelled, or error).
      */
     fun completeGooglePlayDonation(
         uiContext: Context,
         tier: GooglePlayDonationTier,
+        onVerified: ((VerifiedPurchaseReceipt) -> Unit)? = null,
         onSuccessMessage: (String) -> Unit
     ) {
         val resolvedActivity = billingManager.resolveValidActivitySession(uiContext)
@@ -433,6 +435,7 @@ class AppEngagementAndDonationManager(context: Context) {
                     try {
                         Toast.makeText(appContext, msg, Toast.LENGTH_SHORT).show()
                     } catch (_: Exception) {}
+                    onVerified?.invoke(receipt)
                     onSuccessMessage(msg)
                 }
 

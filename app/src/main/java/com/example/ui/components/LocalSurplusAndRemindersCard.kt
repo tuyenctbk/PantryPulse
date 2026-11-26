@@ -57,6 +57,7 @@ import kotlinx.coroutines.launch
 /**
  * Local Morning Expiry Alerts card (0 cloud cost, Play-Policy compliant runtime POST_NOTIFICATIONS).
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DailyExpiryAlertsCard(
     expiringCount: Int,
@@ -167,10 +168,10 @@ fun DailyExpiryAlertsCard(
                 )
             }
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 listOf(8, 9, 18).forEach { hr ->
                     FilterChip(
@@ -185,7 +186,6 @@ fun DailyExpiryAlertsCard(
                         modifier = Modifier.testTag("expiry_alert_hour_$hr")
                     )
                 }
-                Spacer(modifier = Modifier.weight(1f))
                 OutlinedButton(
                     onClick = {
                         runWithNotificationPermission {

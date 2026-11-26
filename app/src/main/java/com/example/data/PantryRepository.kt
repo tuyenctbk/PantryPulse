@@ -10,6 +10,7 @@ import com.example.R
 import com.example.ai.BarcodeLookupSource
 import com.example.ai.OfflineBarcodeCache
 import com.example.data.remote.OpenFoodFactsRemoteDataSource
+import com.example.notifications.DailyExpiryReminderScheduler
 import com.example.widget.PantryPulseWidgetProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -173,6 +174,7 @@ class PantryRepository(
     suspend fun syncOnStartup() {
         refreshDynamicExpiryCountdowns()
         syncLowStockToShoppingList()
+        DailyExpiryReminderScheduler.rescheduleIfEnabled(appContext)
         PantryPulseWidgetProvider.updateAllWidgets(appContext)
     }
 
@@ -391,7 +393,7 @@ class PantryRepository(
         val currentSetup = kitchenSetupFlow.first()
         val now = System.currentTimeMillis()
         val entities = detected.map { d ->
-            val clampedDays = d.daysUntilExpiry.coerceIn(0, 90)
+            val clampedDays = d.daysUntilExpiry.coerceIn(0, 365)
             PantryItemEntity(
                 name = d.name.trim(),
                 category = d.category.name,
@@ -418,7 +420,7 @@ class PantryRepository(
 
     suspend fun adjustExpiryDays(item: PantryItemEntity, delta: Int) {
         val now = System.currentTimeMillis()
-        val newDays = (item.effectiveDaysUntilExpiry + delta).coerceIn(0, 90)
+        val newDays = (item.effectiveDaysUntilExpiry + delta).coerceIn(0, 365)
         val updated = item.copy(
             daysUntilExpiry = newDays,
             expiryDateEpochMillis = computeExpiryEpochMillis(newDays, now),
@@ -507,7 +509,7 @@ class PantryRepository(
 
     suspend fun updateItemDetails(item: PantryItemEntity): List<String> {
         val now = System.currentTimeMillis()
-        val clampedDays = item.daysUntilExpiry.coerceIn(0, 90)
+        val clampedDays = item.daysUntilExpiry.coerceIn(0, 365)
         val synced = item.copy(
             daysUntilExpiry = clampedDays,
             expiryDateEpochMillis = computeExpiryEpochMillis(clampedDays, now),
@@ -597,6 +599,39 @@ class PantryRepository(
                 isChecked = false
             )
         )
+    }
+
+    /**
+     * Adds missing weekly meal-plan staples to the Smart Shopping List while skipping
+     * items already present (case-insensitive) to prevent duplicate rows on repeated syncs.
+     *
+     * @return Count of newly inserted staple items.
+     */
+    suspend fun addMissingStaplesToShoppingList(
+        staples: List<String>,
+        buyingTip: String
+    ): Int {
+        if (staples.isEmpty()) return 0
+        val existingNames = dao.getRestockItemsSnapshot()
+            .map { it.name.trim().lowercase() }
+            .toMutableSet()
+        var addedCount = 0
+        for (rawStaple in staples) {
+            val cleaned = rawStaple.trim()
+            if (cleaned.isEmpty()) continue
+            val key = cleaned.lowercase()
+            if (existingNames.add(key)) {
+                addManualShoppingItem(
+                    name = cleaned,
+                    category = PantryCategory.PANTRY_STAPLE,
+                    suggestedQuantity = "1 pack",
+                    estimatedCostDollars = 2.99,
+                    buyingTip = buyingTip
+                )
+                addedCount++
+            }
+        }
+        return addedCount
     }
 
     suspend fun movePantryItemToShoppingList(pantryItem: PantryItemEntity): Boolean {

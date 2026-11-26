@@ -2,8 +2,11 @@ package com.example.ui.screens
 
 import android.app.Activity
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1248,6 +1251,7 @@ private fun InteractiveCookingScreen(
     var lastVoiceFeedback by rememberSaveable(recipe.id) { mutableStateOf<String?>(null) }
 
     DisposableEffect(context) {
+        val mainHandler = Handler(Looper.getMainLooper())
         var instance: TextToSpeech? = null
         instance = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
@@ -1255,12 +1259,32 @@ private fun InteractiveCookingScreen(
                 if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
                     instance?.language = Locale.US
                 }
+                instance?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        mainHandler.post { isSpeaking = true }
+                    }
+
+                    override fun onDone(utteranceId: String?) {
+                        mainHandler.post { isSpeaking = false }
+                    }
+
+                    @Deprecated("Deprecated in Java")
+                    override fun onError(utteranceId: String?) {
+                        mainHandler.post { isSpeaking = false }
+                    }
+
+                    override fun onError(utteranceId: String?, errorCode: Int) {
+                        mainHandler.post { isSpeaking = false }
+                    }
+                })
             }
         }
         ttsEngine = instance
         onDispose {
+            instance?.setOnUtteranceProgressListener(null)
             instance?.stop()
             instance?.shutdown()
+            isSpeaking = false
         }
     }
 
@@ -1360,6 +1384,7 @@ private fun InteractiveCookingScreen(
                             null,
                             "voice_timer"
                         )
+                        isSpeaking = true
                     }
                     CookingVoiceCommand.StartTimer -> {
                         if (timerSecondsRemaining == 0) timerSecondsRemaining = 180
