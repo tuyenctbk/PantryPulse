@@ -3,7 +3,6 @@ package com.example.ui.screens
 import android.app.Activity
 import android.content.Intent
 import android.speech.RecognizerIntent
-import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
